@@ -1,333 +1,481 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo AIPA - Validación de Embalaje</title>
-    <!-- Incluye Tailwind CSS para estilizado rápido -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Incluye Lucide Icons para iconos limpios -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        /* Configuración de color y fuente global de Tailwind */
-        :root {
-            font-family: 'Inter', sans-serif;
-        }
-        .container-bg {
-            background-color: #f7f7f7;
-            background-image: radial-gradient(#d1d5db 1px, transparent 1px), radial-gradient(#d1d5db 1px, transparent 1px);
-            background-size: 40px 40px;
-            background-position: 0 0, 20px 20px;
-        }
-        /* Estilos para el efecto de sombra en la tarjeta de informe */
-        .report-card-shadow {
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        }
-        /* Ocultar el input de archivo por defecto */
-        #imageInput {
-            display: none;
-        }
-    </style>
-</head>
-<body class="bg-gray-50">
-    <div class="container-bg min-h-screen flex flex-col items-center p-4 sm:p-8">
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp } from 'firebase/firestore';
+import { Info, AlertTriangle, CheckCircle, Package, Truck, FileText, Loader } from 'lucide-react';
 
-        <!-- Header -->
-        <header class="w-full max-w-4xl text-center mb-8">
-            <h1 class="text-4xl font-extrabold text-blue-800 tracking-tight">SmartCargo AIPA</h1>
-            <p class="mt-2 text-xl text-gray-600">Asistente de Pre-Inspección Aérea (Packaging Advisory)</p>
-        </header>
+// --- Constantes Globales de Firebase (PROPORCIONADAS POR EL ENTORNO) ---
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-smartcargo-app-id';
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        <!-- Main Content Area -->
-        <main class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-8">
+// Tasa de cálculo de peso volumétrico (ejemplo IATA)
+const VOLUMETRIC_FACTOR = 6000; // cm³ por kg
+
+const initialCargoState = {
+    largo: 0,
+    ancho: 0,
+    alto: 0,
+    pesoReal: 0,
+    cantidadCajas: 1,
+    tipoMercancia: 'general', // general, perecedero, DG_clase3 (inflamable), bateria_litio
+    embalaje: 'caja_carton', // caja_carton, contenedor_termico, pallet
+};
+
+// --- Componente principal de la aplicación ---
+const App = () => {
+    const [cargoData, setCargoData] = useState(initialCargoState);
+    const [validationResults, setValidationResults] = useState([]);
+    const [reports, setReports] = useState([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [authReady, setAuthReady] = useState(false);
+    const [db, setDb] = useState(null);
+    const [auth, setAuth] = useState(null);
+    const [userId, setUserId] = useState(null);
+
+    // 1. Inicialización y Autenticación de Firebase (Flujo estabilizado)
+    useEffect(() => {
+        if (!firebaseConfig) {
+            console.error("Firebase config no está disponible.");
+            return;
+        }
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            const authInstance = getAuth(app);
+            const dbInstance = getFirestore(app);
+            setDb(dbInstance);
+            setAuth(authInstance);
+
+            const initialAuth = async () => {
+                try {
+                    // Intenta iniciar sesión con token personalizado o anónimamente
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(authInstance, initialAuthToken);
+                    } else {
+                        await signInAnonymously(authInstance);
+                    }
+                } catch (error) {
+                    console.error("Error en el intento de inicio de sesión inicial:", error);
+                }
+            };
             
-            <!-- Columna 1: Formulario de Entrada -->
-            <section class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl h-fit sticky top-8">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                    <i data-lucide="package-check" class="w-6 h-6 mr-3 text-green-600"></i>
-                    Validación Rápida
-                </h2>
-                <form id="validationForm" class="space-y-6">
+            // Ejecutar el intento de inicio de sesión
+            initialAuth();
+            
+            // Establecer el listener para capturar el estado final de autenticación
+            const unsubscribe = onAuthStateChanged(authInstance, (user) => {
+                if (user) {
+                    setUserId(user.uid);
+                    console.log("Autenticación exitosa. User ID:", user.uid);
+                } else {
+                    // Fallback para userId si por alguna razón la autenticación falló, pero necesitamos un ID temporal
+                    setUserId(crypto.randomUUID());
+                    console.log("Autenticación fallida o cerrada. Usando ID temporal.");
+                }
+                // Marcar como listo solo después de que el estado ha sido determinado
+                setAuthReady(true);
+            });
 
-                    <!-- Campo: Mercancía Declarada -->
-                    <div>
-                        <label for="commodity" class="block text-sm font-medium text-gray-700">Mercancía Declarada</label>
-                        <input type="text" id="commodity" required placeholder="Ej: Componentes electrónicos, Ropa, Suministros médicos"
-                               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150">
-                    </div>
+            return () => unsubscribe();
+        } catch (error) {
+            console.error("Error al inicializar Firebase:", error);
+        }
+    }, []);
 
-                    <!-- Campo: Consejos de Embalaje (Opcional, para contexto) -->
-                    <div>
-                        <label for="originalAdvice" class="block text-sm font-medium text-gray-700">Reglas de Embalaje Aplicables (Contexto)</label>
-                        <textarea id="originalAdvice" rows="2" placeholder="Ej: Debe ser una caja de doble pared con 3 capas de relleno."
-                                  class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150"></textarea>
-                    </div>
+    // 2. Carga de Informes (con onSnapshot)
+    useEffect(() => {
+        if (!db || !authReady || !userId) return; // Asegura que la autenticación haya terminado
 
-                    <!-- Campo: Subida de Imagen -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Imagen de la Caja para Inspección</label>
-                        <input type="file" id="imageInput" accept="image/*" required>
-                        <label for="imageInput" id="fileUploadLabel"
-                               class="cursor-pointer flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-blue-400 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition duration-200">
-                            <i data-lucide="image-plus" class="w-5 h-5 mr-2"></i>
-                            <span>Seleccionar Imagen (Max 5MB)</span>
-                        </label>
-                        <p id="fileName" class="mt-2 text-sm text-gray-500 truncate hidden"></p>
-                    </div>
+        const reportsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'reports');
+        const q = query(reportsCollectionRef); // No usamos orderBy para evitar problemas de índices
 
-                    <!-- Botón de Envío -->
-                    <button type="submit" id="submitButton"
-                            class="w-full flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition duration-150 shadow-md disabled:opacity-50"
-                            disabled>
-                        <i data-lucide="scan" class="w-5 h-5 mr-2"></i>
-                        Validar Embalaje
-                    </button>
-                    
-                </form>
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const loadedReports = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            // Ordenar en memoria (último primero)
+            loadedReports.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+            setReports(loadedReports);
+        }, (error) => {
+            console.error("Error al obtener informes de Firestore. Esto a menudo es un problema de permisos o de sincronización de autenticación:", error.message);
+        });
 
-                <!-- Área de Mensajes (Éxito o Error) -->
-                <div id="messageArea" class="mt-4 hidden p-3 rounded-lg text-sm" role="alert"></div>
-            </section>
+        return () => unsubscribe();
+    }, [db, authReady, userId]);
 
-            <!-- Columna 2: Resultado y Reporte -->
-            <section id="reportContainer" class="min-h-[400px] flex items-center justify-center p-8 bg-gray-100 rounded-2xl shadow-inner">
-                <div class="text-center text-gray-500 space-y-3">
-                    <i data-lucide="box" class="w-12 h-12 mx-auto text-gray-400"></i>
-                    <p class="font-semibold">El informe de validación aparecerá aquí.</p>
-                    <p class="text-sm">Por favor, rellene el formulario de la izquierda y suba una imagen para comenzar.</p>
-                </div>
-            </section>
+    // Cálculo Central (6a)
+    const { volumenTotalCm3, pesoVolumetrico, pesoCobrar, necesitaRefrigeracion } = useMemo(() => {
+        const { largo, ancho, alto, pesoReal, cantidadCajas, tipoMercancia } = cargoData;
+        const volumenUnaCaja = largo * ancho * alto; // cm³
+        const volumenTotal = volumenUnaCaja * cantidadCajas; // cm³
+        const pesoVol = volumenTotal / VOLUMETRIC_FACTOR; // kg
+        const pesoAereo = Math.max(pesoReal, pesoVol);
+        const necesitaTemp = ['perecedero', 'vacuna', 'pescado'].includes(tipoMercancia);
 
-        </main>
+        return {
+            volumenTotalCm3: volumenTotal,
+            pesoVolumetrico: pesoVol,
+            pesoCobrar: pesoAereo,
+            necesitaRefrigeracion: necesitaTemp,
+        };
+    }, [cargoData]);
 
-        <!-- Footer -->
-        <footer class="mt-12 w-full max-w-4xl text-center text-sm text-gray-500 pt-4 border-t border-gray-200">
-            &copy; 2024 SmartCargo AIPA. Impulsado por May Roga LLC.
-        </footer>
-    </div>
+    const handleInputChange = (e) => {
+        const { name, value, type } = e.target;
+        let finalValue = type === 'number' ? parseFloat(value) : value;
+        // Asegurar que los números sean no negativos
+        if (type === 'number' && finalValue < 0) finalValue = 0;
 
-    <!-- JavaScript para Manejo de Formulario y API -->
-    <script>
-        const API_BASE_URL = 'http://localhost:3000/api/v1'; // Ajustar si el Backend no está en 3000
-        const form = document.getElementById('validationForm');
-        const submitButton = document.getElementById('submitButton');
-        const imageInput = document.getElementById('imageInput');
-        const fileNameDisplay = document.getElementById('fileName');
-        const fileUploadLabel = document.getElementById('fileUploadLabel');
-        const reportContainer = document.getElementById('reportContainer');
-        const messageArea = document.getElementById('messageArea');
+        setCargoData(prev => ({
+            ...prev,
+            [name]: finalValue
+        }));
+    };
 
-        // Inicializar iconos de Lucide
-        window.onload = () => {
-            lucide.createIcons();
-            checkFormValidity();
+    // 3. Lógica de Validación (6b, 6c, 6d, 6e, 6f) - Tono: Suave y Educativo
+    const runValidation = useCallback(() => {
+        const results = [];
+        const { pesoReal, pesoVolumetrico, tipoMercancia, embalaje } = cargoData;
+
+        // --- 6a: Medición y Optimización ---
+        if (pesoReal < 1 || pesoVolumetrico < 1) {
+             results.push({ type: 'Info', text: 'Complete las dimensiones y el peso para iniciar las validaciones.' });
+             return results;
+        }
+
+        if (pesoVolumetrico > pesoReal * 1.1) { // 10% más volumétrico que real
+            const diff = (pesoVolumetrico - pesoReal).toFixed(1);
+            results.push({
+                type: 'Suggestion',
+                category: 'Optimización',
+                text: `¡Excelente oportunidad de ahorro! El **peso volumétrico (${pesoVolumetrico.toFixed(1)} kg)** es mayor que el real (${pesoReal.toFixed(1)} kg). May Roga LLC sugiere ${diff} kg de ahorro ajustando el embalaje o consolidando la carga.`,
+                icon: Info
+            });
+        } else {
+            results.push({
+                type: 'Info',
+                category: 'Medición',
+                text: `El peso aéreo a cobrar es el peso real: **${pesoCobrar.toFixed(1)} kg**. El volumen es eficiente.`,
+                icon: CheckCircle
+            });
+        }
+
+        // --- 6b: Asistente de Embalaje ---
+        if (embalaje === 'caja_carton' && pesoReal > 50) {
+            results.push({
+                type: 'Suggestion',
+                category: 'Embalaje',
+                text: 'Recomendación de Embalaje: Para cargas pesadas (>50 kg), May Roga LLC sugiere reforzar la caja de cartón doble o triple corrugado, o considerar una opción de Pallet apto (ISPM-15 si es madera).',
+                icon: Package
+            });
+        }
+
+        // --- 6c & 6d: Etiquetado y Validación Fotográfica (Simulado) ---
+        // Simulación de detección de "Foto" (caja rota, cinta negra, etc.)
+        const fotoCheck = Math.random();
+        if (fotoCheck < 0.25) { // Simulación de riesgo
+            results.push({
+                type: 'Suggestion',
+                category: 'Presentación',
+                text: 'Recomendación: Para evitar problemas en el counter, sugerimos verificar que no haya cinta negra tapando etiquetas y que las cajas estén secas y sin daños visibles. Una presentación adecuada reduce el riesgo de rechazo.',
+                icon: AlertTriangle
+            });
+        } else {
+            results.push({
+                type: 'Info',
+                category: 'Presentación',
+                text: 'Presentación de Carga: Su embalaje parece adecuado. ¡Buen trabajo!',
+                icon: CheckCircle
+            });
+        }
+
+        // --- 6e: Validación DG/HAZMAT (Obligatorio) ---
+        if (tipoMercancia.startsWith('DG') || tipoMercancia === 'bateria_litio') {
+            const clase = tipoMercancia === 'DG_clase3' ? 'Clase 3 (Líquido Inflamable)' : 'Baterías de Litio';
+            results.push({
+                type: 'Warning',
+                category: 'IATA OBLIGATORIO',
+                text: `ADVERTENCIA IATA: Esta mercancía (${clase}) es carga peligrosa (DG). Exige **etiqueta DG/HAZMAT** y **documentación especial** (Shipper's Declaration). Sin esto, **NO puede volar**.`,
+                icon: AlertTriangle
+            });
+        }
+
+        // --- 6f: Validación de Temperatura (Opcional/Sugerencia) ---
+        if (necesitaRefrigeracion) {
+            results.push({
+                type: 'Suggestion',
+                category: 'Temperatura',
+                text: 'Para este tipo de mercancía (ej: 2–8°C), May Roga LLC recomienda el uso de **gel packs, contenedores pasivos o camión refrigerado**. No es obligatorio, pero reducirá significativamente el riesgo de daño.',
+                icon: Truck
+            });
+        }
+
+        // --- 4: Etiquetas IATA generales obligatorias
+        results.push({
+            type: 'Info',
+            category: 'Etiquetado',
+            text: 'Etiquetas Obligatorias: Asegúrese de incluir etiquetas IATA de orientación ("THIS SIDE UP") y la etiqueta de Mercancía Perecedera (si aplica).',
+            icon: FileText
+        });
+
+
+        return results;
+    }, [cargoData, pesoCobrar, necesitaRefrigeracion]);
+
+    // Maneja la acción de "Generar Informe"
+    const generateReport = async () => {
+        if (!db || !authReady || isSubmitting) {
+            console.error("Base de datos no lista o envío en curso.");
+            return;
+        }
+
+        setIsSubmitting(true);
+        const finalResults = runValidation(); // Obtener resultados finales
+        setValidationResults(finalResults);
+
+        const reportData = {
+            userId: userId,
+            timestamp: serverTimestamp(),
+            cargo: cargoData,
+            medicion: {
+                pesoReal: cargoData.pesoReal,
+                pesoCobrar: pesoCobrar,
+                pesoVolumetrico: pesoVolumetrico
+            },
+            resumenRecomendaciones: finalResults.map(r => r.text).join('\n---\n'),
+            status: finalResults.some(r => r.type === 'Warning') ? 'Riesgo DG' : 'Presentación Óptima'
         };
 
-        // --- Lógica de UI ---
+        try {
+            // Guardar en la colección pública de informes
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'reports'), reportData);
+            console.log("Informe guardado con éxito.");
+        } catch (error) {
+            console.error("Error al guardar el informe en Firestore:", error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
-        // 1. Mostrar nombre del archivo y habilitar/deshabilitar botón
-        imageInput.addEventListener('change', () => {
-            if (imageInput.files.length > 0) {
-                const file = imageInput.files[0];
-                fileNameDisplay.textContent = `Archivo seleccionado: ${file.name}`;
-                fileNameDisplay.classList.remove('hidden');
-                fileUploadLabel.classList.remove('text-blue-700', 'border-blue-400', 'bg-blue-50');
-                fileUploadLabel.classList.add('text-green-700', 'border-green-400', 'bg-green-50');
-            } else {
-                fileNameDisplay.classList.add('hidden');
-                fileUploadLabel.classList.add('text-blue-700', 'border-blue-400', 'bg-blue-50');
-                fileUploadLabel.classList.remove('text-green-700', 'border-green-400', 'bg-green-50');
-            }
-            checkFormValidity();
-        });
+    // Componente para mostrar resultados (Claro, Suave, Amigable)
+    const RecommendationCard = ({ type, text, icon: Icon, category }) => {
+        let colorClass = '';
+        let title = '';
 
-        // 2. Comprobar si los campos requeridos están llenos
-        form.addEventListener('input', checkFormValidity);
-        function checkFormValidity() {
-            const commodity = document.getElementById('commodity').value;
-            const hasFile = imageInput.files.length > 0;
-            submitButton.disabled = !(commodity && hasFile);
+        switch (type) {
+            case 'Warning':
+                colorClass = 'bg-red-100 text-red-800 border-red-400';
+                title = 'ADVERTENCIA OBLIGATORIA (IATA)';
+                break;
+            case 'Suggestion':
+                colorClass = 'bg-yellow-100 text-yellow-800 border-yellow-400';
+                title = 'RECOMENDACIÓN (May Roga LLC)';
+                break;
+            case 'Info':
+            default:
+                colorClass = 'bg-blue-100 text-blue-800 border-blue-400';
+                title = 'INFORMACIÓN ÚTIL';
         }
 
-        // --- Lógica de Manejo de Errores y Mensajes ---
-
-        function showMessage(type, content) {
-            messageArea.textContent = content;
-            messageArea.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800');
-
-            if (type === 'error') {
-                messageArea.classList.add('bg-red-100', 'text-red-800');
-            } else if (type === 'success') {
-                messageArea.classList.add('bg-green-100', 'text-green-800');
-            }
-        }
-
-        function clearMessage() {
-            messageArea.classList.add('hidden');
-        }
-
-        // --- Lógica de Solicitud a la API (Asume que el Backend está corriendo en :3000) ---
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            clearMessage();
-            
-            const file = imageInput.files[0];
-            const commodity = document.getElementById('commodity').value;
-            const originalAdvice = document.getElementById('originalAdvice').value;
-
-            // Mostrar estado de carga
-            reportContainer.innerHTML = `
-                <div class="text-center text-blue-500 p-8">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p class="mt-4 text-lg font-semibold">Analizando la imagen con la tecnología May Roga LLC...</p>
-                    <p class="text-sm">Esto puede tardar unos segundos.</p>
-                </div>
-            `;
-            submitButton.disabled = true;
-
-            // 1. Crear el objeto FormData
-            const formData = new FormData();
-            formData.append('image', file);
-            formData.append('commodity', commodity);
-            formData.append('originalAdvice', originalAdvice);
-
-            try {
-                // 2. Llamada al nuevo endpoint del Backend
-                const response = await fetch(`${API_BASE_URL}/ai/validate-packaging`, {
-                    method: 'POST',
-                    body: formData, // fetch con FormData no necesita 'Content-Type' header
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    // Manejo de errores de HTTP (incluye errores de Multer)
-                    const errorMsg = data.error || "Error desconocido al procesar la solicitud.";
-                    throw new Error(errorMsg);
-                }
-
-                // 3. Proceso exitoso: Mostrar el informe
-                const result = data.validationResult;
-                displayReport(result);
-                showMessage('success', 'Validación completada. Revise el informe.');
-
-            } catch (error) {
-                console.error("Error completo de la API:", error);
-                const displayError = error.message.includes("Failed to fetch") 
-                                     ? "Error de conexión: Asegúrese de que el Backend (puerto 3000) esté corriendo." 
-                                     : error.message;
-                
-                showMessage('error', displayError);
-                // Volver a mostrar el mensaje inicial en caso de error
-                reportContainer.innerHTML = `
-                    <div class="text-center text-gray-500 space-y-3">
-                        <i data-lucide="box" class="w-12 h-12 mx-auto text-gray-400"></i>
-                        <p class="font-semibold">El informe de validación aparecerá aquí.</p>
-                        <p class="text-sm">Por favor, rellene el formulario de la izquierda y suba una imagen para comenzar.</p>
-                    </div>
-                `;
-            } finally {
-                // Habilitar botón y chequear validez
-                submitButton.disabled = false;
-                checkFormValidity();
-            }
-        });
-
-
-        // --- Renderizado del Informe Final ---
-
-        /**
-         * Renderiza la tarjeta de informe basada en el JSON de la IA.
-         * @param {object} result - Objeto JSON estructurado de la IA.
-         */
-        function displayReport(result) {
-            const isApproved = !result.summaryReport.includes("Rechazado");
-            const statusColor = isApproved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-            const statusBorder = isApproved ? 'border-green-500' : 'border-red-500';
-            const icon = isApproved ? 'check-circle' : 'alert-triangle';
-
-            // Función para renderizar los detalles
-            const renderDetail = (label, value) => {
-                let iconName, colorClass, displayValue = value;
-                let isBoolean = typeof value === 'boolean';
-
-                if (label.toLowerCase().includes('alert') || (isBoolean && !value)) {
-                    iconName = 'alert-triangle';
-                    colorClass = 'text-red-500';
-                    displayValue = isBoolean ? (value ? 'Sí' : 'No') : value;
-                } else if (label.toLowerCase().includes('damage') || value.includes('Poor') || value.includes('Severe') || value.includes('Compromised') || value.includes('Insufficient')) {
-                    iconName = 'x-circle';
-                    colorClass = 'text-red-500';
-                } else {
-                    iconName = 'check';
-                    colorClass = 'text-green-500';
-                    displayValue = isBoolean ? (value ? 'Sí' : 'No') : value;
-                }
-                
-                if (label.toLowerCase().includes('condition') && value.includes('Minor Damage')) {
-                    iconName = 'alert-triangle';
-                    colorClass = 'text-yellow-500';
-                }
-
-                return `
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <span class="text-sm text-gray-600 font-medium">${label}</span>
-                        <div class="flex items-center space-x-2">
-                            <i data-lucide="${iconName}" class="w-4 h-4 ${colorClass}"></i>
-                            <span class="text-sm font-semibold text-gray-800">${displayValue}</span>
-                        </div>
-                    </div>
-                `;
-            };
-
-            const detailsHTML = `
-                ${renderDetail('Condición de la Caja', result.boxCondition)}
-                ${renderDetail('Calidad del Sellado', result.tapeQuality)}
-                ${renderDetail('Ubicación de la Etiqueta', result.labelPlacement)}
-                ${renderDetail('Conformidad Dimensional', result.dimentionalCompliance)}
-                ${renderDetail('Alerta de Mercancía Peligrosa', result.hazmatAlert)}
-            `;
-
-            reportContainer.innerHTML = `
-                <div class="w-full bg-white rounded-2xl report-card-shadow border-t-8 ${statusBorder}">
-                    <!-- Encabezado del Informe -->
-                    <div class="p-6 sm:p-8">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-2xl font-bold text-gray-800">Informe de Validación</h3>
-                            <div class="flex items-center px-4 py-1 rounded-full text-sm font-semibold ${statusColor}">
-                                <i data-lucide="${icon}" class="w-4 h-4 mr-2"></i>
-                                <span>${isApproved ? 'APROBADO' : 'RECHAZADO'}</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Resumen del Análisis -->
-                        <p class="text-lg font-medium text-gray-700 leading-relaxed italic border-l-4 border-blue-400 pl-3">
-                            "${result.summaryReport}"
-                        </p>
-                    </div>
-
-                    <!-- Detalles Técnicos -->
-                    <div class="p-6 sm:p-8 border-t border-gray-100 space-y-3">
-                        <h4 class="text-xl font-semibold text-gray-800 mb-4">Detalle de Puntos de Control</h4>
-                        ${detailsHTML}
-                    </div>
-
-                    <!-- Acción Requerida -->
-                    <div class="p-6 sm:p-8 border-t border-gray-100 bg-red-50/50 rounded-b-xl">
-                        <h4 class="text-xl font-bold text-red-700 mb-3 flex items-center">
-                            <i data-lucide="bell-ring" class="w-5 h-5 mr-2"></i>
-                            Acción Inmediata
-                        </h4>
-                        <p class="text-lg text-red-700 font-medium">
-                            ${result.actionRequired === 'None' ? 'No se requiere ninguna acción correctiva inmediata. Embalaje óptimo.' : result.actionRequired}
-                        </p>
+        return (
+            <div className={`p-4 rounded-xl border-l-4 shadow-md mb-4 ${colorClass}`}>
+                <div className="flex items-start space-x-3">
+                    <Icon className="w-6 h-6 flex-shrink-0 mt-1" />
+                    <div>
+                        <p className="font-bold text-sm uppercase">{title} - {category}</p>
+                        <p className="text-sm" dangerouslySetInnerHTML={{ __html: text }} />
                     </div>
                 </div>
-            `;
-            // Asegurarse de recrear los iconos para el nuevo HTML inyectado
-            lucide.createIcons();
-        }
-    </script>
-</body>
-</html>
+            </div>
+        );
+    };
+
+    // Renderizado principal
+    return (
+        <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-inter">
+            <script src="https://cdn.tailwindcss.com"></script>
+            <h1 className="text-3xl font-extrabold text-indigo-700 mb-2">
+                SmartCargo AIPA <span className="text-base text-gray-500 font-medium block sm:inline">| Aliado del Exportador</span>
+            </h1>
+            <p className="text-gray-600 mb-8 max-w-2xl">
+                Su guía paso a paso para optimizar su carga y evitar rechazos. Tono: Cero Estrés, 100% Educativo.
+                <span className="font-mono text-xs text-gray-400 block mt-1">
+                    ID Usuario: {authReady ? userId : <Loader className="w-4 h-4 inline animate-spin" />}
+                </span>
+            </p>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Columna de Entrada de Datos */}
+                <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">1. Detalles de la Carga</h2>
+                    <div className="space-y-4">
+                        {/* Medidas */}
+                        <div className="grid grid-cols-3 gap-2">
+                            {['largo', 'ancho', 'alto'].map(key => (
+                                <InputGroup key={key} label={key.charAt(0).toUpperCase() + key.slice(1) + ' (cm)'} name={key} value={cargoData[key]} onChange={handleInputChange} />
+                            ))}
+                        </div>
+                        <InputGroup label="Peso Real (kg)" name="pesoReal" value={cargoData.pesoReal} onChange={handleInputChange} />
+                        <InputGroup label="Cantidad de Bultos/Cajas" name="cantidadCajas" value={cargoData.cantidadCajas} onChange={handleInputChange} />
+
+                        {/* Tipo de Mercancía */}
+                        <div className="space-y-1">
+                            <label className="block text-sm font-medium text-gray-700">Tipo de Mercancía</label>
+                            <select
+                                name="tipoMercancia"
+                                value={cargoData.tipoMercancia}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            >
+                                <option value="general">Carga General (No Peligrosa)</option>
+                                <option value="perecedero">Perecedero (ej: fruta)</option>
+                                <option value="pescado">Pescado/Mariscos (Requiere Temp.)</option>
+                                <option value="DG_clase3">DG Clase 3 (Líquido Inflamable)</option>
+                                <option value="bateria_litio">Baterías de Litio (DG)</option>
+                                <option value="vacuna">Vacunas/Medicamentos (Cadena de Frío)</option>
+                            </select>
+                        </div>
+                        {/* Embalaje */}
+                        <div className="space-y-1">
+                            <label className="block text-sm font-medium text-gray-700">Tipo de Embalaje</label>
+                            <select
+                                name="embalaje"
+                                value={cargoData.embalaje}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            >
+                                <option value="caja_carton">Caja de Cartón Estándar</option>
+                                <option value="contenedor_termico">Contenedor Térmico Certificado</option>
+                                <option value="pallet">Pallet (Madera o Plástico)</option>
+                            </select>
+                        </div>
+
+                        <button
+                            onClick={generateReport}
+                            disabled={isSubmitting || cargoData.largo <= 0 || cargoData.pesoReal <= 0 || !authReady}
+                            className={`w-full py-3 px-4 mt-6 rounded-xl font-semibold transition duration-300 ease-in-out shadow-lg flex items-center justify-center space-x-2
+                                ${isSubmitting || !authReady ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-xl'}
+                            `}
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <Loader className="w-5 h-5 animate-spin" />
+                                    <span>Analizando...</span>
+                                </>
+                            ) : (
+                                <span>Generar Recomendaciones y Reporte</span>
+                            )}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Columna de Resultados y Recomendaciones */}
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-white p-6 rounded-2xl shadow-xl">
+                        <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">2. Resultados de Medición y Ahorro</h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                            <MetricCard title="Volumen Total" value={`${volumenTotalCm3.toLocaleString()} cm³`} icon={Package} />
+                            <MetricCard title="Peso Real" value={`${cargoData.pesoReal.toFixed(1)} kg`} icon={Truck} />
+                            <MetricCard title="Peso Volumétrico" value={`${pesoVolumetrico.toFixed(1)} kg`} icon={Package} />
+                            <MetricCard title="Peso a Cobrar (Aerolínea)" value={`${pesoCobrar.toFixed(1)} kg`} isPrimary={true} icon={FileText} />
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-xl">
+                        <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">3. Asistente de Validación y Tareas (May Roga LLC)</h2>
+                        <div className="space-y-4">
+                            {validationResults.length > 0 ? (
+                                validationResults.map((res, index) => (
+                                    <RecommendationCard key={index} {...res} />
+                                ))
+                            ) : (
+                                <div className="text-center py-10 text-gray-500 bg-gray-50 rounded-lg">
+                                    Presione "Generar Recomendaciones" para recibir la guía educativa.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            {/* Sección de Informes Generados */}
+            <div className="mt-8 bg-white p-6 rounded-2xl shadow-xl">
+                <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">4. Informes Anteriores ({reports.length})</h2>
+                {authReady && userId && reports.length > 0 ? (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carga</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Peso Cobrar (kg)</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Generado por (ID)</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {reports.slice(0, 5).map((report) => (
+                                    <tr key={report.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {report.timestamp ? new Date(report.timestamp.seconds * 1000).toLocaleString('es-ES') : 'Cargando...'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
+                                            {report.cargo?.tipoMercancia || 'N/A'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {report.medicion?.pesoCobrar?.toFixed(1) || 'N/A'}
+                                        </td>
+                                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${report.status === 'Riesgo DG' ? 'text-red-600' : 'text-green-600'}`}>
+                                            {report.status}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-gray-400">
+                                            {report.userId}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <p className="text-gray-500">No hay informes guardados aún. Genere su primer reporte para verlo aquí.</p>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// --- Componentes Auxiliares ---
+
+const InputGroup = ({ label, name, value, onChange }) => (
+    <div className="space-y-1">
+        <label htmlFor={name} className="block text-sm font-medium text-gray-700">{label}</label>
+        <input
+            type="number"
+            id={name}
+            name={name}
+            value={value || ''}
+            onChange={onChange}
+            min="0"
+            className="mt-1 block w-full rounded-lg border border-gray-300 bg-white p-2.5 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            placeholder="0"
+        />
+    </div>
+);
+
+const MetricCard = ({ title, value, isPrimary = false, icon: Icon }) => (
+    <div className={`p-4 rounded-xl shadow-md transition duration-300
+        ${isPrimary ? 'bg-indigo-600 text-white transform scale-105' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}
+    `}>
+        <div className="flex items-center justify-center space-x-2 mb-1">
+            <Icon className={`w-5 h-5 ${isPrimary ? 'text-indigo-200' : 'text-gray-500'}`} />
+            <p className={`text-xs font-medium uppercase ${isPrimary ? 'text-indigo-200' : 'text-gray-500'}`}>{title}</p>
+        </div>
+        <p className={`text-xl font-extrabold ${isPrimary ? 'text-white' : 'text-gray-900'}`}>{value}</p>
+    </div>
+);
+
+
+export default App;
