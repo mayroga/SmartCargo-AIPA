@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCargo AIPA - Validación de Embalaje</title>
+    <!-- Incluye Tailwind CSS para estilizado rápido -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Incluye Lucide Icons para iconos limpios -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Configuración de color y fuente global de Tailwind */
+        :root {
+            font-family: 'Inter', sans-serif;
+        }
+        .container-bg {
+            background-color: #f7f7f7;
+            background-image: radial-gradient(#d1d5db 1px, transparent 1px), radial-gradient(#d1d5db 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+        }
+        /* Estilos para el efecto de sombra en la tarjeta de informe */
+        .report-card-shadow {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        /* Ocultar el input de archivo por defecto */
+        #imageInput {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container-bg min-h-screen flex flex-col items-center p-4 sm:p-8">
+
+        <!-- Header -->
+        <header class="w-full max-w-4xl text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-blue-800 tracking-tight">SmartCargo AIPA</h1>
+            <p class="mt-2 text-xl text-gray-600">Asistente de Pre-Inspección Aérea (Packaging Advisory)</p>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- Columna 1: Formulario de Entrada -->
+            <section class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl h-fit sticky top-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i data-lucide="package-check" class="w-6 h-6 mr-3 text-green-600"></i>
+                    Validación Rápida
+                </h2>
+                <form id="validationForm" class="space-y-6">
+
+                    <!-- Campo: Mercancía Declarada -->
+                    <div>
+                        <label for="commodity" class="block text-sm font-medium text-gray-700">Mercancía Declarada</label>
+                        <input type="text" id="commodity" required placeholder="Ej: Componentes electrónicos, Ropa, Suministros médicos"
+                               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150">
+                    </div>
+
+                    <!-- Campo: Consejos de Embalaje (Opcional, para contexto) -->
+                    <div>
+                        <label for="originalAdvice" class="block text-sm font-medium text-gray-700">Reglas de Embalaje Aplicables (Contexto)</label>
+                        <textarea id="originalAdvice" rows="2" placeholder="Ej: Debe ser una caja de doble pared con 3 capas de relleno."
+                                  class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-150"></textarea>
+                    </div>
+
+                    <!-- Campo: Subida de Imagen -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Imagen de la Caja para Inspección</label>
+                        <input type="file" id="imageInput" accept="image/*" required>
+                        <label for="imageInput" id="fileUploadLabel"
+                               class="cursor-pointer flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-blue-400 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition duration-200">
+                            <i data-lucide="image-plus" class="w-5 h-5 mr-2"></i>
+                            <span>Seleccionar Imagen (Max 5MB)</span>
+                        </label>
+                        <p id="fileName" class="mt-2 text-sm text-gray-500 truncate hidden"></p>
+                    </div>
+
+                    <!-- Botón de Envío -->
+                    <button type="submit" id="submitButton"
+                            class="w-full flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition duration-150 shadow-md disabled:opacity-50"
+                            disabled>
+                        <i data-lucide="scan" class="w-5 h-5 mr-2"></i>
+                        Validar Embalaje
+                    </button>
+                    
+                </form>
+
+                <!-- Área de Mensajes (Éxito o Error) -->
+                <div id="messageArea" class="mt-4 hidden p-3 rounded-lg text-sm" role="alert"></div>
+            </section>
+
+            <!-- Columna 2: Resultado y Reporte -->
+            <section id="reportContainer" class="min-h-[400px] flex items-center justify-center p-8 bg-gray-100 rounded-2xl shadow-inner">
+                <div class="text-center text-gray-500 space-y-3">
+                    <i data-lucide="box" class="w-12 h-12 mx-auto text-gray-400"></i>
+                    <p class="font-semibold">El informe de validación aparecerá aquí.</p>
+                    <p class="text-sm">Por favor, rellene el formulario de la izquierda y suba una imagen para comenzar.</p>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="mt-12 w-full max-w-4xl text-center text-sm text-gray-500 pt-4 border-t border-gray-200">
+            &copy; 2024 SmartCargo AIPA. Impulsado por May Roga LLC.
+        </footer>
+    </div>
+
+    <!-- JavaScript para Manejo de Formulario y API -->
+    <script>
+        const API_BASE_URL = 'http://localhost:3000/api/v1'; // Ajustar si el Backend no está en 3000
+        const form = document.getElementById('validationForm');
+        const submitButton = document.getElementById('submitButton');
+        const imageInput = document.getElementById('imageInput');
+        const fileNameDisplay = document.getElementById('fileName');
+        const fileUploadLabel = document.getElementById('fileUploadLabel');
+        const reportContainer = document.getElementById('reportContainer');
+        const messageArea = document.getElementById('messageArea');
+
+        // Inicializar iconos de Lucide
+        window.onload = () => {
+            lucide.createIcons();
+            checkFormValidity();
+        };
+
+        // --- Lógica de UI ---
+
+        // 1. Mostrar nombre del archivo y habilitar/deshabilitar botón
+        imageInput.addEventListener('change', () => {
+            if (imageInput.files.length > 0) {
+                const file = imageInput.files[0];
+                fileNameDisplay.textContent = `Archivo seleccionado: ${file.name}`;
+                fileNameDisplay.classList.remove('hidden');
+                fileUploadLabel.classList.remove('text-blue-700', 'border-blue-400', 'bg-blue-50');
+                fileUploadLabel.classList.add('text-green-700', 'border-green-400', 'bg-green-50');
+            } else {
+                fileNameDisplay.classList.add('hidden');
+                fileUploadLabel.classList.add('text-blue-700', 'border-blue-400', 'bg-blue-50');
+                fileUploadLabel.classList.remove('text-green-700', 'border-green-400', 'bg-green-50');
+            }
+            checkFormValidity();
+        });
+
+        // 2. Comprobar si los campos requeridos están llenos
+        form.addEventListener('input', checkFormValidity);
+        function checkFormValidity() {
+            const commodity = document.getElementById('commodity').value;
+            const hasFile = imageInput.files.length > 0;
+            submitButton.disabled = !(commodity && hasFile);
+        }
+
+        // --- Lógica de Manejo de Errores y Mensajes ---
+
+        function showMessage(type, content) {
+            messageArea.textContent = content;
+            messageArea.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800');
+
+            if (type === 'error') {
+                messageArea.classList.add('bg-red-100', 'text-red-800');
+            } else if (type === 'success') {
+                messageArea.classList.add('bg-green-100', 'text-green-800');
+            }
+        }
+
+        function clearMessage() {
+            messageArea.classList.add('hidden');
+        }
+
+        // --- Lógica de Solicitud a la API (Asume que el Backend está corriendo en :3000) ---
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearMessage();
+            
+            const file = imageInput.files[0];
+            const commodity = document.getElementById('commodity').value;
+            const originalAdvice = document.getElementById('originalAdvice').value;
+
+            // Mostrar estado de carga
+            reportContainer.innerHTML = `
+                <div class="text-center text-blue-500 p-8">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p class="mt-4 text-lg font-semibold">Analizando la imagen con la tecnología May Roga LLC...</p>
+                    <p class="text-sm">Esto puede tardar unos segundos.</p>
+                </div>
+            `;
+            submitButton.disabled = true;
+
+            // 1. Crear el objeto FormData
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('commodity', commodity);
+            formData.append('originalAdvice', originalAdvice);
+
+            try {
+                // 2. Llamada al nuevo endpoint del Backend
+                const response = await fetch(`${API_BASE_URL}/ai/validate-packaging`, {
+                    method: 'POST',
+                    body: formData, // fetch con FormData no necesita 'Content-Type' header
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    // Manejo de errores de HTTP (incluye errores de Multer)
+                    const errorMsg = data.error || "Error desconocido al procesar la solicitud.";
+                    throw new Error(errorMsg);
+                }
+
+                // 3. Proceso exitoso: Mostrar el informe
+                const result = data.validationResult;
+                displayReport(result);
+                showMessage('success', 'Validación completada. Revise el informe.');
+
+            } catch (error) {
+                console.error("Error completo de la API:", error);
+                const displayError = error.message.includes("Failed to fetch") 
+                                     ? "Error de conexión: Asegúrese de que el Backend (puerto 3000) esté corriendo." 
+                                     : error.message;
+                
+                showMessage('error', displayError);
+                // Volver a mostrar el mensaje inicial en caso de error
+                reportContainer.innerHTML = `
+                    <div class="text-center text-gray-500 space-y-3">
+                        <i data-lucide="box" class="w-12 h-12 mx-auto text-gray-400"></i>
+                        <p class="font-semibold">El informe de validación aparecerá aquí.</p>
+                        <p class="text-sm">Por favor, rellene el formulario de la izquierda y suba una imagen para comenzar.</p>
+                    </div>
+                `;
+            } finally {
+                // Habilitar botón y chequear validez
+                submitButton.disabled = false;
+                checkFormValidity();
+            }
+        });
+
+
+        // --- Renderizado del Informe Final ---
+
+        /**
+         * Renderiza la tarjeta de informe basada en el JSON de la IA.
+         * @param {object} result - Objeto JSON estructurado de la IA.
+         */
+        function displayReport(result) {
+            const isApproved = !result.summaryReport.includes("Rechazado");
+            const statusColor = isApproved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+            const statusBorder = isApproved ? 'border-green-500' : 'border-red-500';
+            const icon = isApproved ? 'check-circle' : 'alert-triangle';
+
+            // Función para renderizar los detalles
+            const renderDetail = (label, value) => {
+                let iconName, colorClass, displayValue = value;
+                let isBoolean = typeof value === 'boolean';
+
+                if (label.toLowerCase().includes('alert') || (isBoolean && !value)) {
+                    iconName = 'alert-triangle';
+                    colorClass = 'text-red-500';
+                    displayValue = isBoolean ? (value ? 'Sí' : 'No') : value;
+                } else if (label.toLowerCase().includes('damage') || value.includes('Poor') || value.includes('Severe') || value.includes('Compromised') || value.includes('Insufficient')) {
+                    iconName = 'x-circle';
+                    colorClass = 'text-red-500';
+                } else {
+                    iconName = 'check';
+                    colorClass = 'text-green-500';
+                    displayValue = isBoolean ? (value ? 'Sí' : 'No') : value;
+                }
+                
+                if (label.toLowerCase().includes('condition') && value.includes('Minor Damage')) {
+                    iconName = 'alert-triangle';
+                    colorClass = 'text-yellow-500';
+                }
+
+                return `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span class="text-sm text-gray-600 font-medium">${label}</span>
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="${iconName}" class="w-4 h-4 ${colorClass}"></i>
+                            <span class="text-sm font-semibold text-gray-800">${displayValue}</span>
+                        </div>
+                    </div>
+                `;
+            };
+
+            const detailsHTML = `
+                ${renderDetail('Condición de la Caja', result.boxCondition)}
+                ${renderDetail('Calidad del Sellado', result.tapeQuality)}
+                ${renderDetail('Ubicación de la Etiqueta', result.labelPlacement)}
+                ${renderDetail('Conformidad Dimensional', result.dimentionalCompliance)}
+                ${renderDetail('Alerta de Mercancía Peligrosa', result.hazmatAlert)}
+            `;
+
+            reportContainer.innerHTML = `
+                <div class="w-full bg-white rounded-2xl report-card-shadow border-t-8 ${statusBorder}">
+                    <!-- Encabezado del Informe -->
+                    <div class="p-6 sm:p-8">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-2xl font-bold text-gray-800">Informe de Validación</h3>
+                            <div class="flex items-center px-4 py-1 rounded-full text-sm font-semibold ${statusColor}">
+                                <i data-lucide="${icon}" class="w-4 h-4 mr-2"></i>
+                                <span>${isApproved ? 'APROBADO' : 'RECHAZADO'}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Resumen del Análisis -->
+                        <p class="text-lg font-medium text-gray-700 leading-relaxed italic border-l-4 border-blue-400 pl-3">
+                            "${result.summaryReport}"
+                        </p>
+                    </div>
+
+                    <!-- Detalles Técnicos -->
+                    <div class="p-6 sm:p-8 border-t border-gray-100 space-y-3">
+                        <h4 class="text-xl font-semibold text-gray-800 mb-4">Detalle de Puntos de Control</h4>
+                        ${detailsHTML}
+                    </div>
+
+                    <!-- Acción Requerida -->
+                    <div class="p-6 sm:p-8 border-t border-gray-100 bg-red-50/50 rounded-b-xl">
+                        <h4 class="text-xl font-bold text-red-700 mb-3 flex items-center">
+                            <i data-lucide="bell-ring" class="w-5 h-5 mr-2"></i>
+                            Acción Inmediata
+                        </h4>
+                        <p class="text-lg text-red-700 font-medium">
+                            ${result.actionRequired === 'None' ? 'No se requiere ninguna acción correctiva inmediata. Embalaje óptimo.' : result.actionRequired}
+                        </p>
+                    </div>
+                </div>
+            `;
+            // Asegurarse de recrear los iconos para el nuevo HTML inyectado
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
