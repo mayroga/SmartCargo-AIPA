@@ -132,6 +132,107 @@ def create_checkout_session():
                 'tier_purchased': tier_key
             }
         )
+        # ... (Importaciones existentes)
+from db.models.Transactions import Transaction # Necesitas este modelo
+from config.env_keys import STRIPE_WEBHOOK_SECRET
+import json
+
+@app.route('/payment/webhook', methods=['POST'])
+def stripe_webhook():
+    payload = request.data
+    sig_header = request.headers.get('stripe-signature')
+    
+    try:
+        # 1. Seguridad: Verificar la firma del webhook (Blindaje profesional)
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        # Invalid payload
+        return 'Invalid payload', 400
+    except stripe.error.SignatureVerificationError as e:
+        # Invalid signature
+        return 'Invalid signature', 400
+
+    # 2. Manejo de Eventos Fijos (Solo Payment Successful)
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        
+        # Extraer Metadata Fija
+        shipment_id = session.metadata.get('shipment_id')
+        tier_purchased = session.metadata.get('tier_purchased')
+        
+        # 3. Registrar Transacción y Actualizar Envío
+        shipment = Shipment.query.filter_by(shipment_id=shipment_id).first()
+
+        if shipment:
+            # Registrar el pago
+            new_transaction = Transaction(
+                shipment_id=shipment_id,
+                stripe_session_id=session.id,
+                price_paid=session.amount_total / 100, # Convertir a USD
+                status='Completed',
+                tier_purchased=tier_purchased
+            )
+            db.session.add(new_transaction)
+            
+            # Marcar el envío como pagado y actualizar el nivel
+            shipment.status = 'Paid'
+            shipment.service_tier = tier_purchased
+            db.session.commit()
+            
+            # En este punto, el cliente puede generar el PDF.
+        
+    return jsonify({'status': 'success'}), 200
+
+
+@app.route('/report/generate', methods=['POST'])
+def generate_simple_report():
+    data = request.json
+    shipment_id = data.get('shipment_id')
+    
+    # 1. Verificar el pago (Blindaje legal)
+    shipment = Shipment.query.filter_by(shipment_id=shipment_id).first()
+    if not shipment or shipment.status != 'Paid':
+        return jsonify({"error": "Pago no completado. No se puede generar el informe legal."}), 402
+
+    # 2. Lógica del Generador de Reporte Básico (Fase 1)
+    # Se llama a la lógica para generar el PDF de diagnóstico simple (texto y datos de medición).
+    pdf_url = generate_pdf_logic(shipment) # Implementado en logic/reporting.py
+    
+    # 3. Registrar el informe en la Base de Datos (Modelo Reports)
+    # Se registra el link del PDF y el mensaje legal fijo usado.
+    new_report = Report(
+        shipment_id=shipment_id,
+        pdf_url=pdf_url,
+        # Se registra el descargo legal que se usó en el PDF
+        legal_disclaimer_core=shipment.legal_disclaimer_at_creation, 
+        legal_disclaimer_price=PRICE_LEGAL_DISCLAIMER_TEXT 
+    )
+    db.session.add(new_report)
+    db.session.commit()
+    
+    return jsonify({"status": "Reporte generado", "report_url": pdf_url})
+B. Modelo de Datos Fijo: db/models/Reports.py y db/models/Transactions.py
+Necesitas estos dos modelos para que los endpoints anteriores funcionen correctamente y garanticen la auditoría legal.
+
+Python
+
+# SMARTCARGO-AIPA/db/models/Transactions.py
+
+# ... (Importaciones necesarias: SQLAlchemy, UUID, etc.)
+
+class Transaction(Base):
+    """Modelo para registrar pagos fijos (Stripe)."""
+    __tablename__ = 'transactions'
+
+    transaction_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    shipment_id = Column(UUID(as_uuid=True), ForeignKey('shipments.shipment_id'), nullable=False)
+    stripe_session_id = Column(String(255), nullable=False)
+    price_paid = Column(Float, nullable=False)
+    status = Column(String(50), nullable=False) # Completed, Failed, Pending
+    tier_purchased = Column(String(50), nullable=False) # LEVEL_BASIC (Fase 1)
+    transaction_date = Column(DateTime, default=datetime.datetime.utcnow)
         return jsonify({'id': session.id})
     except Exception as e:
         # Esto es crítico para el blindaje profesional
