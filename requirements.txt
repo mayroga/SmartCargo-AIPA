@@ -6,7 +6,7 @@ wheel==0.43.0
 # Framework y Servidor
 Flask==3.0.3
 gunicorn==22.0.0
-gunicorn-log-exporter==0.3.0  # NUEVO: Para logs estructurados (Auditoría)
+gunicorn-log-exporter==0.2.0  # <--- VERSIÓN CORREGIDA (de 0.3.0 a 0.2.0)
 
 # Base de Datos (Fijada para compatibilidad)
 SQLAlchemy==2.0.30
