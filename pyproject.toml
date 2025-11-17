@@ -1,4 +1,5 @@
 # SMARTCARGO-AIPA/pyproject.toml
+
 [tool.poetry]
 name = "smartcargo-aipa"
 version = "0.1.0"
@@ -9,15 +10,24 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
+# Dependencias principales y de framework
 Flask = "^3.0.3"
 SQLAlchemy = "^2.0.30"
 psycopg2-binary = "^2.9.9"
+
+# Servidor de producción (Gunicorn)
 gunicorn = "^22.0.0"
+
+# Lógica de Pagos y Blindaje
 stripe = "^10.0.0"
+
+# Lógica de IA y procesamiento
 requests = "^2.32.3"
-Pillow = "^10.3.0" 
+Pillow = "^10.3.0"
+# tu-sdk-ia = "^X.Y.Z" # SDK de la IA
 
 [tool.poetry.group.dev.dependencies]
+# Para el desarrollo local
 python-dotenv = "^1.0.1"
 
 [build-system]
