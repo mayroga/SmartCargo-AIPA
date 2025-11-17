@@ -1,17 +1,9 @@
-# SMARTCARGO-AIPA/requirements.txt
-# Dependencias de Python/Build Tools (Fijadas para compatibilidad)
 setuptools==69.5.1
 wheel==0.43.0
-
-# Framework y Servidor
 Flask==3.0.3
 gunicorn==22.0.0
-
-# Base de Datos (VERSION DE COMPATIBILIDAD FORZADA)
-SQLAlchemy==1.4.52 # <--- VERSION 1.4 COMPATIBLE CON PYTHON 3.13+
-psycopg2==2.9.9
-
-# Lógica de Blindaje, Pagos y Herramientas
+SQLAlchemy==1.4.52
+psycopg2-binary==2.9.9  # <--- CORRECCIÓN CLAVE: Usamos la versión binaria
 stripe==10.0.0
 Pillow==10.4.0
 requests==2.32.3
