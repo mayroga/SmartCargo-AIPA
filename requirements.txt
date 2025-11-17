@@ -7,8 +7,8 @@ wheel==0.43.0
 Flask==3.0.3
 gunicorn==22.0.0
 
-# Base de Datos (Fijada para compatibilidad)
-SQLAlchemy==2.0.30
+# Base de Datos (VERSION DE COMPATIBILIDAD FORZADA)
+SQLAlchemy==1.4.52 # <--- VERSION 1.4 COMPATIBLE CON PYTHON 3.13+
 psycopg2==2.9.9
 
 # Lógica de Blindaje, Pagos y Herramientas
