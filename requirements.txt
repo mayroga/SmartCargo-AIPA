@@ -3,7 +3,7 @@ wheel==0.43.0
 Flask==3.0.3
 gunicorn==22.0.0
 SQLAlchemy==1.4.52
-psycopg[binary]  # Usar el driver moderno
+psycopg[binary]  # Este es el driver para la URL de PostgreSQL
 stripe==10.0.0
 Pillow==10.4.0
 requests==2.32.3
