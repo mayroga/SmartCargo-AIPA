@@ -1,16 +1,16 @@
 # SMARTCARGO-AIPA/requirements.txt
-# Solución de error de build y dependencias mínimas
+# Herramientas de build para resolver errores nativos
 setuptools==69.5.1
 wheel==0.43.0
 
-# Dependencias de producción
+# Dependencias principales y de framework
 Flask==3.0.3
 SQLAlchemy==2.0.30
-psycopg2-binary==2.9.9
+psycopg2==2.9.9        # Usamos la versión sin '-binary' para que Render la compile
 gunicorn==22.0.0
 stripe==10.0.0
 
-# Otras herramientas necesarias
+# Lógica de IA y procesamiento
 python-dotenv==1.0.1
 requests==2.32.3
-Pillow==10.3.0
+Pillow==10.4.0        # Versión reciente para compatibilidad
