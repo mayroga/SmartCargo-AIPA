@@ -9,26 +9,17 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-# Dependencias principales y de framework
 Flask = "^3.0.3"
 SQLAlchemy = "^2.0.30"
 psycopg2-binary = "^2.9.9"
-
-# Servidor de producción (Gunicorn)
 gunicorn = "^22.0.0"
-
-# Lógica de Pagos y Blindaje
 stripe = "^10.0.0"
-
-# Lógica de IA y procesamiento (Ajustar según necesidad)
 requests = "^2.32.3"
-Pillow = "^10.3.0" # Si procesas imágenes
-# tu-sdk-ia = "^X.Y.Z" # SDK de la IA
+Pillow = "^10.3.0" 
 
 [tool.poetry.group.dev.dependencies]
-# Para el desarrollo local
 python-dotenv = "^1.0.1"
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core", "setuptools>=61.0.0"]
 build-backend = "poetry.core.masonry.api"
