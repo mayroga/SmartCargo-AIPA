@@ -1,35 +1,32 @@
 # SMARTCARGO-AIPA/db/models/Shipments.py
 
-from config.env_keys import LEGAL_DISCLAIMER_CORE
-from requirements.standards.validation_codes import ISPM_15_MARKS
 from sqlalchemy import Column, String, Float, Boolean, ForeignKey, DateTime
-from sqlalchemy.dialects.postgresql import UUID
-import uuid
+from sqlalchemy.orm import relationship
+import datetime
+
+# IMPORTACIÓN FALTANTE: Traer la clase Base para el mapeo ORM
+# Asumimos que db_setup.py está en el mismo directorio (db/models/) o un nivel superior.
+from .db_setup import Base  # <-- CORRECCIÓN CLAVE
 
 class Shipment(Base):
-    """Modelo para registrar los datos fijos de la carga y el cumplimiento legal."""
     __tablename__ = 'shipments'
 
-    shipment_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey('users.user_id'), nullable=False)
-    
-    # --- Medición Fija (6.1) ---
-    length_cm = Column(Float, nullable=False)
-    width_cm = Column(Float, nullable=False)
-    height_cm = Column(Float, nullable=False)
-    weight_real_kg = Column(Float, nullable=False)
-    
-    # --- Datos Fijos de AWB (7.0) ---
-    shipper_name = Column(String(255), nullable=False)
-    consignee_name = Column(String(255), nullable=False)
-    airport_code = Column(String(3), nullable=False)
-    
-    # --- Compliance Legal Fijo (6.7) ---
-    is_wood_pallet = Column(Boolean, default=False)
-    ispm15_conf = Column(Boolean, default=False)
-    
-    # --- GUARDARRAÍL LEGAL (Inmutable, registro del texto exacto usado) ---
-    legal_disclaimer_at_creation = Column(String, default=LEGAL_DISCLAIMER_CORE, nullable=False)
-    
-    service_tier = Column(String(50), default='LEVEL_BASIC')
+    # Clave Primaria (PK)
+    id = Column(String, primary_key=True, index=True)
+
+    # Datos del Cliente y Envío
+    client_id = Column(String, ForeignKey('users.id'), nullable=False)
+    origin_city = Column(String, nullable=False)
+    destination_city = Column(String, nullable=False)
+    declared_value = Column(Float, nullable=False)
+    is_dg = Column(Boolean, default=False)  # Mercancía Peligrosa (Dangerous Goods)
+
+    # Fechas y Estatus
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    status = Column(String, default="PENDING")
+
+    # Referencia a otras tablas (Ejemplo: User/Client)
+    # owner = relationship("User", back_populates="shipments")
+
+    def __repr__(self):
+        return f"<Shipment(id='{self.id}', client_id='{self.client_id}', status='{self.status}')>"
