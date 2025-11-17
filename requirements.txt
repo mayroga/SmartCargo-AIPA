@@ -1,10 +1,10 @@
-setuptools==69.5.1
-wheel==0.43.0
 Flask==3.0.3
 gunicorn==22.0.0
 SQLAlchemy==1.4.52
-psycopg[binary]  # Este es el driver para la URL de PostgreSQL
-stripe==10.0.0
+psycopg[binary]  # ¡Debe estar aquí!
 Pillow==10.4.0
 requests==2.32.3
 python-dotenv==1.0.1
+setuptools==69.5.1
+wheel==0.43.0
+stripe==10.0.0
