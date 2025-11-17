@@ -278,6 +278,60 @@ def assistant_query():
     return jsonify({
         "response": response_text
     })
+# SMARTCARGO-AIPA/src/api/endpoints.py (ADICIÓN AL ARCHIVO EXISTENTE)
+
+# ... (Importaciones existentes, agregar: from src.logic.temp_validator import validate_temperature_needs)
+# ... (Necesitas la función generate_pdf_logic en src/logic/reporting.py)
+
+# ==============================================================================
+# 6. ENDPOINT: Validación de Temperatura
+# Corresponde al Endpoint /cargo/validate/temperature
+# ==============================================================================
+@app.route('/cargo/validate/temperature', methods=['POST'])
+def validate_temperature_status():
+    data = request.json
+    commodity = data.get('commodity')
+    temp_range = data.get('required_temp_range', [0, 25]) # Rango [min, max]
+    duration_hours = data.get('duration_hours', 48)
+
+    validation_result = validate_temperature_needs(commodity, temp_range, duration_hours)
+    
+    # Aquí se puede actualizar el registro del envío (ej. 'shipment.temp_data = validation_result')
+    
+    return jsonify(validation_result)
+
+# ==============================================================================
+# 7. ENDPOINT: Generador de Informes (PDF Avanzado)
+# Corresponde al Endpoint /report/generate (Ahora maneja Fase 3)
+# ==============================================================================
+@app.route('/report/generate', methods=['POST'])
+def generate_advanced_report():
+    data = request.json
+    shipment_id = data.get('shipment_id')
+    
+    shipment = Shipment.query.filter_by(shipment_id=shipment_id).first()
+    
+    # 1. VERIFICACIÓN DE PAGO (Blindaje legal)
+    if not shipment or shipment.status != 'Paid':
+        return jsonify({"error": "Pago no completado. No se puede generar el informe legal avanzado."}), 402
+
+    # 2. Lógica del Generador de Reporte AVANZADO (10.0)
+    # Esta lógica consolida: Medición, Pallets, IA (DG/Foto) y Temperatura.
+    pdf_url = generate_pdf_logic(shipment, is_advanced=(shipment.service_tier != 'LEVEL_BASIC'))
+    
+    # 3. Registrar el informe en la Base de Datos (Modelo Reports)
+    # Se utiliza el texto legal FIJO almacenado en el envío y la configuración.
+    new_report = Report(
+        shipment_id=shipment_id,
+        pdf_url=pdf_url,
+        legal_disclaimer_core=shipment.legal_disclaimer_at_creation, 
+        legal_disclaimer_price=PRICE_LEGAL_DISCLAIMER_TEXT 
+        # Añadir todos los resultados de DG, Pallets, y Temp para auditoría
+    )
+    db.session.add(new_report)
+    db.session.commit()
+    
+    return jsonify({"status": "Reporte Avanzado Generado", "report_url": pdf_url})
     
     transaction_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     shipment_id = Column(UUID(as_uuid=True), ForeignKey('shipments.shipment_id'), nullable=False)
