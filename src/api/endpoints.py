@@ -225,7 +225,60 @@ Python
 class Transaction(Base):
     """Modelo para registrar pagos fijos (Stripe)."""
     __tablename__ = 'transactions'
+# SMARTCARGO-AIPA/src/api/endpoints.py (ADICIÓN AL ARCHIVO EXISTENTE)
 
+# ... (Importaciones existentes, ahora incluir: from src.logic.ia_validator import analyze_photo_and_dg, get_assistant_response)
+
+
+# ==============================================================================
+# 4. ENDPOINT: Validación Fotográfica y DG Informativa
+# Corresponde al Endpoint /cargo/validate/photo
+# ==============================================================================
+@app.route('/cargo/validate/photo', methods=['POST'])
+def validate_photo_and_dg_info():
+    # Asume que el archivo de imagen se recibe junto con los metadatos
+    shipment_id = request.form.get('shipment_id')
+    commodity_description = request.form.get('commodity_description')
+    image_file = request.files.get('image') # Archivo de imagen subido
+
+    # 1. Guardar la imagen temporalmente (o subirla a almacenamiento)
+    # image_path = save_temp_image(image_file) 
+    
+    # 2. Análisis de IA (6.4, 6.5)
+    validation_result = analyze_photo_and_dg(image_file, commodity_description)
+    
+    # 3. Registrar el resultado de riesgo DG en la DB (para auditoría)
+    shipment = Shipment.query.filter_by(shipment_id=shipment_id).first()
+    if shipment:
+        shipment.dg_risk_keywords = validation_result['dg_risk_level'] # Almacenar el nivel de riesgo
+        # db.session.commit()
+    
+    # 4. Devolver la respuesta de la IA y el blindaje legal
+    return jsonify({
+        "status": "success",
+        "ia_advice": validation_result['ia_response'],
+        "dg_risk": validation_result['dg_risk_level'],
+        "warning": "⚠️ Esto puede estar regulado. " + validation_result['legal_warning_fixed']
+    })
+
+
+# ==============================================================================
+# 5. ENDPOINT: Asistente Inteligente (Chat)
+# Corresponde al Endpoint /assistant/query
+# ==============================================================================
+@app.route('/assistant/query', methods=['POST'])
+def assistant_query():
+    data = request.json
+    user_prompt = data.get('prompt')
+    
+    # 1. Lógica del Asistente con Guardrail Fijo (5.0)
+    response_text = get_assistant_response(user_prompt)
+    
+    # 2. La respuesta ya contiene el LEGAL_DISCLAIMER_CORE fijo
+    return jsonify({
+        "response": response_text
+    })
+    
     transaction_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     shipment_id = Column(UUID(as_uuid=True), ForeignKey('shipments.shipment_id'), nullable=False)
     stripe_session_id = Column(String(255), nullable=False)
