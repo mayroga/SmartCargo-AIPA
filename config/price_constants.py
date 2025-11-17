@@ -1,10 +1,11 @@
 # ==============================================================================
 # SMARTCARGO-AIPA BACKEND - CONSTANTES FIJAS DE PRECIOS Y SERVICIOS
-# Utilizado para el procesamiento de pagos con Stripe.
+# Utilizado para el procesamiento de pagos con Stripe y blindaje de informes.
 # ==============================================================================
 
-# --- MENSAJE LEGAL ADICIONAL PARA INFORMES (Sección Estrategia de Percepción) ---
-LEGAL_DISCLAIMER_PRICE = (
+# --- MENSAJE LEGAL ADICIONAL PARA INFORMES (Ajustado para importación) ---
+# La importación en endpoints.py busca: PRICE_LEGAL_DISCLAIMER_TEXT
+PRICE_LEGAL_DISCLAIMER_TEXT = (
     "SmartCargo ofrece asesoría informativa. No se responsabiliza por información falsa o incompleta subida por el usuario."
 )
 
@@ -24,7 +25,7 @@ SERVICE_LEVELS = {
     },
     "LEVEL_PREMIUM": {
         "name": "Asesoría Integral",
-        "price_usd": 120.00, # Usando el rango superior para fijar el precio premium
+        "price_usd": 120.00, 
         "description": "Todo Profesional + Evaluación de temperatura, alertas DG avanzadas, sugerencias de materiales certificados, asesoría completa de documentos, Reporte PDF avanzado.",
         "features": ["LEVEL_PROFESSIONAL", "Temperature/Sensitive Goods Evaluation", "Advanced DG Alerting (Informational)", "Certified Alternative Material Suggestions", "Full AWB Document Checklist", "Advanced Comprehensive PDF Report"]
     }
@@ -38,7 +39,7 @@ OPTIONAL_ADDONS = {
     },
     "MULTIPLE_OPTIMIZATION": {
         "name": "Optimización Múltiple de Pallets/Cajas",
-        "price_usd": 30.00 # Usando el rango superior para fijar el precio premium
+        "price_usd": 30.00 
     },
     "RISK_ALERTS": {
         "name": "Alertas Personalizadas de Carga de Riesgo",
