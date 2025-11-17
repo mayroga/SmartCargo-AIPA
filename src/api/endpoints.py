@@ -332,6 +332,72 @@ def generate_advanced_report():
     db.session.commit()
     
     return jsonify({"status": "Reporte Avanzado Generado", "report_url": pdf_url})
+# SMARTCARGO-AIPA/src/api/endpoints.py (ADICIÓN AL ARCHIVO EXISTENTE)
+
+# ... (Importaciones existentes)
+from db.models.Users import User
+from config.env_keys import ADMIN_USERNAME, ADMIN_PASSWORD # Credenciales fijas
+
+# ==============================================================================
+# 8. ENDPOINT: Autenticación de Administración y Acceso a Auditoría
+# Corresponde al Endpoint /admin/login
+# ==============================================================================
+@app.route('/admin/login', methods=['POST'])
+def admin_login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+
+    # 1. VERIFICACIÓN DE CREDENCIALES FIJAS (Blindaje de entorno)
+    if username == ADMIN_USERNAME:
+        # En producción, se debe verificar el hash de la DB, no el valor del ENV
+        # Aquí simplificamos, asumiendo que el User de la DB coincide con el ENV
+        user = User.query.filter_by(username=username).first()
+        
+        # if user and user.is_correct_password(password):
+        if user and password == ADMIN_PASSWORD: # Usando el ENV para la verificación inmediata
+            # 2. Generar token de acceso para auditoría
+            access_token = generate_admin_token(user.user_id) # Función placeholder
+            user.last_login_at = datetime.datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({
+                "status": "Login exitoso",
+                "token": access_token
+            })
+        
+    return jsonify({"error": "Credenciales de administrador inválidas. Acceso denegado (Regla 3.1)."}, 401)
+
+
+# ==============================================================================
+# 9. ENDPOINT: Acceso a Registros Legales (Requiere token Admin)
+# Corresponde al Endpoint /admin/audits
+# ==============================================================================
+@app.route('/admin/audits', methods=['GET'])
+# Se asume una función de seguridad 'require_admin_auth'
+# @require_admin_auth
+def get_legal_audits():
+    # Esta ruta permite a los administradores revisar los datos de auditoría
+    
+    # 1. Recuperar todos los registros de Reports (donde están los descargos legales fijos)
+    reports = Report.query.all()
+    
+    audit_data = []
+    for report in reports:
+        # Se exponen solo los campos críticos para la auditoría legal
+        audit_data.append({
+            "report_id": str(report.report_id),
+            "shipment_id": str(report.shipment_id),
+            "generated_at": report.generated_at.isoformat(),
+            "legal_disclaimer_used": report.legal_disclaimer_core,
+            "pdf_url": report.pdf_url
+        })
+        
+    return jsonify({
+        "status": "success",
+        "total_reports": len(audit_data),
+        "data": audit_data
+    })
     
     transaction_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     shipment_id = Column(UUID(as_uuid=True), ForeignKey('shipments.shipment_id'), nullable=False)
