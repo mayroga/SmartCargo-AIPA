@@ -1,19 +1,16 @@
 # SMARTCARGO-AIPA/requirements.txt
-# Dependencias principales y de framework
+# Solución de error de build y dependencias mínimas
+setuptools==69.5.1
+wheel==0.43.0
+
+# Dependencias de producción
 Flask==3.0.3
 SQLAlchemy==2.0.30
-psycopg2-binary==2.9.9 # Conexión a PostgreSQL (render usa esta)
-
-# Servidor de producción
+psycopg2-binary==2.9.9
 gunicorn==22.0.0
-
-# Lógica de Pagos y Blindaje
 stripe==10.0.0
 
-# Herramientas y lógica (Ajustar versiones según las que uses)
-python-dotenv==1.0.1  # Para cargar variables de entorno en desarrollo local
+# Otras herramientas necesarias
+python-dotenv==1.0.1
 requests==2.32.3
-python-json-logger==2.0.7 # Opcional: Para logs estructurados
-Pillow==10.3.0 # Requerido si 'analyze_photo_and_dg' procesa la imagen
-# Reemplaza 'tu-sdk-ia' por la librería real que uses para la IA (ej: google-genai, openai, anthropic)
-# tu-sdk-ia==X.Y.Z
+Pillow==10.3.0
