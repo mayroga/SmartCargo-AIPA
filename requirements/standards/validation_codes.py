@@ -1,19 +1,19 @@
 # SMARTCARGO-AIPA/requirements/standards/validation_codes.py
 
-# --- REQUISITOS OBLIGATORIOS FIJOS (Sección 8.0) ---
-MANDATORY_REQUIREMENTS = [
-    "Etiquetas IATA",
-    "Etiquetas de Orientación (This Side Up, etc.)",
-    "Etiquetas de Temperatura (Si aplica)",
-    "Documentación Correcta (AWB)",
-    "Embalaje Firme y Cajas en Buen Estado",
-    "No Mezclar Incompatibles",
-    "No Usar Cinta Negra",
-    "Carga Seca",
-    "Pallets ISPM-15 si son de madera",
-    "Sello Visible de Fumigación (Si aplica)",
-    "Dry Ice Declarado (Si aplica)"
+# ==============================================================================
+# FIJO: Códigos de Validación de Estándares Internacionales (Regla 6.7)
+# ==============================================================================
+
+# --- Marcas requeridas para el estándar ISPM-15 (Tratamiento de madera) ---
+# Esta lista es la fuente de verdad para la validación lógica en el backend.
+ISPM_15_MARKS = [
+    "HT",  # Heat Treatment (Tratamiento Térmico)
+    "MB",  # Methyl Bromide (Tratamiento con Bromuro de Metilo) - Desfasado, pero aceptado
+    "DB",  # Debarked (Descortezado)
+    "SF",  # Sulfuryl Fluoride (Fluoruro de sulfurilo)
+    # Incluye otras marcas relevantes para la validación de cumplimiento.
 ]
 
-# --- RIESGOS INCOMPATIBLES ---
-INCOMPATIBLE_RISKS = ["Alimentos con Químicos", "Líquidos con Electrónica", "DG con Carga Común sin Separación"]
+# --- Otros códigos de validación ---
+# Aquí se podrían agregar códigos DG o de temperatura si fueran necesarios
+# DGR_CLASSES = {1: "Explosives", 2: "Gases", ...}
