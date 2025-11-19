@@ -5,6 +5,8 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 import datetime
 
+from db.models.db_setup import Base
+
 class User(Base):
     """Modelo para registrar usuarios y administradores fijos."""
     __tablename__ = 'users'
@@ -12,13 +14,13 @@ class User(Base):
     user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False)
     
-    # --- Autenticación Fija (Basado en variables de entorno) ---
+    # --- Autenticación Fija ---
     username = Column(String(50), unique=True)
     password_hash = Column(String(128))
-    is_admin = Column(Boolean, default=False)
+    is_admin = Column(Boolean, default=False) # Permite acceso gratuito y auditoría
     
     # --- Configuración Fija ---
-    language_pref = Column(String(5), default='es') # Base de Idiomas Mínimos Fijos
+    language_pref = Column(String(5), default='es') 
     
     # --- Auditoría ---
     last_login_at = Column(DateTime)
@@ -26,6 +28,5 @@ class User(Base):
 
     def is_correct_password(self, password):
         """Función para verificar el hash de la contraseña."""
-        # Se asume que aquí se usa una librería de hashing (ej. bcrypt)
         # return bcrypt.check_password_hash(self.password_hash, password)
         return True # Placeholder
