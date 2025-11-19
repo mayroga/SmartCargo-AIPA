@@ -1,35 +1,32 @@
-# SMARTCARGO-AIPA/db/models/db_setup.py
+# SMARTCARGO-AIPA/db/models/Transactions.py
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-import os
+from sqlalchemy import Column, String, Float, Boolean, ForeignKey, DateTime
+from sqlalchemy.orm import relationship
+import datetime
 
-# Define la clase base para la declaración de modelos ORM
-Base = declarative_base()
+# ******* CORRECCIÓN CLAVE: Importación de Base *******
+# 'Base' se define en db_setup.py, y debe ser importada por todos los modelos.
+from db.models.db_setup import Base
 
-# La URL de conexión debe venir de una variable de entorno de Render
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@localhost/defaultdb")
+class Transaction(Base):
+    __tablename__ = 'transactions'
 
-# CORRECCIÓN CLAVE:
-# Reemplazamos los esquemas 'postgresql://' o 'postgres://' por 'postgresql+psycopg://'.
-# Esto es necesario para indicarle a SQLAlchemy que use el driver Psycopg 3,
-# que instalamos en requirements.txt.
-if DATABASE_URL.startswith("postgresql://"):
-    DIALECT_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
-elif DATABASE_URL.startswith("postgres://"):
-    DIALECT_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
-else:
-    DIALECT_URL = DATABASE_URL
+    # Clave Primaria (PK)
+    id = Column(String, primary_key=True, index=True)
 
+    # Referencias y Montos
+    client_id = Column(String, ForeignKey('users.id'), nullable=False)
+    shipment_id = Column(String, ForeignKey('shipments.id'), nullable=True) # Opcional si la transacción no es directa
+    amount = Column(Float, nullable=False)
+    currency = Column(String, default="usd")
+    
+    # Estatus del Pago y Proveedor
+    status = Column(String, default="PENDING") # Ej: PENDING, SUCCESS, FAILED
+    provider = Column(String, default="STRIPE")
+    provider_txn_id = Column(String, nullable=True) # ID de la transacción en Stripe
 
-# Creación del Engine de SQLAlchemy (usando la URL corregida)
-engine = create_engine(DIALECT_URL)
-
-# Creación de la sesión (para futuras operaciones)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Función para crear las tablas si no existen
-def create_all_tables():
-    # Crea las tablas en el esquema de la base de datos
-    Base.metadata.create_all(bind=engine)
+    # Fechas
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    def __repr__(self):
+        return f"<Transaction(id='{self.id}', amount='{self.amount}', status='{self.status}')>"
