@@ -1,26 +1,31 @@
-# SMARTCARGO-AIPA/db/models/db_setup.py
+# SMARTCARGO-AIPA/db/models/Shipments.py
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-import os
+from sqlalchemy import Column, String, Float, Boolean, ForeignKey, DateTime
+from sqlalchemy.orm import relationship
+import datetime
 
-# Define la clase base para la declaración de modelos ORM
-Base = declarative_base()
+# CORRECCIÓN CLAVE: Importación absoluta.
+from db.models.db_setup import Base
 
-# La URL de conexión debe venir de una variable de entorno de Render
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@localhost/defaultdb")
+class Shipment(Base):
+    __tablename__ = 'shipments'
 
-# Creación del Engine de SQLAlchemy
-engine = create_engine(DATABASE_URL)
+    # Clave Primaria (PK)
+    id = Column(String, primary_key=True, index=True)
 
-# Creación de la sesión (para futuras operaciones)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    # Datos del Cliente y Envío
+    client_id = Column(String, ForeignKey('users.id'), nullable=False)
+    origin_city = Column(String, nullable=False)
+    destination_city = Column(String, nullable=False)
+    declared_value = Column(Float, nullable=False)
+    is_dg = Column(Boolean, default=False)  # Mercancía Peligrosa (Dangerous Goods)
 
-# Función para crear las tablas si no existen
-def create_all_tables():
-    # Solo crea las tablas en el esquema de la base de datos
-    Base.metadata.create_all(bind=engine)
+    # Fechas y Estatus
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    status = Column(String, default="PENDING")
 
-# Nota: Esta función debe ser llamada en tu archivo principal (endpoints.py)
-# antes de que la aplicación empiece a recibir solicitudes.
+    # Referencia a otras tablas (Ejemplo: User/Client)
+    # owner = relationship("User", back_populates="shipments")
+
+    def __repr__(self):
+        return f"<Shipment(id='{self.id}', client_id='{self.client_id}', status='{self.status}')>"
