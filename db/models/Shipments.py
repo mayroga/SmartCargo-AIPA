@@ -1,4 +1,4 @@
-# SMARTCARGO-AIPA/db/models/Shipments.py
+# db/models/Shipments.py
 
 from sqlalchemy import Column, String, Float, Boolean, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship
@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 import datetime
 
+# CORRECCIÓN: Se importa la clase Base
 from db.models.db_setup import Base
 
 class Shipment(Base):
@@ -14,14 +15,14 @@ class Shipment(Base):
     # PK: Corregido a UUID
     shipment_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
-    # FK: Corregido a UUID y apunta a users.user_id
+    # FK: Corregido a UUID
     client_id = Column(UUID(as_uuid=True), ForeignKey('users.user_id'), nullable=False)
-    origin_city = Column(String, nullable=True) # Se deja nullable=True por si el endpoint no lo pide
-    destination_city = Column(String, nullable=True) # Se deja nullable=True por si el endpoint no lo pide
-    declared_value = Column(Float, nullable=True) # Se deja nullable=True por si el endpoint no lo pide
+    origin_city = Column(String, nullable=True) 
+    destination_city = Column(String, nullable=True) 
+    declared_value = Column(Float, nullable=True) 
     is_dg = Column(Boolean, default=False)
     
-    # --- Nuevas Columnas Agregadas (Necesarias para el endpoint /cargo/measurements) ---
+    # Columnas de Medición y Auditoría
     length_cm = Column(Float)
     width_cm = Column(Float)
     height_cm = Column(Float)
@@ -36,7 +37,7 @@ class Shipment(Base):
     ispm15_conf = Column(Boolean, default=False)
     dg_risk_keywords = Column(String)
     service_tier = Column(String, default="NONE")
-    legal_disclaimer_at_creation = Column(Text, nullable=False) # Inmutable para Reportes/Auditoría
+    legal_disclaimer_at_creation = Column(Text, nullable=False) 
 
     # Fechas y Estatus
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
