@@ -2,7 +2,18 @@
 
 import google.genai as genai
 from config.env_keys import GEMINI_API_KEY, LEGAL_DISCLAIMER_CORE
-from requirements.legal.guardrails import PROHIBITED_ACTIONS_DG, PERMITTED_LEGAL_ADVICE
+# src/logic/ia_validator.py (COPIAR Y PEGAR - LÍNEA 5)
+
+# --- Importaciones de Lógica ---
+import google.genai as genai
+from config.env_keys import GEMINI_API_KEY
+# CORRECCIÓN: Intentar importar la ruta completa desde el nivel raíz del proyecto
+from src.requirements.legal.guardrails import PROHIBITED_ACTIONS_DG, PERMITTED_LEGAL_ADVICE
+# La línea anterior asume que la raíz es donde está 'src'.
+# Si el PYTHONPATH=src funcionó, esta línea debería ser:
+# from requirements.legal.guardrails import PROHIBITED_ACTIONS_DG, PERMITTED_LEGAL_ADVICE 
+
+# Si el problema persiste, la única opción es subir el archivo.
 from requirements.standards.validation_codes import INCOMPATIBLE_RISKS
 
 # Inicialización de la IA con el guardarraíl legal estricto
