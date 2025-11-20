@@ -1,1 +1,1 @@
-
+from requirements.legal.guardrails import PROHIBITED_ACTIONS_DG, PERMITTED_LEGAL_ADVICE
