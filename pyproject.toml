@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "smartcargo-backend"
+version = "1.0.0"
+description = "Backend SmartCargo AIPA - manejo de envíos, validaciones y DG"
+authors = ["Maykel Rodriguez <maykel75122805321@gmail.com>"]
+packages = [{ include = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+flask = "^2.3.3"
+sqlalchemy = "^2.0.32"
+stripe = "^10.0.0"
+google-genai = "^0.15.0"
+
+[tool.poetry.group.main.dependencies]
+gunicorn = "^21.2.0"
+
+[build-system]
+requires = ["poetry-core>=1.8.0"]
+build-backend = "poetry.core.masonry.api"
