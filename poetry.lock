@@ -1,2 +1,0 @@
-poetry install --no-dev
-export PYTHONPATH=$PYTHONPATH:./src
