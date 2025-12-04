@@ -1,4 +1,5 @@
 # src/api/endpoints.py
+
 import os
 import json
 import datetime
@@ -10,27 +11,27 @@ from sqlalchemy.orm import sessionmaker
 import stripe
 
 # --- Config & models ---
-from src.config.env_keys import (
+from config.env_keys import (
     STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, BASE_URL,
     ADMIN_USERNAME, ADMIN_PASSWORD, DATABASE_URI, LEGAL_DISCLAIMER_CORE
 )
-from src.config.price_constants import SERVICE_LEVELS, PRICE_LEGAL_DISCLAIMER_TEXT
-from src.db.models.db_setup import Base
-from src.db.models.Shipments import Shipment
-from src.db.models.Transactions import Transaction
-from src.db.models.Reports import Report
-from src.db.models.Users import User
+from config.price_constants import SERVICE_LEVELS, PRICE_LEGAL_DISCLAIMER_TEXT
+
+from db.models.db_setup import Base
+from db.models.Shipments import Shipment
+from db.models.Transactions import Transaction
+from db.models.Reports import Report
+from db.models.Users import User
 
 # --- Logic ---
-from src.logic.measurement import calculate_volumetric_weight, determine_billing_weight
-from src.logic.pallet_validator import validate_ispm15_compliance
-from src.logic.ia_validator import analyze_photo_and_dg, get_assistant_response
-from src.logic.temp_validator import validate_temperature_needs
-from src.logic.reporting import generate_pdf_logic
-from src.logic.scpam import run_rvd, run_acpf, run_pro, run_psra, generate_rtc_report
+from logic.measurement import calculate_volumetric_weight, determine_billing_weight
+from logic.pallet_validator import validate_ispm15_compliance
+from logic.ia_validator import analyze_photo_and_dg, get_assistant_response
+from logic.temp_validator import validate_temperature_needs
+from logic.reporting import generate_pdf_logic
+from logic.scpam import run_rvd, run_acpf, run_pro, run_psra, generate_rtc_report
 
-# --- Legal ---
-from src.requirements.legal.guardrails import PROHIBITED_ACTIONS_DG
+from requirements.legal.guardrails import PROHIBITED_ACTIONS_DG
 
 # --- App init ---
 app = Flask(__name__, static_folder='static', static_url_path='/static')
@@ -46,7 +47,7 @@ Base.metadata.create_all(bind=engine)
 # Stripe init
 stripe.api_key = STRIPE_SECRET_KEY
 
-# Helper: DB session in endpoint
+
 def get_db():
     db = SessionLocal()
     try:
@@ -54,9 +55,10 @@ def get_db():
     finally:
         db.close()
 
-# Simple token generator placeholder
+
 def generate_admin_token(user_id):
     return f"admin_token_{user_id}_{int(datetime.datetime.utcnow().timestamp())}"
+
 
 # ===================== Endpoints =====================
 
@@ -70,7 +72,6 @@ def process_measurement_and_register():
     unit = data.get('unit', 'CM')
     commodity_type = (data.get('commodity_type') or '').upper()
 
-    # Guardrail: detect keywords DG/risks
     if any(keyword in commodity_type for keyword in ["BATERÍA", "LITHIUM", "EXPLOSIVO", "QUÍMICO", "AEROSOL", "PINTURA"]):
         return jsonify({
             "error": "Riesgo DG detectado",
@@ -112,6 +113,7 @@ def process_measurement_and_register():
         "action": "Proceed to Pricing/Checkout"
     }), 201
 
+
 @app.route('/cargo/validate/pallet', methods=['POST'])
 def validate_pallet_status():
     payload = request.get_json() or {}
@@ -134,6 +136,7 @@ def validate_pallet_status():
         db.close()
 
     return jsonify(result), 200
+
 
 @app.route('/payment/create-checkout', methods=['POST'])
 def create_checkout_session():
@@ -173,6 +176,7 @@ def create_checkout_session():
     except Exception as e:
         return jsonify({'error': 'Error al crear la sesión de pago', 'details': str(e)}), 500
 
+
 @app.route('/payment/webhook', methods=['POST'])
 def stripe_webhook():
     payload = request.data
@@ -211,6 +215,7 @@ def stripe_webhook():
 
     return jsonify({'status': 'success'}), 200
 
+
 @app.route('/cargo/validate/photo', methods=['POST'])
 def validate_photo_and_dg_info():
     shipment_id = request.form.get('shipment_id')
@@ -247,6 +252,7 @@ def validate_photo_and_dg_info():
         "legal_warning_fixed": LEGAL_DISCLAIMER_CORE
     }), 200
 
+
 @app.route('/assistant/query', methods=['POST'])
 def assistant_query():
     data = request.get_json() or {}
@@ -256,6 +262,7 @@ def assistant_query():
         return jsonify({"response": response_text}), 200
     except Exception as e:
         return jsonify({"error": "IA error", "details": str(e)}), 500
+
 
 @app.route('/cargo/validate/temperature', methods=['POST'])
 def validate_temperature_status():
@@ -268,6 +275,7 @@ def validate_temperature_status():
         return jsonify(validation_result), 200
     except Exception as e:
         return jsonify({"error": "Temp validation error", "details": str(e)}), 500
+
 
 @app.route('/report/generate', methods=['POST'])
 def generate_advanced_report():
@@ -312,6 +320,7 @@ def generate_advanced_report():
 
     return jsonify({"status": "Reporte Avanzado Generado", "report_url": pdf_url}), 200
 
+
 @app.route('/admin/login', methods=['POST'])
 def admin_login():
     data = request.get_json() or {}
@@ -332,6 +341,7 @@ def admin_login():
 
     return jsonify({"error": "Credenciales de administrador inválidas. Acceso denegado (Regla 3.1)."}), 401
 
+
 @app.route('/admin/audits', methods=['GET'])
 def get_legal_audits():
     db = SessionLocal()
@@ -350,10 +360,12 @@ def get_legal_audits():
     finally:
         db.close()
 
+
 @app.route('/reports/<path:filename>', methods=['GET'])
 def serve_report_file(filename):
     reports_dir = os.path.join(app.static_folder, 'reports')
     return send_from_directory(reports_dir, filename, as_attachment=True)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
