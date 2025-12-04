@@ -10,37 +10,42 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import stripe
 
-# ================== CONFIG ==================
-# Variables de entorno
-BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")
-STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
-STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
-ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
-DATABASE_URI = os.environ.get("DATABASE_URI", "postgresql+psycopg2://user:password@localhost/SmartCargo-AIPA")
+# --- Config & constants ---
+from config.env_keys import STRIPE_API_KEY, STRIPE_WEBHOOK_SECRET, DATABASE_URI, BASE_URL, ADMIN_USERNAME, ADMIN_PASSWORD
+from config.price_constants import SERVICE_LEVELS, PRICE_LEGAL_DISCLAIMER_TEXT
+from config.constants import LEGAL_DISCLAIMER_CORE
 
-# Texto legal profesional
-LEGAL_DISCLAIMER_CORE = """
-Aviso Legal: La información proporcionada en este sistema es únicamente para fines de evaluación
-y procesamiento de envíos. No nos hacemos responsables por daños, pérdidas, o riesgos asociados
-con mercancías peligrosas, incorrectamente declaradas o mal embaladas. Todos los usuarios deben
-cumplir con las regulaciones locales e internacionales vigentes. Al continuar, usted acepta estos términos.
-"""
+# --- DB models ---
+from db.models.db_setup import Base
+from db.models.Shipments import Shipment
+from db.models.Transactions import Transaction
+from db.models.Reports import Report
+from db.models.Users import User
 
-# ================== APP ==================
+# --- Logic modules ---
+from logic.measurement import calculate_volumetric_weight, determine_billing_weight
+from logic.pallet_validator import validate_ispm15_compliance
+from logic.ia_validator import analyze_photo_and_dg, get_assistant_response
+from logic.temp_validator import validate_temperature_needs
+from logic.reporting import generate_pdf_logic
+from logic.scpam import run_rvd, run_acpf, run_pro, run_psra, generate_rtc_report
+
+# --- Legal ---
+from legal.guardrails import PROHIBITED_ACTIONS_DG
+
+# --- App init ---
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
-# ================== DATABASE ==================
-from src.db.models.db_setup import Base
-from src.db.models.Shipments import Shipment
-from src.db.models.Transactions import Transaction
-from src.db.models.Reports import Report
-from src.db.models.Users import User
+# --- Database setup ---
+if not DATABASE_URI:
+    raise RuntimeError("DATABASE_URI no configurada en variables de entorno (config/env_keys.py)")
 
 engine = create_engine(DATABASE_URI, future=True)
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 Base.metadata.create_all(bind=engine)
+
+# --- Stripe setup ---
+stripe.api_key = STRIPE_API_KEY
 
 def get_db():
     db = SessionLocal()
@@ -49,25 +54,10 @@ def get_db():
     finally:
         db.close()
 
-# ================== STRIPE ==================
-stripe.api_key = STRIPE_SECRET_KEY
-
-# ================== LOGIC ==================
-from src.logic.measurement import calculate_volumetric_weight, determine_billing_weight
-from src.logic.pallet_validator import validate_ispm15_compliance
-from src.logic.ia_validator import analyze_photo_and_dg, get_assistant_response
-from src.logic.temp_validator import validate_temperature_needs
-from src.logic.reporting import generate_pdf_logic
-from src.logic.scpam import run_rvd, run_acpf, run_pro, run_psra, generate_rtc_report
-
-from legal.guardrails import PROHIBITED_ACTIONS_DG
-from src.config.price_constants import SERVICE_LEVELS, PRICE_LEGAL_DISCLAIMER_TEXT
-
-# ================== HELPERS ==================
 def generate_admin_token(user_id):
     return f"admin_token_{user_id}_{int(datetime.datetime.utcnow().timestamp())}"
 
-# ================== ENDPOINTS ==================
+# ===================== Endpoints =====================
 
 @app.route('/cargo/measurements', methods=['POST'])
 def process_measurement_and_register():
@@ -79,10 +69,11 @@ def process_measurement_and_register():
     unit = data.get('unit', 'CM')
     commodity_type = (data.get('commodity_type') or '').upper()
 
+    # Validación de riesgo DG
     if any(keyword in commodity_type for keyword in ["BATERÍA", "LITHIUM", "EXPLOSIVO", "QUÍMICO", "AEROSOL", "PINTURA"]):
         return jsonify({
             "error": "Riesgo DG detectado",
-            "message": f"Advertencia: El sistema no puede proceder con productos de riesgo evidente. {LEGAL_DISCLAIMER_CORE}"
+            "message": "Advertencia: El sistema no puede proceder con productos de riesgo evidente. " + LEGAL_DISCLAIMER_CORE
         }), 403
 
     try:
@@ -120,7 +111,6 @@ def process_measurement_and_register():
         "action": "Proceed to Pricing/Checkout"
     }), 201
 
-# --- Pallet Validation ---
 @app.route('/cargo/validate/pallet', methods=['POST'])
 def validate_pallet_status():
     payload = request.get_json() or {}
@@ -144,7 +134,6 @@ def validate_pallet_status():
 
     return jsonify(result), 200
 
-# --- Payment Checkout ---
 @app.route('/payment/create-checkout', methods=['POST'])
 def create_checkout_session():
     data = request.get_json() or {}
@@ -183,7 +172,6 @@ def create_checkout_session():
     except Exception as e:
         return jsonify({'error': 'Error al crear la sesión de pago', 'details': str(e)}), 500
 
-# --- Stripe Webhook ---
 @app.route('/payment/webhook', methods=['POST'])
 def stripe_webhook():
     payload = request.data
@@ -222,44 +210,6 @@ def stripe_webhook():
 
     return jsonify({'status': 'success'}), 200
 
-# --- Photo Validation ---
-@app.route('/cargo/validate/photo', methods=['POST'])
-def validate_photo_and_dg_info():
-    shipment_id = request.form.get('shipment_id')
-    commodity_description = request.form.get('commodity_description', '')
-    image_file = request.files.get('image')
-
-    tmp_path = None
-    if image_file:
-        tmp_dir = os.path.join('tmp', 'uploads')
-        os.makedirs(tmp_dir, exist_ok=True)
-        tmp_path = os.path.join(tmp_dir, f"{datetime.datetime.utcnow().timestamp()}_{image_file.filename}")
-        image_file.save(tmp_path)
-
-    try:
-        validation_result = analyze_photo_and_dg(tmp_path, commodity_description)
-    except Exception as e:
-        return jsonify({"error": "Error IA", "details": str(e)}), 500
-
-    db = SessionLocal()
-    try:
-        shipment = db.query(Shipment).filter_by(shipment_id=UUID(shipment_id)).first() if shipment_id else None
-        if shipment:
-            shipment.dg_risk_keywords = validation_result.get('dg_risk_level')
-            db.commit()
-    except Exception:
-        db.rollback()
-    finally:
-        db.close()
-
-    return jsonify({
-        "status": "success",
-        "ia_advice": validation_result.get('ia_response'),
-        "dg_risk": validation_result.get('dg_risk_level'),
-        "legal_warning_fixed": LEGAL_DISCLAIMER_CORE
-    }), 200
-
-# --- Assistant Query ---
 @app.route('/assistant/query', methods=['POST'])
 def assistant_query():
     data = request.get_json() or {}
@@ -270,7 +220,6 @@ def assistant_query():
     except Exception as e:
         return jsonify({"error": "IA error", "details": str(e)}), 500
 
-# --- Temperature Validation ---
 @app.route('/cargo/validate/temperature', methods=['POST'])
 def validate_temperature_status():
     data = request.get_json() or {}
@@ -283,7 +232,6 @@ def validate_temperature_status():
     except Exception as e:
         return jsonify({"error": "Temp validation error", "details": str(e)}), 500
 
-# --- Report Generation ---
 @app.route('/report/generate', methods=['POST'])
 def generate_advanced_report():
     data = request.get_json() or {}
@@ -327,18 +275,17 @@ def generate_advanced_report():
 
     return jsonify({"status": "Reporte Avanzado Generado", "report_url": pdf_url}), 200
 
-# --- Admin Login ---
 @app.route('/admin/login', methods=['POST'])
 def admin_login():
     data = request.get_json() or {}
     username = data.get('username')
     password = data.get('password')
 
-    if username == ADMIN_USERNAME:
+    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
         db = SessionLocal()
         try:
             user = db.query(User).filter_by(username=username).first()
-            if user and user.is_admin and password == ADMIN_PASSWORD:
+            if user and user.is_admin:
                 token = generate_admin_token(str(user.user_id))
                 user.last_login_at = datetime.datetime.utcnow()
                 db.commit()
@@ -346,9 +293,8 @@ def admin_login():
         finally:
             db.close()
 
-    return jsonify({"error": "Credenciales de administrador inválidas. Acceso denegado (Regla 3.1)."}), 401
+    return jsonify({"error": "Credenciales de administrador inválidas. Acceso denegado."}), 401
 
-# --- Legal Audits ---
 @app.route('/admin/audits', methods=['GET'])
 def get_legal_audits():
     db = SessionLocal()
@@ -367,12 +313,11 @@ def get_legal_audits():
     finally:
         db.close()
 
-# --- Serve Reports ---
 @app.route('/reports/<path:filename>', methods=['GET'])
 def serve_report_file(filename):
     reports_dir = os.path.join(app.static_folder, 'reports')
     return send_from_directory(reports_dir, filename, as_attachment=True)
 
-# ================== RUN APP ==================
+# --- Run server ---
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
