@@ -4,13 +4,21 @@ version = "0.1.0"
 description = "Backend SmartCargo-AIPA"
 authors = ["Maykel Rodriguez <maykel75122805321@gmail.com>"]
 packages = [{include = "src"}]
+readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-flask = "^2.4"
-sqlalchemy = "^2.0"
+flask = "^2.3.3"
+sqlalchemy = "^2.0.20"
 stripe = "^10.0"
-google-genai = "^0.1"
+google-genai = "^0.1.0"
 
-[tool.poetry.dev-dependencies]
-# opcionales: tests, linters, etc.
+[tool.poetry.group.dev.dependencies]
+# Dependencias de desarrollo opcionales
+pytest = "^7.4"
+black = "^24.3"
+isort = "^6.0"
+
+[build-system]
+requires = ["poetry-core>=1.6.0"]
+build-backend = "poetry.core.masonry.api"
