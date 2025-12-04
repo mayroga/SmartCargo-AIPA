@@ -3,7 +3,6 @@ name = "smartcargo-aipa"
 version = "0.1.0"
 description = "Backend SmartCargo AIPA"
 authors = ["Maykel Rodriguez <maykel75122805321@gmail.com>"]
-readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0"
