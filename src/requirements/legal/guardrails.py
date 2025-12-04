@@ -1,11 +1,9 @@
 # src/requirements/legal/guardrails.py
 
-# ==============================================================================
+# ============================================================================== 
 # SMARTCARGO-AIPA BACKEND - REGLAS LEGALES INMUTABLES (SECCIÓN 3)
-# La lógica del asistente debe adherirse estrictamente a estas listas.
 # ==============================================================================
 
-# 🟥 3.1. LO QUE SMARTCARGO NO PUEDE HACER (PROHIBIDO POR LEY)
 PROHIBITED_ACTIONS_DG = [
     "Declarar oficialmente mercancía peligrosa (DG)",
     "Clasificar mercancía bajo UN number o Clase 1–9",
@@ -18,7 +16,6 @@ PROHIBITED_ACTIONS_DG = [
     "Reemplazar a un especialista certificado"
 ]
 
-# 🟢 3.2. LO QUE SÍ PUEDE HACER SMARTCARGO (LEGAL)
 PERMITTED_LEGAL_ADVICE = [
     "Asesorar de forma general y educativa (sin certificar)",
     "Advertir riesgos y sugerir que el artículo puede ser regulado",
