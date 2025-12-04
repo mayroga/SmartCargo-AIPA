@@ -11,27 +11,27 @@ from sqlalchemy.orm import sessionmaker
 import stripe
 
 # --- Config & models ---
-from config.env_keys import (
+from src.config.env_keys import (
     STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, BASE_URL,
     ADMIN_USERNAME, ADMIN_PASSWORD, DATABASE_URI, LEGAL_DISCLAIMER_CORE
 )
-from config.price_constants import SERVICE_LEVELS, PRICE_LEGAL_DISCLAIMER_TEXT
+from src.config.price_constants import SERVICE_LEVELS, PRICE_LEGAL_DISCLAIMER_TEXT
 
-from db.models.db_setup import Base
-from db.models.Shipments import Shipment
-from db.models.Transactions import Transaction
-from db.models.Reports import Report
-from db.models.Users import User
+from src.db.models.db_setup import Base
+from src.db.models.Shipments import Shipment
+from src.db.models.Transactions import Transaction
+from src.db.models.Reports import Report
+from src.db.models.Users import User
 
 # --- Logic ---
-from logic.measurement import calculate_volumetric_weight, determine_billing_weight
-from logic.pallet_validator import validate_ispm15_compliance
-from logic.ia_validator import analyze_photo_and_dg, get_assistant_response
-from logic.temp_validator import validate_temperature_needs
-from logic.reporting import generate_pdf_logic
-from logic.scpam import run_rvd, run_acpf, run_pro, run_psra, generate_rtc_report
+from src.logic.measurement import calculate_volumetric_weight, determine_billing_weight
+from src.logic.pallet_validator import validate_ispm15_compliance
+from src.logic.ia_validator import analyze_photo_and_dg, get_assistant_response
+from src.logic.temp_validator import validate_temperature_needs
+from src.logic.reporting import generate_pdf_logic
+from src.logic.scpam import run_rvd, run_acpf, run_pro, run_psra, generate_rtc_report
 
-from requirements.legal.guardrails import PROHIBITED_ACTIONS_DG
+from src.requirements.legal.guardrails import PROHIBITED_ACTIONS_DG
 
 # --- App init ---
 app = Flask(__name__, static_folder='static', static_url_path='/static')
