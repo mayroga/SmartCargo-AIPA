@@ -57,9 +57,8 @@ def get_db():
 def generate_admin_token(user_id):
     return f"admin_token_{user_id}_{int(datetime.datetime.utcnow().timestamp())}"
 
-# ========================================================================
-# Endpoint: /cargo/measurements  (Create shipment + calculate billing)
-# ========================================================================
+# ===================== Endpoints =====================
+
 @app.route('/cargo/measurements', methods=['POST'])
 def process_measurement_and_register():
     data = request.get_json() or {}
@@ -70,7 +69,7 @@ def process_measurement_and_register():
     unit = data.get('unit', 'CM')
     commodity_type = (data.get('commodity_type') or '').upper()
 
-    # Guardrail: detecto keywords DG/risks. Solo advertencia y bloqueo si riesgo muy claro
+    # Guardrail: detect keywords DG/risks
     if any(keyword in commodity_type for keyword in ["BATERÍA", "LITHIUM", "EXPLOSIVO", "QUÍMICO", "AEROSOL", "PINTURA"]):
         return jsonify({
             "error": "Riesgo DG detectado",
@@ -83,7 +82,6 @@ def process_measurement_and_register():
     except Exception as e:
         return jsonify({"error": "Error en cálculos de medidas", "details": str(e)}), 400
 
-    # Registrar en DB
     db = SessionLocal()
     try:
         new_shipment = Shipment(
@@ -113,9 +111,6 @@ def process_measurement_and_register():
         "action": "Proceed to Pricing/Checkout"
     }), 201
 
-# ========================================================================
-# Endpoint: /cargo/validate/pallet  (ISPM-15 validation)
-# ========================================================================
 @app.route('/cargo/validate/pallet', methods=['POST'])
 def validate_pallet_status():
     payload = request.get_json() or {}
@@ -125,7 +120,6 @@ def validate_pallet_status():
 
     result = validate_ispm15_compliance(is_wood_pallet, pallet_marks)
 
-    # Guardar resultado parcial en Shipment (si existe)
     db = SessionLocal()
     try:
         shipment = db.query(Shipment).filter_by(shipment_id=UUID(shipment_id)).first() if shipment_id else None
@@ -140,16 +134,13 @@ def validate_pallet_status():
 
     return jsonify(result), 200
 
-# ========================================================================
-# Endpoint: /payment/create-checkout  (Stripe Checkout Session)
-# ========================================================================
 @app.route('/payment/create-checkout', methods=['POST'])
 def create_checkout_session():
     data = request.get_json() or {}
     shipment_id = data.get('shipment_id')
     user_id = data.get('user_id')
 
-    tier_key = 'LEVEL_BASIC'  # MVP
+    tier_key = 'LEVEL_BASIC'
     tier_info = SERVICE_LEVELS.get(tier_key)
     if not tier_info:
         return jsonify({"error": "Tier no disponible"}), 400
@@ -181,9 +172,6 @@ def create_checkout_session():
     except Exception as e:
         return jsonify({'error': 'Error al crear la sesión de pago', 'details': str(e)}), 500
 
-# ========================================================================
-# Endpoint: /payment/webhook  (Stripe webhook)
-# ========================================================================
 @app.route('/payment/webhook', methods=['POST'])
 def stripe_webhook():
     payload = request.data
@@ -195,7 +183,6 @@ def stripe_webhook():
     except stripe.error.SignatureVerificationError:
         return 'Invalid signature', 400
 
-    # Procesar checkout completed
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         shipment_id = session['metadata'].get('shipment_id')
@@ -223,16 +210,12 @@ def stripe_webhook():
 
     return jsonify({'status': 'success'}), 200
 
-# ========================================================================
-# Endpoint: /cargo/validate/photo  (IA photo analysis + DG advisory)
-# ========================================================================
 @app.route('/cargo/validate/photo', methods=['POST'])
 def validate_photo_and_dg_info():
     shipment_id = request.form.get('shipment_id')
     commodity_description = request.form.get('commodity_description', '')
     image_file = request.files.get('image')
 
-    # Save temp image if provided (optional)
     tmp_path = None
     if image_file:
         tmp_dir = os.path.join('tmp', 'uploads')
@@ -245,7 +228,6 @@ def validate_photo_and_dg_info():
     except Exception as e:
         return jsonify({"error": "Error IA", "details": str(e)}), 500
 
-    # Registrar DG risk en shipment (si existe)
     db = SessionLocal()
     try:
         shipment = db.query(Shipment).filter_by(shipment_id=UUID(shipment_id)).first() if shipment_id else None
@@ -264,9 +246,6 @@ def validate_photo_and_dg_info():
         "legal_warning_fixed": LEGAL_DISCLAIMER_CORE
     }), 200
 
-# ========================================================================
-# Endpoint: /assistant/query  (Chat assistant)
-# ========================================================================
 @app.route('/assistant/query', methods=['POST'])
 def assistant_query():
     data = request.get_json() or {}
@@ -277,9 +256,6 @@ def assistant_query():
     except Exception as e:
         return jsonify({"error": "IA error", "details": str(e)}), 500
 
-# ========================================================================
-# Endpoint: /cargo/validate/temperature
-# ========================================================================
 @app.route('/cargo/validate/temperature', methods=['POST'])
 def validate_temperature_status():
     data = request.get_json() or {}
@@ -292,9 +268,6 @@ def validate_temperature_status():
     except Exception as e:
         return jsonify({"error": "Temp validation error", "details": str(e)}), 500
 
-# ========================================================================
-# Endpoint: /report/generate  (Generate Ready-To-Counter report)
-# ========================================================================
 @app.route('/report/generate', methods=['POST'])
 def generate_advanced_report():
     data = request.get_json() or {}
@@ -308,7 +281,6 @@ def generate_advanced_report():
         if not shipment or shipment.status != 'Paid':
             return jsonify({"error": "Pago no completado. No se puede generar el informe."}), 402
 
-        # Ejecutar SC-PAM completo para el RTC (usar datos de Shipment)
         rvd = run_rvd(shipment)
         acpf = run_acpf(shipment)
         pro = run_pro(shipment)
@@ -320,7 +292,6 @@ def generate_advanced_report():
             "pro": pro,
             "psra": psra
         }
-        # Generar PDF (placeholder) y obtener URL
         pdf_url = generate_pdf_logic(shipment, rtc_payload=rtc_payload, is_advanced=(shipment.service_tier != 'LEVEL_BASIC'))
 
         new_report = Report(
@@ -340,16 +311,12 @@ def generate_advanced_report():
 
     return jsonify({"status": "Reporte Avanzado Generado", "report_url": pdf_url}), 200
 
-# ========================================================================
-# Endpoint: /admin/login  (Admin auth)
-# ========================================================================
 @app.route('/admin/login', methods=['POST'])
 def admin_login():
     data = request.get_json() or {}
     username = data.get('username')
     password = data.get('password')
 
-    # Reglas de entorno: ADMIN_USERNAME/ADMIN_PASSWORD
     if username == ADMIN_USERNAME:
         db = SessionLocal()
         try:
@@ -364,12 +331,8 @@ def admin_login():
 
     return jsonify({"error": "Credenciales de administrador inválidas. Acceso denegado (Regla 3.1)."}), 401
 
-# ========================================================================
-# Endpoint: /admin/audits  (Get legal audits - admin only placeholder)
-# ========================================================================
 @app.route('/admin/audits', methods=['GET'])
 def get_legal_audits():
-    # NOTE: Aquí debes añadir middleware real de autenticación admin
     db = SessionLocal()
     try:
         reports = db.query(Report).all()
@@ -386,15 +349,10 @@ def get_legal_audits():
     finally:
         db.close()
 
-# ========================================================================
-# Static report fetch (optional)
-# ========================================================================
 @app.route('/reports/<path:filename>', methods=['GET'])
 def serve_report_file(filename):
-    # Este endpoint sirve la carpeta /static/reports si la usas para almacenar PDFs generados
     reports_dir = os.path.join(app.static_folder, 'reports')
     return send_from_directory(reports_dir, filename, as_attachment=True)
 
-# Run app (only if executed directly)
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
