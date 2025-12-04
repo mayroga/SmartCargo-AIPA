@@ -1,24 +1,27 @@
 [tool.poetry]
 name = "smartcargo-aipa"
 version = "0.1.0"
-description = "Backend SmartCargo-AIPA"
-authors = ["Maykel Rodriguez <maykel75122805321@gmail.com>"]
-packages = [{include = "src"}]
+description = "Sistema profesional de validación, IA y reportes."
+authors = ["Maykel Rodriguez"]
 readme = "README.md"
+packages = [
+    { include = "src" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.12"
-flask = "^2.3.3"
+flask = "2.3.3"
 sqlalchemy = "^2.0.44"
 stripe = "^10.12.0"
 google-genai = "^0.1.0"
 gunicorn = "^21.2.0"
+pillow = "^11.3.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.4"
-black = "^24.3"
+black = "^24.10.0"
 isort = "^6.1.0"
 
 [build-system]
-requires = ["poetry-core>=1.6.0"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
