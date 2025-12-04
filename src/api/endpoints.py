@@ -1,144 +1,159 @@
-# SMARTCARGO-AIPA/src/api/endpoints.py
-
-import stripe
-import datetime
+# src/api/endpoints.py
 import os
 import json
-from flask import request, jsonify # Asumiendo el uso de Flask o similar
+import datetime
+from uuid import UUID
 
-# --- IMPORTACIONES DE CONFIGURACIÓN Y MODELOS FIJOS ---
-from config.env_keys import STRIPE_SECRET_KEY, BASE_URL, LEGAL_DISCLAIMER_CORE, STRIPE_WEBHOOK_SECRET
-from config.env_keys import ADMIN_USERNAME, ADMIN_PASSWORD
-from config.price_constants import SERVICE_LEVELS, PRICE_LEGAL_DISCLAIMER_TEXT 
-from db.models.Shipments import Shipment # Corregido
-from db.models.Transactions import Transaction 
-from db.models.Reports import Report 
-from db.models.Users import User 
-from db.models.db_setup import Base # Importar Base
-# Placeholder para el objeto de sesión (Asegúrese de inicializar 'db' correctamente)
-# from db.models.db_setup import db 
+from flask import Flask, request, jsonify, send_from_directory
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+import stripe
 
-# --- IMPORTACIONES DE LÓGICA FIJA ---
+# --- Config & models ---
+from config.env_keys import (
+    STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, BASE_URL,
+    ADMIN_USERNAME, ADMIN_PASSWORD, DATABASE_URI, LEGAL_DISCLAIMER_CORE
+)
+from config.price_constants import SERVICE_LEVELS, PRICE_LEGAL_DISCLAIMER_TEXT
+from db.models.db_setup import Base
+from db.models.Shipments import Shipment
+from db.models.Transactions import Transaction
+from db.models.Reports import Report
+from db.models.Users import User
+
+# --- Logic ---
 from src.logic.measurement import calculate_volumetric_weight, determine_billing_weight
 from src.logic.pallet_validator import validate_ispm15_compliance
-from src.logic.ia_validator import analyze_photo_and_dg, get_assistant_response 
-from src.logic.temp_validator import validate_temperature_needs 
-from src.logic.reporting import generate_pdf_logic 
+from src.logic.ia_validator import analyze_photo_and_dg, get_assistant_response
+from src.logic.temp_validator import validate_temperature_needs
+from src.logic.reporting import generate_pdf_logic
+from src.logic.scpam import run_rvd, run_acpf, run_pro, run_psra, generate_rtc_report
+
 from requirements.legal.guardrails import PROHIBITED_ACTIONS_DG
 
-# Inicialización de Stripe (usando la clave secreta fija)
+# --- App init ---
+app = Flask(__name__, static_folder='static', static_url_path='/static')
+
+# Database setup
+if not DATABASE_URI:
+    raise RuntimeError("DATABASE_URI no configurada en variables de entorno (config/env_keys.py)")
+
+engine = create_engine(DATABASE_URI, future=True)
+SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+Base.metadata.create_all(bind=engine)
+
+# Stripe init
 stripe.api_key = STRIPE_SECRET_KEY
 
-# --- Placeholder para funciones no provistas ---
+# Helper: DB session in endpoint
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Simple token generator placeholder
 def generate_admin_token(user_id):
-    """Placeholder para generación de token de JWT"""
-    return f"admin_token_{user_id}_secret"
+    return f"admin_token_{user_id}_{int(datetime.datetime.utcnow().timestamp())}"
 
-# Se asume que 'app' (Flask app) está inicializada y que 'db' es su objeto ORM
-app = None # Placeholder
-class DummyDB:
-    def session(self): return self
-    def add(self, obj): pass
-    def commit(self): pass
-    def rollback(self): pass
-    class query:
-        @staticmethod
-        def filter_by(key, value): return DummyDB.query()
-        @staticmethod
-        def first(): return None
-        @staticmethod
-        def all(): return []
-
-db = DummyDB() # Placeholder para la sesión de DB
-
-# ==============================================================================
-# 1. ENDPOINT: Medición Inteligente y Registro
-# ==============================================================================
-# @app.route('/cargo/measurements', methods=['POST'])
+# ========================================================================
+# Endpoint: /cargo/measurements  (Create shipment + calculate billing)
+# ========================================================================
+@app.route('/cargo/measurements', methods=['POST'])
 def process_measurement_and_register():
-    data = request.json
-    
-    l, w, h = data.get('length'), data.get('width'), data.get('height')
+    data = request.get_json() or {}
+    l = data.get('length')
+    w = data.get('width')
+    h = data.get('height')
     real_weight = data.get('real_weight')
     unit = data.get('unit', 'CM')
-    commodity_type = data.get('commodity_type', '').upper()
-    
-    # 1. Validación Básica de Riesgo (Guardarraíl DG 3.1)
-    if any(keyword in commodity_type for keyword in ["BATERÍA", "EXPLOSIVO", "QUÍMICO", "AEROSOL", "PINTURA"]):
+    commodity_type = (data.get('commodity_type') or '').upper()
+
+    # Guardrail: detecto keywords DG/risks. Solo advertencia y bloqueo si riesgo muy claro
+    if any(keyword in commodity_type for keyword in ["BATERÍA", "LITHIUM", "EXPLOSIVO", "QUÍMICO", "AEROSOL", "PINTURA"]):
         return jsonify({
             "error": "Riesgo DG detectado",
             "message": "Advertencia: El sistema no puede proceder con productos de riesgo evidente. " + LEGAL_DISCLAIMER_CORE
         }), 403
 
-    # 2. Cálculo de Peso Facturable
-    vol_weight = calculate_volumetric_weight(l, w, h, unit)
-    billing_weight = determine_billing_weight(real_weight, vol_weight)
-    
-    # 3. Registrar Nuevo Envío
+    try:
+        vol_weight = calculate_volumetric_weight(l, w, h, unit)
+        billing_weight = determine_billing_weight(real_weight, vol_weight)
+    except Exception as e:
+        return jsonify({"error": "Error en cálculos de medidas", "details": str(e)}), 400
+
+    # Registrar en DB
+    db = SessionLocal()
     try:
         new_shipment = Shipment(
-            client_id=data.get('user_id'), # CORREGIDO: Usamos client_id del modelo
-            length_cm=l, 
-            width_cm=w,
-            height_cm=h,
+            client_id=data.get('user_id'),
+            length_cm=l, width_cm=w, height_cm=h,
             weight_real_kg=real_weight,
             shipper_name=data.get('shipper_name'),
             consignee_name=data.get('consignee_name'),
             airport_code=data.get('airport_code'),
             commodity_type=commodity_type,
-            # Campo crucial para auditoría y reportes
-            legal_disclaimer_at_creation=LEGAL_DISCLAIMER_CORE
+            legal_disclaimer_at_creation=LEGAL_DISCLAIMER_CORE,
+            status="PENDING"
         )
-        db.session.add(new_shipment)
-        db.session.commit()
+        db.add(new_shipment)
+        db.commit()
+        db.refresh(new_shipment)
     except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": "Error de base de datos al registrar envío.", "details": str(e)}), 500
+        db.rollback()
+        return jsonify({"error": "Error al registrar envío", "details": str(e)}), 500
+    finally:
+        db.close()
 
     return jsonify({
         "status": "success",
-        "shipment_id": new_shipment.shipment_id,
+        "shipment_id": str(new_shipment.shipment_id),
         "billing_weight": billing_weight,
         "action": "Proceed to Pricing/Checkout"
-    })
+    }), 201
 
-# ==============================================================================
-# 2. ENDPOINT: Validación de Pallets ISPM-15
-# ==============================================================================
-# @app.route('/cargo/validate/pallet', methods=['POST'])
+# ========================================================================
+# Endpoint: /cargo/validate/pallet  (ISPM-15 validation)
+# ========================================================================
+@app.route('/cargo/validate/pallet', methods=['POST'])
 def validate_pallet_status():
-    data = request.json
-    shipment_id = data.get('shipment_id')
-    is_wood_pallet = data.get('is_wood_pallet', False)
-    pallet_marks = data.get('pallet_marks', []) 
+    payload = request.get_json() or {}
+    shipment_id = payload.get('shipment_id')
+    is_wood_pallet = payload.get('is_wood_pallet', False)
+    pallet_marks = payload.get('pallet_marks', [])
 
-    validation_result = validate_ispm15_compliance(is_wood_pallet, pallet_marks)
+    result = validate_ispm15_compliance(is_wood_pallet, pallet_marks)
 
-    # 1. Actualizar el registro de envío (Commit de cumplimiento legal)
-    shipment = Shipment.query.filter_by(shipment_id=shipment_id).first()
-    if shipment:
-        shipment.is_wood_pallet = is_wood_pallet
-        shipment.ispm15_conf = (validation_result['risk_level'] < 5) 
-        db.session.commit()
+    # Guardar resultado parcial en Shipment (si existe)
+    db = SessionLocal()
+    try:
+        shipment = db.query(Shipment).filter_by(shipment_id=UUID(shipment_id)).first() if shipment_id else None
+        if shipment:
+            shipment.is_wood_pallet = bool(is_wood_pallet)
+            shipment.ispm15_conf = (result.get('risk_level', 5) < 5)
+            db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
 
-    # 2. Devolver el resultado de validación
-    return jsonify(validation_result)
+    return jsonify(result), 200
 
-# ==============================================================================
-# 3. ENDPOINT: Creación de Sesión de Pago (Stripe Checkout)
-# ==============================================================================
-# @app.route('/payment/create-checkout', methods=['POST'])
+# ========================================================================
+# Endpoint: /payment/create-checkout  (Stripe Checkout Session)
+# ========================================================================
+@app.route('/payment/create-checkout', methods=['POST'])
 def create_checkout_session():
-    data = request.json
+    data = request.get_json() or {}
     shipment_id = data.get('shipment_id')
     user_id = data.get('user_id')
-    
-    # FASE 1 MVP: SOLO PERMITIMOS EL NIVEL BÁSICO FIJO (LEVEL_BASIC)
-    tier_key = 'LEVEL_BASIC'
-    tier_info = SERVICE_LEVELS[tier_key]
-    
-    # Lógica de Stripe (asumida como correcta)
-    # ...
+
+    tier_key = 'LEVEL_BASIC'  # MVP
+    tier_info = SERVICE_LEVELS.get(tier_key)
+    if not tier_info:
+        return jsonify({"error": "Tier no disponible"}), 400
+
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=['card'],
@@ -149,7 +164,7 @@ def create_checkout_session():
                         'name': tier_info['name'],
                         'description': tier_info['description'],
                     },
-                    'unit_amount': int(tier_info['price_usd'] * 100), 
+                    'unit_amount': int(tier_info['price_usd'] * 100),
                 },
                 'quantity': 1,
             }],
@@ -162,186 +177,224 @@ def create_checkout_session():
                 'tier_purchased': tier_key
             }
         )
-        return jsonify({'id': session.id})
+        return jsonify({'id': session.id}), 200
     except Exception as e:
-        # print(f"Stripe Error: {e}")
-        return jsonify({'error': 'Error al crear la sesión de pago.'}), 500
+        return jsonify({'error': 'Error al crear la sesión de pago', 'details': str(e)}), 500
 
-# ==============================================================================
-# 4. ENDPOINT: Stripe Webhook (Confirmación de Pago y Auditoría)
-# ==============================================================================
-# @app.route('/payment/webhook', methods=['POST'])
+# ========================================================================
+# Endpoint: /payment/webhook  (Stripe webhook)
+# ========================================================================
+@app.route('/payment/webhook', methods=['POST'])
 def stripe_webhook():
     payload = request.data
     sig_header = request.headers.get('stripe-signature')
-    
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET
-        )
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
     except ValueError:
         return 'Invalid payload', 400
     except stripe.error.SignatureVerificationError:
         return 'Invalid signature', 400
 
+    # Procesar checkout completed
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        
-        shipment_id = session.metadata.get('shipment_id')
-        tier_purchased = session.metadata.get('tier_purchased')
-        
-        # 3. Registrar Transacción y Actualizar Envío (usa el shipment_id UUID)
-        shipment = Shipment.query.filter_by(shipment_id=shipment_id).first()
+        shipment_id = session['metadata'].get('shipment_id')
+        tier_purchased = session['metadata'].get('tier_purchased')
 
-        if shipment:
-            new_transaction = Transaction(
-                shipment_id=shipment_id,
-                stripe_session_id=session.id,
-                price_paid=session.amount_total / 100, 
-                status='Completed',
-                tier_purchased=tier_purchased
-            )
-            db.session.add(new_transaction)
-            
-            shipment.status = 'Paid'
-            shipment.service_tier = tier_purchased # Se agregó al modelo
-            db.session.commit()
-            
+        db = SessionLocal()
+        try:
+            shipment = db.query(Shipment).filter_by(shipment_id=UUID(shipment_id)).first()
+            if shipment:
+                new_tx = Transaction(
+                    shipment_id=shipment.shipment_id,
+                    stripe_session_id=session.get('id'),
+                    price_paid=(session.get('amount_total') or 0) / 100.0,
+                    status='Completed',
+                    tier_purchased=tier_purchased
+                )
+                db.add(new_tx)
+                shipment.status = 'Paid'
+                shipment.service_tier = tier_purchased
+                db.commit()
+        except Exception:
+            db.rollback()
+        finally:
+            db.close()
+
     return jsonify({'status': 'success'}), 200
 
-# ==============================================================================
-# 5. ENDPOINT: Validación Fotográfica y DG Informativa
-# ==============================================================================
-# @app.route('/cargo/validate/photo', methods=['POST'])
+# ========================================================================
+# Endpoint: /cargo/validate/photo  (IA photo analysis + DG advisory)
+# ========================================================================
+@app.route('/cargo/validate/photo', methods=['POST'])
 def validate_photo_and_dg_info():
     shipment_id = request.form.get('shipment_id')
-    commodity_description = request.form.get('commodity_description')
+    commodity_description = request.form.get('commodity_description', '')
     image_file = request.files.get('image')
 
-    validation_result = analyze_photo_and_dg(image_file, commodity_description)
-    
-    # 2. Registrar el resultado de riesgo DG en la DB (para auditoría)
-    shipment = Shipment.query.filter_by(shipment_id=shipment_id).first()
-    if shipment:
-        shipment.dg_risk_keywords = validation_result['dg_risk_level'] # Se agregó al modelo
-        db.session.commit()
-    
-    # 3. Devolver la respuesta de la IA y el blindaje legal
+    # Save temp image if provided (optional)
+    tmp_path = None
+    if image_file:
+        tmp_dir = os.path.join('tmp', 'uploads')
+        os.makedirs(tmp_dir, exist_ok=True)
+        tmp_path = os.path.join(tmp_dir, f"{datetime.datetime.utcnow().timestamp()}_{image_file.filename}")
+        image_file.save(tmp_path)
+
+    try:
+        validation_result = analyze_photo_and_dg(tmp_path, commodity_description)
+    except Exception as e:
+        return jsonify({"error": "Error IA", "details": str(e)}), 500
+
+    # Registrar DG risk en shipment (si existe)
+    db = SessionLocal()
+    try:
+        shipment = db.query(Shipment).filter_by(shipment_id=UUID(shipment_id)).first() if shipment_id else None
+        if shipment:
+            shipment.dg_risk_keywords = validation_result.get('dg_risk_level')
+            db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
     return jsonify({
         "status": "success",
-        "ia_advice": validation_result['ia_response'],
-        "dg_risk": validation_result['dg_risk_level'],
-        "warning": "⚠️ Esto puede estar regulado. " + validation_result['legal_warning_fixed']
-    })
+        "ia_advice": validation_result.get('ia_response'),
+        "dg_risk": validation_result.get('dg_risk_level'),
+        "legal_warning_fixed": LEGAL_DISCLAIMER_CORE
+    }), 200
 
-# ==============================================================================
-# 6. ENDPOINT: Asistente Inteligente (Chat)
-# ==============================================================================
-# @app.route('/assistant/query', methods=['POST'])
+# ========================================================================
+# Endpoint: /assistant/query  (Chat assistant)
+# ========================================================================
+@app.route('/assistant/query', methods=['POST'])
 def assistant_query():
-    data = request.json
-    user_prompt = data.get('prompt')
-    
-    response_text = get_assistant_response(user_prompt)
-    
-    return jsonify({
-        "response": response_text
-    })
+    data = request.get_json() or {}
+    user_prompt = data.get('prompt', '')
+    try:
+        response_text = get_assistant_response(user_prompt)
+        return jsonify({"response": response_text}), 200
+    except Exception as e:
+        return jsonify({"error": "IA error", "details": str(e)}), 500
 
-# ==============================================================================
-# 7. ENDPOINT: Validación de Temperatura
-# ==============================================================================
-# @app.route('/cargo/validate/temperature', methods=['POST'])
+# ========================================================================
+# Endpoint: /cargo/validate/temperature
+# ========================================================================
+@app.route('/cargo/validate/temperature', methods=['POST'])
 def validate_temperature_status():
-    data = request.json
-    commodity = data.get('commodity')
+    data = request.get_json() or {}
+    commodity = data.get('commodity', '')
     temp_range = data.get('required_temp_range', [0, 25])
     duration_hours = data.get('duration_hours', 48)
+    try:
+        validation_result = validate_temperature_needs(commodity, temp_range, duration_hours)
+        return jsonify(validation_result), 200
+    except Exception as e:
+        return jsonify({"error": "Temp validation error", "details": str(e)}), 500
 
-    validation_result = validate_temperature_needs(commodity, temp_range, duration_hours)
-    
-    return jsonify(validation_result)
-
-# ==============================================================================
-# 8. ENDPOINT: Generador de Informes (PDF Avanzado)
-# ==============================================================================
-# @app.route('/report/generate', methods=['POST'])
+# ========================================================================
+# Endpoint: /report/generate  (Generate Ready-To-Counter report)
+# ========================================================================
+@app.route('/report/generate', methods=['POST'])
 def generate_advanced_report():
-    data = request.json
+    data = request.get_json() or {}
     shipment_id = data.get('shipment_id')
-    
-    shipment = Shipment.query.filter_by(shipment_id=shipment_id).first()
-    
-    # 1. VERIFICACIÓN DE PAGO (Blindaje legal)
-    if not shipment or shipment.status != 'Paid':
-        return jsonify({"error": "Pago no completado. No se puede generar el informe legal avanzado."}), 402
+    if not shipment_id:
+        return jsonify({"error": "shipment_id requerido"}), 400
 
-    # 2. Lógica del Generador de Reporte
-    pdf_url = generate_pdf_logic(shipment, is_advanced=(shipment.service_tier != 'LEVEL_BASIC'))
-    
-    # 3. Registrar el informe en la Base de Datos (Modelo Reports)
-    new_report = Report(
-        shipment_id=shipment_id,
-        pdf_url=pdf_url,
-        # Aseguramos que los textos inmutables se tomen del Shipment (auditoría) y del precio (constante)
-        legal_disclaimer_core=shipment.legal_disclaimer_at_creation, 
-        legal_disclaimer_price=PRICE_LEGAL_DISCLAIMER_TEXT 
-    )
-    db.session.add(new_report)
-    db.session.commit()
-    
-    return jsonify({"status": "Reporte Avanzado Generado", "report_url": pdf_url})
+    db = SessionLocal()
+    try:
+        shipment = db.query(Shipment).filter_by(shipment_id=UUID(shipment_id)).first()
+        if not shipment or shipment.status != 'Paid':
+            return jsonify({"error": "Pago no completado. No se puede generar el informe."}), 402
 
-# ==============================================================================
-# 9. ENDPOINT: Autenticación de Administración y Acceso a Auditoría (Usted)
-# ==============================================================================
-# @app.route('/admin/login', methods=['POST'])
+        # Ejecutar SC-PAM completo para el RTC (usar datos de Shipment)
+        rvd = run_rvd(shipment)
+        acpf = run_acpf(shipment)
+        pro = run_pro(shipment)
+        psra = run_psra(shipment)
+
+        rtc_payload = {
+            "rvd": rvd,
+            "acpf": acpf,
+            "pro": pro,
+            "psra": psra
+        }
+        # Generar PDF (placeholder) y obtener URL
+        pdf_url = generate_pdf_logic(shipment, rtc_payload=rtc_payload, is_advanced=(shipment.service_tier != 'LEVEL_BASIC'))
+
+        new_report = Report(
+            shipment_id=shipment.shipment_id,
+            pdf_url=pdf_url,
+            legal_disclaimer_core=shipment.legal_disclaimer_at_creation,
+            legal_disclaimer_price=PRICE_LEGAL_DISCLAIMER_TEXT
+        )
+        db.add(new_report)
+        db.commit()
+        db.refresh(new_report)
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": "Error generando reporte", "details": str(e)}), 500
+    finally:
+        db.close()
+
+    return jsonify({"status": "Reporte Avanzado Generado", "report_url": pdf_url}), 200
+
+# ========================================================================
+# Endpoint: /admin/login  (Admin auth)
+# ========================================================================
+@app.route('/admin/login', methods=['POST'])
 def admin_login():
-    data = request.json
+    data = request.get_json() or {}
     username = data.get('username')
     password = data.get('password')
 
-    # 1. VERIFICACIÓN DE CREDENCIALES FIJAS (Blindaje de entorno)
+    # Reglas de entorno: ADMIN_USERNAME/ADMIN_PASSWORD
     if username == ADMIN_USERNAME:
-        user = User.query.filter_by(username=username).first()
-        
-        # Debe ser admin y usar la contraseña de entorno
-        if user and user.is_admin and password == ADMIN_PASSWORD: 
-            
-            access_token = generate_admin_token(user.user_id)
-            user.last_login_at = datetime.datetime.utcnow()
-            db.session.commit()
-            
-            return jsonify({
-                "status": "Login exitoso",
-                "token": access_token
-            })
-            
-    return jsonify({"error": "Credenciales de administrador inválidas. Acceso denegado (Regla 3.1)."}, 401)
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter_by(username=username).first()
+            if user and user.is_admin and password == ADMIN_PASSWORD:
+                token = generate_admin_token(str(user.user_id))
+                user.last_login_at = datetime.datetime.utcnow()
+                db.commit()
+                return jsonify({"status": "Login exitoso", "token": token}), 200
+        finally:
+            db.close()
 
+    return jsonify({"error": "Credenciales de administrador inválidas. Acceso denegado (Regla 3.1)."}), 401
 
-# ==============================================================================
-# 10. ENDPOINT: Acceso a Registros Legales (Auditoría)
-# ==============================================================================
-# @app.route('/admin/audits', methods=['GET'])
-# Se asume una función de seguridad 'require_admin_auth' aquí
+# ========================================================================
+# Endpoint: /admin/audits  (Get legal audits - admin only placeholder)
+# ========================================================================
+@app.route('/admin/audits', methods=['GET'])
 def get_legal_audits():
-    
-    reports = Report.query.all()
-    
-    audit_data = []
-    for report in reports:
-        # Se exponen solo los campos críticos para la auditoría legal
-        audit_data.append({
-            "report_id": str(report.report_id),
-            "shipment_id": str(report.shipment_id),
-            "generated_at": report.generated_at.isoformat(),
-            "legal_disclaimer_used": report.legal_disclaimer_core,
-            "pdf_url": report.pdf_url
-        })
-        
-    return jsonify({
-        "status": "success",
-        "total_reports": len(audit_data),
-        "data": audit_data
-    })
+    # NOTE: Aquí debes añadir middleware real de autenticación admin
+    db = SessionLocal()
+    try:
+        reports = db.query(Report).all()
+        audit_data = []
+        for report in reports:
+            audit_data.append({
+                "report_id": str(report.report_id),
+                "shipment_id": str(report.shipment_id),
+                "generated_at": report.generated_at.isoformat(),
+                "legal_disclaimer_used": report.legal_disclaimer_core,
+                "pdf_url": report.pdf_url
+            })
+        return jsonify({"status": "success", "total_reports": len(audit_data), "data": audit_data}), 200
+    finally:
+        db.close()
+
+# ========================================================================
+# Static report fetch (optional)
+# ========================================================================
+@app.route('/reports/<path:filename>', methods=['GET'])
+def serve_report_file(filename):
+    # Este endpoint sirve la carpeta /static/reports si la usas para almacenar PDFs generados
+    reports_dir = os.path.join(app.static_folder, 'reports')
+    return send_from_directory(reports_dir, filename, as_attachment=True)
+
+# Run app (only if executed directly)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
