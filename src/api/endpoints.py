@@ -11,10 +11,14 @@ from sqlalchemy.orm import sessionmaker
 import stripe
 
 # --- Config & models ---
-from src.config.env_keys import (
-    STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, BASE_URL,
-    ADMIN_USERNAME, ADMIN_PASSWORD, DATABASE_URI, LEGAL_DISCLAIMER_CORE
+from config.env_keys import (
+    GOOGLE_GENAI_API_KEY,
+    STRIPE_API_KEY,
+    RENDER_API_KEY,
+    DATABASE_URI,
+    OPENAI_API_KEY
 )
+
 from src.config.price_constants import SERVICE_LEVELS, PRICE_LEGAL_DISCLAIMER_TEXT
 
 from src.db.models.db_setup import Base
