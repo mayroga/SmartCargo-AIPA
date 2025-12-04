@@ -11,11 +11,10 @@ from sqlalchemy.orm import sessionmaker
 import stripe
 
 # --- Config & models ---
-from config.env_keys import (
+from src.config.env_keys import (
     STRIPE_API_KEY,
     RENDER_API_KEY,
-    DATABASE_URI,
-    OPENAI_API_KEY
+    DATABASE_URI
 )
 
 from src.config.price_constants import SERVICE_LEVELS, PRICE_LEGAL_DISCLAIMER_TEXT
@@ -34,10 +33,17 @@ from src.logic.temp_validator import validate_temperature_needs
 from src.logic.reporting import generate_pdf_logic
 from src.logic.scpam import run_rvd, run_acpf, run_pro, run_psra, generate_rtc_report
 
-from legal.guardrails import PROHIBITED_ACTIONS_DG
+from src.legal.guardrails import PROHIBITED_ACTIONS_DG
 
 # --- App init ---
 app = Flask(__name__, static_folder='static', static_url_path='/static')
+
+# Variables opcionales
+BASE_URL = os.getenv("BASE_URL", "https://your-render-url.onrender.com")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+LEGAL_DISCLAIMER_CORE = os.getenv("LEGAL_DISCLAIMER_CORE", "DISCLAIMER DEFAULT")
 
 # Database setup
 if not DATABASE_URI:
@@ -48,7 +54,7 @@ SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 Base.metadata.create_all(bind=engine)
 
 # Stripe init
-stripe.api_key = STRIPE_SECRET_KEY
+stripe.api_key = STRIPE_API_KEY
 
 
 def get_db():
