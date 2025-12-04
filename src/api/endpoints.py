@@ -12,7 +12,6 @@ import stripe
 
 # --- Config & models ---
 from config.env_keys import (
-    GOOGLE_GENAI_API_KEY,
     STRIPE_API_KEY,
     RENDER_API_KEY,
     DATABASE_URI,
