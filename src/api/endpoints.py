@@ -31,7 +31,7 @@ from src.logic.temp_validator import validate_temperature_needs
 from src.logic.reporting import generate_pdf_logic
 from src.logic.scpam import run_rvd, run_acpf, run_pro, run_psra, generate_rtc_report
 
-from src.requirements.legal.guardrails import PROHIBITED_ACTIONS_DG
+from legal.guardrails import PROHIBITED_ACTIONS_DG
 
 # --- App init ---
 app = Flask(__name__, static_folder='static', static_url_path='/static')
