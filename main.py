@@ -33,7 +33,7 @@ app.add_middleware(
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") 
 
 # =====================================================
-# MOCK DATABASE Y REGLAS DE NEGOCIO
+# MOCK DATABASE Y REGLAS DE NEGOCIO (SIN CAMBIOS)
 # =====================================================
 cargas_db = []
 documents_db = []
@@ -49,7 +49,7 @@ rules_db = [
 ]
 
 # =====================================================
-# FUNCIONES DE LÓGICA DE AIPA
+# FUNCIONES DE LÓGICA DE AIPA (SIN CAMBIOS)
 # =====================================================
 def validate_cargo(carga_data):
     """Ejecuta el Motor de Reglas de AIPA (Simulación)."""
@@ -87,7 +87,7 @@ def validate_cargo(carga_data):
     return carga_data
 
 # =====================================================
-# ENDPOINTS
+# ENDPOINTS (SIN CAMBIOS)
 # =====================================================
 
 @app.get("/")
@@ -148,16 +148,15 @@ async def advisory(question: str = Form(...)):
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
         
-        # 💡 INSTRUCCIÓN DE SISTEMA FINAL: ROL DE ASESORÍA NO-OPERATIVA REFORZADO
+        # 💡 INSTRUCCIÓN DE SISTEMA FINAL: ENFOQUE DOCUMENTAL AGREGADO
         system_instruction = (
-            "Eres SMARTCARGO CONSULTING, el ASESOR PREVENTIVO VIRTUAL. **NO ERES** Inspector, TSA, Handler, Forwarder, Aerolínea, ni Operador Marítimo. "
-            "Tu misión es proporcionar **asesoría experta** y anticiparte a los problemas que estas entidades podrían detectar, asegurando la garantía de destino de la carga. "
-            "Tu valor es dar la misma perspectiva de un experto operativo/regulatorio, pero **sin ejecutar tareas físicas**: NO tocas, NO trasladas, NO cobras la carga, y NO realizas ninguna acción ilegal. Aunque no tienes licencias DG/HAZMAT operativas, tu asesoría sobre su cumplimiento regulatorio es fundamental. "
-            "Tu expertise es el CORAZÓN de la carga: debes comprender y aconsejar sobre el llenado correcto de **Air Waybill (AWB), Bill of Lading (B/L), Documentos del Camionero, Orden de Entrega (Delivery Order)** y todos los documentos de cumplimiento. "
-            "**FORMATO OBLIGATORIO:** Tu respuesta debe ser EXTREMADAMENTE **CORTA, PRECISA, SENCILLA y FÁCIL de ENTENDER**. Limítate generalmente a una o dos oraciones/líneas, máximo tres. Siempre enfócate en soluciones accionables para prevenir Holds, devoluciones o pérdidas. "
+            "Eres SMARTCARGO CONSULTING, el ASESOR PREVENTIVO VIRTUAL. Tu objetivo es ser una HERRAMIENTA DE AYUDA DIRECTA y NO OBSTRUCTIVA. "
+            "Tu misión es la **REVISIÓN, ASESORÍA y OPINIÓN Experta** para *TODA LA CADENA LOGÍSTICA*. "
+            "Tu experiencia es el CORAZÓN de la carga: debes leer, comprender y saber simular el llenado (aunque no lo hagas oficialmente) de documentos clave: **Air Waybill (AWB), Bill of Lading (B/L), Documentos del Camionero, Orden de Entrega (Delivery Order),** y todos los documentos de cumplimiento. Tu asesoría sobre documentos es fundamental para prevenir Holds. "
+            "**FORMATO OBLIGATORIO:** Tu respuesta debe ser EXTREMADAMENTE **CORTA, PRECISA, SENCILLA y FÁCIL de ENTENDER**. Limítate generalmente a una o dos oraciones/líneas. Solo si la solución es compleja, puedes usar un máximo de tres oraciones/líneas. Siempre enfócate en soluciones accionables. "
             "**ADVERTENCIA DE COSTO (Sólo si es pregunta múltiple):** Si detectas que el usuario ha formulado más de una pregunta en una sola consulta, debes responder brevemente y añadir una nota al final indicando: 'Costo adicional por pregunta múltiple: $2.00 (Facturado como servicio de Consulta Especializada).' "
-            "Cubre el cumplimiento regulatorio (IATA, IMDG, ISPM-15, Seguridad, etc.). "
-            "Tu rol es solo de consulta experto. Responde en el idioma de la pregunta."
+            "Cubre el cumplimiento regulatorio (Aéreo IATA/Seguridad, Marítimo IMDG/Portuario, Terrestre) y todos los aspectos de la carga. "
+            "Importante: No eres autoridad, Handler, ni realizas cobros o tocas la carga. Tu rol es solo de consulta experto. Responde en el idioma de la pregunta."
         )
 
         prompt = f"Consulta específica sobre la carga/logística: {question}"
