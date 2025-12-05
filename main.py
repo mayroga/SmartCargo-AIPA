@@ -33,7 +33,7 @@ app.add_middleware(
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") 
 
 # =====================================================
-# MOCK DATABASE Y REGLAS DE NEGOCIO
+# MOCK DATABASE Y REGLAS DE NEGOCIO (Actualización de Ahorros)
 # =====================================================
 cargas_db = []
 documents_db = []
@@ -41,11 +41,12 @@ alertas_db = []
 alertas_count = 0
 
 rules_db = [
-    {"rule_id": "R001", "source": "IATA", "category": "DG", "severity": "CRITICAL", "message_es": "Falta etiqueta de Manejo DG (IATA 5.2.1) o placard de transporte terrestre.", "message_en": "Missing DG Handling Label (IATA 5.2.1) or ground transport placard."},
-    {"rule_id": "R002", "source": "ISPM15", "category": "Pallet", "severity": "CRITICAL", "message_es": "Pallet de madera sin certificación ISPM-15. Riesgo de retención fitosanitaria.", "message_en": "Wooden pallet without ISPM-15 certification. Phytosanitary retention risk."},
-    {"rule_id": "R003", "source": "Aerolínea", "category": "Embalaje", "severity": "WARNING", "message_es": "Altura excede el máximo permitido (180cm). Riesgo de rechazo en rampa.", "message_en": "Height exceeds maximum allowed (180cm). Risk of rejection at ramp."},
-    {"rule_id": "R004", "source": "Compatibilidad", "category": "Mercancía", "severity": "CRITICAL", "message_es": "Mercancía DG incompatible (por segregación IATA/IMDG) con otros artículos consolidados.", "message_en": "DG goods incompatible (due to IATA/IMDG segregation) with other consolidated items."},
-    {"rule_id": "R005", "source": "Documentos", "category": "AWB", "severity": "WARNING", "message_es": "AWB, Packing List y Peso NO concuerdan (Inconsistencia documental).", "message_en": "AWB, Packing List and Weight DO NOT match (Documentary inconsistency)."},
+    # Se añaden time_saved_hours y cost_saved_usd a cada regla
+    {"rule_id": "R001", "source": "IATA", "category": "DG", "severity": "CRITICAL", "message_es": "Falta etiqueta de Manejo DG (IATA 5.2.1) o placard de transporte terrestre.", "message_en": "Missing DG Handling Label (IATA 5.2.1) or ground transport placard.", "time_saved_hours": 12, "cost_saved_usd": 300},
+    {"rule_id": "R002", "source": "ISPM15", "category": "Pallet", "severity": "CRITICAL", "message_es": "Pallet de madera sin certificación ISPM-15. Riesgo de retención fitosanitaria.", "message_en": "Wooden pallet without ISPM-15 certification. Phytosanitary retention risk.", "time_saved_hours": 72, "cost_saved_usd": 1500},
+    {"rule_id": "R003", "source": "Aerolínea", "category": "Embalaje", "severity": "WARNING", "message_es": "Altura excede el máximo permitido (180cm). Riesgo de rechazo en rampa.", "message_en": "Height exceeds maximum allowed (180cm). Risk of rejection at ramp.", "time_saved_hours": 4, "cost_saved_usd": 150},
+    {"rule_id": "R004", "source": "Compatibilidad", "category": "Mercancía", "severity": "CRITICAL", "message_es": "Mercancía DG incompatible (por segregación IATA/IMDG) con otros artículos consolidados.", "message_en": "DG goods incompatible (due to IATA/IMDG segregation) with other consolidated items.", "time_saved_hours": 24, "cost_saved_usd": 800},
+    {"rule_id": "R005", "source": "Documentos", "category": "AWB", "severity": "WARNING", "message_es": "AWB, Packing List y Peso NO concuerdan (Inconsistencia documental).", "message_en": "AWB, Packing List and Weight DO NOT match (Documentary inconsistency).", "time_saved_hours": 8, "cost_saved_usd": 250},
 ]
 
 # =====================================================
@@ -64,21 +65,21 @@ def validate_cargo(carga_data):
             rule = next((r for r in rules_db if r["rule_id"] == "R004"], None)
             if rule:
                 alertas_count += 1
-                generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow())})
+                generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow()), "time_saved_hours": rule["time_saved_hours"], "cost_saved_usd": rule["cost_saved_usd"]})
                 
     # Simulación de Pallet (R002)
     if carga_data.get("pallet_type", "madera") == "madera" and not carga_data.get("ispm15_verified", False):
         rule = next((r for r in rules_db if r["rule_id"] == "R002"], None)
         if rule:
             alertas_count += 1
-            generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow())})
+            generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow()), "time_saved_hours": rule["time_saved_hours"], "cost_saved_usd": rule["cost_saved_usd"]})
 
     # Simulación de Altura (R003)
     if carga_data.get("height_cm", 0) > 180:
         rule = next((r for r in rules_db if r["rule_id"] == "R003"], None)
         if rule:
             alertas_count += 1
-            generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow())})
+            generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow()), "time_saved_hours": rule["time_saved_hours"], "cost_saved_usd": rule["cost_saved_usd"]})
 
     alertas_db.extend(generated_alerts)
     carga_data["alertas"] = len(generated_alerts)
@@ -127,17 +128,28 @@ async def upload_file(file: UploadFile = File(...), carga_id: str = Form("N/A"))
         if alerta:
             global alertas_count
             alertas_count += 1
-            alertas_db.append({"id": str(uuid.uuid4()), "carga_id": carga_id, "mensaje": alerta["message_es"], "nivel": alerta["severity"], "fecha": str(datetime.utcnow())})
+            # Cuando una alerta es generada por carga de documento, incluimos los datos de ahorro
+            alertas_db.append({"id": str(uuid.uuid4()), "carga_id": carga_id, "mensaje": alerta["message_es"], "nivel": alerta["severity"], "fecha": str(datetime.utcnow()), "time_saved_hours": alerta["time_saved_hours"], "cost_saved_usd": alerta["cost_saved_usd"]})
     
     documents_db.append({"id": str(uuid.uuid4()), "filename": filename, "carga_id": carga_id, "fecha_subida": str(datetime.utcnow())})
     
     return {"data": {"filename": filename, "carga_id": carga_id}}
 
-# ------------------ ALERTAS ------------------
+# ------------------ ALERTAS (Se calcula el ahorro total) ------------------
 @app.get("/alertas")
 async def get_alertas():
+    # Cálculo de ahorro total
+    total_time_saved = sum(a.get("time_saved_hours", 0) for a in alertas_db)
+    total_cost_saved = sum(a.get("cost_saved_usd", 0) for a in alertas_db)
+
     sorted_alertas = sorted(alertas_db, key=lambda a: a['nivel'], reverse=True)
-    return {"alertas": sorted_alertas}
+    return {
+        "alertas": sorted_alertas,
+        "summary": {
+            "total_time_saved": total_time_saved,
+            "total_cost_saved": total_cost_saved
+        }
+    }
 
 # ------------------ ADVISORY (SMARTCARGO CONSULTING) ------------------
 @app.post("/advisory")
@@ -194,11 +206,9 @@ async def run_simulation(tipo: str, count: int):
 @app.post("/create-payment")
 async def create_payment(amount: int = Form(...), description: str = Form(...)):
     invoice_id = str(uuid.uuid4())
-    # Lógica de almacenamiento y envío de factura (simulado)
     print(f"Mock Factura creada: {invoice_id} por {description}. Enviada por email y almacenada temporalmente.")
     
     payment_url = f"https://stripe.com/pay/simulated?amount={amount}&desc={description}"
-    # URL de descarga simulada para el cliente
     download_url = f"/api/downloads/{invoice_id.split('-')[0]}_report.pdf" 
     
     return {
