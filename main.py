@@ -42,13 +42,12 @@ alertas_db = []
 alertas_count = 0
 
 # BASE DE DATOS DE REGLAS (MÓDULO CENTRAL DE ACTUALIZACIÓN)
-# Estas reglas se disparan al crear o actualizar una carga.
 rules_db = [
-    {"rule_id": "R001", "source": "IATA", "category": "DG", "severity": "CRITICAL", "message_es": "Falta etiqueta de Manejo DG (IATA 5.2.1).", "message_en": "Missing DG Handling Label (IATA 5.2.1)."},
-    {"rule_id": "R002", "source": "ISPM15", "category": "Pallet", "severity": "CRITICAL", "message_es": "Pallet de madera sin certificación ISPM-15.", "message_en": "Wooden pallet without ISPM-15 certification."},
-    {"rule_id": "R003", "source": "Aerolínea", "category": "Embalaje", "severity": "WARNING", "message_es": "Altura excede el máximo permitido (180cm). Riesgo de rechazo.", "message_en": "Height exceeds maximum allowed (180cm). Risk of rejection."},
-    {"rule_id": "R004", "source": "Compatibilidad", "category": "Mercancía", "severity": "CRITICAL", "message_es": "Mercancía DG incompatible con alimentos/perecederos.", "message_en": "DG goods incompatible with food/perishables."},
-    {"rule_id": "R005", "source": "Documentos", "category": "AWB", "severity": "WARNING", "message_es": "AWB, Packing List y Peso NO concuerdan (Inconsistencia).", "message_en": "AWB, Packing List and Weight DO NOT match (Inconsistency)."},
+    {"rule_id": "R001", "source": "IATA", "category": "DG", "severity": "CRITICAL", "message_es": "Falta etiqueta de Manejo DG (IATA 5.2.1) o placard de transporte terrestre.", "message_en": "Missing DG Handling Label (IATA 5.2.1) or ground transport placard."},
+    {"rule_id": "R002", "source": "ISPM15", "category": "Pallet", "severity": "CRITICAL", "message_es": "Pallet de madera sin certificación ISPM-15. Riesgo de retención fitosanitaria.", "message_en": "Wooden pallet without ISPM-15 certification. Phytosanitary retention risk."},
+    {"rule_id": "R003", "source": "Aerolínea", "category": "Embalaje", "severity": "WARNING", "message_es": "Altura excede el máximo permitido (180cm). Riesgo de rechazo en rampa.", "message_en": "Height exceeds maximum allowed (180cm). Risk of rejection at ramp."},
+    {"rule_id": "R004", "source": "Compatibilidad", "category": "Mercancía", "severity": "CRITICAL", "message_es": "Mercancía DG incompatible (por segregación IATA/IMDG) con otros artículos consolidados.", "message_en": "DG goods incompatible (due to IATA/IMDG segregation) with other consolidated items."},
+    {"rule_id": "R005", "source": "Documentos", "category": "AWB", "severity": "WARNING", "message_es": "AWB, Packing List y Peso NO concuerdan (Inconsistencia documental).", "message_en": "AWB, Packing List and Weight DO NOT match (Documentary inconsistency)."},
 ]
 
 # =====================================================
@@ -59,12 +58,11 @@ def validate_cargo(carga_data):
     global alertas_count
     generated_alerts = []
     
-    # 1. Simulación de Validación de Reglas R001-R005
     tipo_carga = carga_data.get("tipo_carga", "").lower()
     
     # Simulación de Incompatibilidad (R004)
     if tipo_carga == "quimicos" or tipo_carga == "dg":
-        if carga_data.get("inconsistencias", 0) > 4: # Más de 4 errores = CRITICAL DG
+        if carga_data.get("inconsistencias", 0) > 4: 
             rule = next((r for r in rules_db if r["rule_id"] == "R004"), None)
             if rule:
                 alertas_count += 1
@@ -84,7 +82,6 @@ def validate_cargo(carga_data):
             alertas_count += 1
             generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow())})
 
-    # Añadir las alertas generadas a la base de datos global
     alertas_db.extend(generated_alerts)
     carga_data["alertas"] = len(generated_alerts)
     carga_data["estado"] = "Revisión con Alertas" if generated_alerts else "Aprobada AIPA"
@@ -112,13 +109,11 @@ async def create_carga(payload: dict):
     payload["alertas"] = 0
     payload["fecha_creacion"] = str(datetime.utcnow())
     
-    # Simulación de datos extraídos/ingresados
-    payload["inconsistencias"] = 0 # Se incrementa con la subida de documentos
+    payload["inconsistencias"] = 0 
     payload["pallet_type"] = payload.get("pallet_type", "madera")
     payload["ispm15_verified"] = payload.get("ispm15_verified", False)
     payload["height_cm"] = payload.get("height_cm", 150)
     
-    # Ejecutar el motor de reglas
     validated_carga = validate_cargo(payload)
     
     cargas_db.append(validated_carga)
@@ -128,16 +123,8 @@ async def create_carga(payload: dict):
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), carga_id: str = Form("N/A")):
     filename = f"{uuid.uuid4()}_{file.filename}"
-    file_path = f"uploads/{filename}"
-    os.makedirs("uploads", exist_ok=True)
-    
-    # Guardar archivo (simulado)
-    # with open(file_path, "wb") as f:
-    #     f.write(await file.read())
-        
-    # **AQUÍ: Simulación de Verificación de Documentos (R005)**
+
     if "invoice" in filename.lower() and carga_id == "SC-AIPA-TEST-01":
-        # Dispara una alerta de inconsistencia para la carga de prueba
         alerta = next((r for r in rules_db if r["rule_id"] == "R005"), None)
         if alerta:
             global alertas_count
@@ -151,26 +138,29 @@ async def upload_file(file: UploadFile = File(...), carga_id: str = Form("N/A"))
 # ------------------ ALERTAS ------------------
 @app.get("/alertas")
 async def get_alertas():
-    # Ordenar las alertas por nivel (CRITICAL primero)
     sorted_alertas = sorted(alertas_db, key=lambda a: a['nivel'], reverse=True)
     return {"alertas": sorted_alertas}
 
-# ------------------ ADVISORY (GEMINI) ------------------
+# ------------------ ADVISORY (ASISTENTE SMARTCARGO) ------------------
 @app.post("/advisory")
 async def advisory(question: str = Form(...)):
     if not GEMINI_API_KEY:
-        return JSONResponse({"error":"GEMINI_API_KEY no configurada. Asesoría IA inactiva."}, status_code=500)
+        return JSONResponse({"error":"GEMINI_API_KEY no configurada. Asesoría IA (SmartCargo Assistant) inactiva."}, status_code=500)
 
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
         
+        # 💡 INSTRUCCIÓN DE SISTEMA REFORZADA (La promesa de ser el Inspector Virtual)
         system_instruction = (
-            "Eres SmartCargo-AIPA, un asesor logístico experto. Proporcionas asesoramiento preventivo basado en regulaciones de carga "
-            "(IATA DG, TSA, ISPM-15, reglas de aerolíneas). Tu misión es cubrir todos los episodios de la vida de la carga. "
-            "Nunca asumes responsabilidad legal ni emites certificaciones. Responde de manera concisa y profesional en español."
+            "Eres SMARTCARGO-AIPA, el ASESOR PREVENTIVO VIRTUAL y experto en cumplimiento regulatorio global (Aéreo IATA/Seguridad, Marítimo IMDG/Portuario, Terrestre). "
+            "Tu función es ser el 'Inspector Virtual' o 'TSA Ambulante' que hace lo que nadie más hace: verificar la vida completa de la mercancía del cliente para EVITAR holds, detenciones, devoluciones, recargos, multas y almacenamientos prolongados. "
+            "Tu misión es proteger al cliente y a toda la cadena logística, cubriendo TODAS las posibilidades y tipos de carga, incluyendo: etiquetado, pallets (ISPM-15/Fumigación), segregación/consolidación (Unida/Separada), compatibilidad (DG/HAZMAT), ubicación y manejo (Perecederos/Frágiles, control de temperatura). "
+            "Tu respuesta debe ser CLARA, enfocando el RIESGO INMEDIATO de incumplimiento y ofreciendo una SOLUCIÓN ACCIONABLE de cumplimiento total. "
+            "IMPORTANTE: NO ERES UNA AUTORIDAD DE CERTIFICACIÓN. Tu asesoría es PREVENTIVA e informativa. El usuario final es el único responsable de la verificación legal final de los requisitos de la carga. "
+            "Responde de manera concisa y profesional en el idioma de la pregunta."
         )
 
-        prompt = f"Consulta sobre carga: {question}"
+        prompt = f"Consulta específica sobre la carga/logística: {question}"
         
         response = client.models.generate_content(
             model='gemini-2.5-flash', 
@@ -182,23 +172,21 @@ async def advisory(question: str = Form(...)):
         
         return {"data": response.text}
     except Exception as e:
-        print(f"Error en la llamada a Gemini: {e}")
-        return JSONResponse({"error": "Fallo en la conexión con la IA de asesoría. Error del servicio."}, status_code=500)
+        print(f"Error en la llamada a la IA: {e}") 
+        return JSONResponse({"error": "Fallo en la conexión con el Asistente SmartCargo. Error del servicio."}, status_code=500)
 
 # ------------------ SIMULACION ------------------
 @app.get("/simulacion/{tipo}/{count}")
 async def run_simulation(tipo: str, count: int):
-    # Predicción de rechazo (Sección 3.5)
-    
-    riesgo = min(count * 8, 100) # 8% de riesgo por cada inconsistencia (count)
-    sugerencia = "La carga parece cumplir con los requisitos básicos."
+    riesgo = min(count * 8, 100) 
+    sugerencia = "La carga cumple con la mayoría de los requisitos. Riesgo Bajo. Proceso fluido para todos."
 
-    if tipo.lower() in ["dg", "hazmat", "quimicos"]:
-        riesgo = min(riesgo + 25, 100) # Alto riesgo base para DG
-        sugerencia = "Revisión urgente de la Declaración DG y el etiquetado. Alto riesgo de rechazo."
+    if tipo.lower() in ["dg", "hazmat", "quimicos"] or count > 5:
+        riesgo = min(riesgo + 25, 100) 
+        sugerencia = "¡CRÍTICO! Múltiples fallas regulatorias detectadas. Riesgo de HOLD y MULTA. ¡Corrección inmediata en etiquetado y documentos!"
     
-    if riesgo > 50:
-        sugerencia = "Alto riesgo. Sugerencia: Reempaque inmediato y verificación de ISPM-15."
+    elif count >= 3:
+        sugerencia = "Inconsistencias detectadas. Recomendamos doble chequeo y validación de embalaje. Evite retrasos innecesarios."
 
     return {"riesgo_rechazo": f"{riesgo}%", "sugerencia": sugerencia}
 
