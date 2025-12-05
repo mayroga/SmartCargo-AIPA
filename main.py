@@ -29,7 +29,8 @@ app.add_middleware(
 # =====================================================
 # VARIABLES DE ENTORNO
 # =====================================================
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# Asegúrate de configurar esta variable en el entorno de Render o localmente
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") 
 if not GEMINI_API_KEY:
     print("⚠️ GEMINI_API_KEY no configurada. /advisory no funcionará correctamente.")
 
@@ -41,7 +42,6 @@ documents_db = []
 alertas_db = []
 alertas_count = 0
 
-# BASE DE DATOS DE REGLAS (MÓDULO CENTRAL DE ACTUALIZACIÓN)
 rules_db = [
     {"rule_id": "R001", "source": "IATA", "category": "DG", "severity": "CRITICAL", "message_es": "Falta etiqueta de Manejo DG (IATA 5.2.1) o placard de transporte terrestre.", "message_en": "Missing DG Handling Label (IATA 5.2.1) or ground transport placard."},
     {"rule_id": "R002", "source": "ISPM15", "category": "Pallet", "severity": "CRITICAL", "message_es": "Pallet de madera sin certificación ISPM-15. Riesgo de retención fitosanitaria.", "message_en": "Wooden pallet without ISPM-15 certification. Phytosanitary retention risk."},
@@ -141,23 +141,23 @@ async def get_alertas():
     sorted_alertas = sorted(alertas_db, key=lambda a: a['nivel'], reverse=True)
     return {"alertas": sorted_alertas}
 
-# ------------------ ADVISORY (ASISTENTE SMARTCARGO) ------------------
+# ------------------ ADVISORY (SMARTCARGO CONSULTING) ------------------
 @app.post("/advisory")
 async def advisory(question: str = Form(...)):
     if not GEMINI_API_KEY:
-        return JSONResponse({"error":"GEMINI_API_KEY no configurada. Asesoría IA (SmartCargo Assistant) inactiva."}, status_code=500)
+        return JSONResponse({"error":"GEMINI_API_KEY no configurada. Asesoría IA (SmartCargo Consulting) inactiva."}, status_code=500)
 
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
         
-        # 💡 INSTRUCCIÓN DE SISTEMA REFORZADA (La promesa de ser el Inspector Virtual)
+        # 💡 INSTRUCCIÓN DE SISTEMA FINAL: SMARTCARGO CONSULTING
         system_instruction = (
-            "Eres SMARTCARGO-AIPA, el ASESOR PREVENTIVO VIRTUAL y experto en cumplimiento regulatorio global (Aéreo IATA/Seguridad, Marítimo IMDG/Portuario, Terrestre). "
-            "Tu función es ser el 'Inspector Virtual' o 'TSA Ambulante' que hace lo que nadie más hace: verificar la vida completa de la mercancía del cliente para EVITAR holds, detenciones, devoluciones, recargos, multas y almacenamientos prolongados. "
-            "Tu misión es proteger al cliente y a toda la cadena logística, cubriendo TODAS las posibilidades y tipos de carga, incluyendo: etiquetado, pallets (ISPM-15/Fumigación), segregación/consolidación (Unida/Separada), compatibilidad (DG/HAZMAT), ubicación y manejo (Perecederos/Frágiles, control de temperatura). "
-            "Tu respuesta debe ser CLARA, enfocando el RIESGO INMEDIATO de incumplimiento y ofreciendo una SOLUCIÓN ACCIONABLE de cumplimiento total. "
-            "IMPORTANTE: NO ERES UNA AUTORIDAD DE CERTIFICACIÓN. Tu asesoría es PREVENTIVA e informativa. El usuario final es el único responsable de la verificación legal final de los requisitos de la carga. "
-            "Responde de manera concisa y profesional en el idioma de la pregunta."
+            "Eres SMARTCARGO CONSULTING, el ASESOR PREVENTIVO VIRTUAL. Tu objetivo es ser una HERRAMIENTA DE AYUDA DIRECTA y NO OBSTRUCTIVA. "
+            "Tu misión es la **REVISIÓN, ASESORÍA y OPINIÓN Experta** para *TODA LA CADENA LOGÍSTICA* (Cliente, Forwarder, Transportista/Camionero, Handler, Counter, Aerolínea/Puerto). "
+            "Tu respuesta debe ser DIRECTA, PRECISA y SIEMPRE OFRECER SOLUCIONES ACCIONABLES, enfocadas en prevenir errores, holds, devoluciones, y pérdidas financieras. "
+            "Cubre el cumplimiento regulatorio (Aéreo IATA/Seguridad, Marítimo IMDG/Portuario, Terrestre) y todos los aspectos de la carga (DG/HAZMAT, Embalaje, ISPM-15, Separación). "
+            "Importante: No eres autoridad, Handler, ni realizas cobros o tocas la carga. Tu rol es solo de consulta experto. "
+            "NO OBSTRUYAS el proceso, AYUDA a resolverlo. Responde de manera concisa y profesional en el idioma de la pregunta."
         )
 
         prompt = f"Consulta específica sobre la carga/logística: {question}"
