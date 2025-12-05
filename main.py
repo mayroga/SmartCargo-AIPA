@@ -14,8 +14,8 @@ app = FastAPI(title="SmartCargo-AIPA Backend")
 
 # Permitir que el frontend acceda
 origins = [
-    "https://smartcargo-advisory.onrender.com", 
-    "*", 
+    "https://smartcargo-advisory.onrender.com",
+    "*",
 ]
 
 app.add_middleware(
@@ -29,11 +29,10 @@ app.add_middleware(
 # =====================================================
 # VARIABLES DE ENTORNO
 # =====================================================
-# Asegúrate de configurar esta variable en el entorno de Render o localmente
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # =====================================================
-# MOCK DATABASE Y REGLAS DE NEGOCIO (SIN CAMBIOS)
+# MOCK DATABASE Y REGLAS DE NEGOCIO
 # =====================================================
 cargas_db = []
 documents_db = []
@@ -49,45 +48,63 @@ rules_db = [
 ]
 
 # =====================================================
-# FUNCIONES DE LÓGICA DE AIPA (SIN CAMBIOS)
+# FUNCIONES DE LÓGICA DE AIPA
 # =====================================================
 def validate_cargo(carga_data):
-    """Ejecuta el Motor de Reglas de AIPA (Simulación)."""
+    """Ejecuta el Motor de Reglas de AIPA."""
     global alertas_count
     generated_alerts = []
-    
+
     tipo_carga = carga_data.get("tipo_carga", "").lower()
-    
-    # Simulación de Incompatibilidad (R004)
-    if tipo_carga == "quimicos" or tipo_carga == "dg":
-        if carga_data.get("inconsistencias", 0) > 4: 
-            rule = next((r for r in rules_db if r["rule_id"] == "R004"], None)
+
+    # R004 – incompatibilidad
+    if tipo_carga in ["quimicos", "dg"]:
+        if carga_data.get("inconsistencias", 0) > 4:
+            rule = next((r for r in rules_db if r["rule_id"] == "R004"), None)
             if rule:
                 alertas_count += 1
-                generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow())})
-                
-    # Simulación de Pallet (R002)
-    if carga_data.get("pallet_type", "madera") == "madera" and not carga_data.get("ispm15_verified", False):
-        rule = next((r for r in rules_db if r["rule_id"] == "R002"], None)
-        if rule:
-            alertas_count += 1
-            generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow())})
+                generated_alerts.append({
+                    "id": str(uuid.uuid4()),
+                    "carga_id": carga_data["id"],
+                    "mensaje": rule["message_es"],
+                    "nivel": rule["severity"],
+                    "fecha": str(datetime.utcnow())
+                })
 
-    # Simulación de Altura (R003)
-    if carga_data.get("height_cm", 0) > 180:
-        rule = next((r for r in rules_db if r["rule_id"] == "R003"], None)
+    # R002 – pallet sin ISPM15
+    if carga_data.get("pallet_type", "madera") == "madera" and not carga_data.get("ispm15_verified", False):
+        rule = next((r for r in rules_db if r["rule_id"] == "R002"), None)
         if rule:
             alertas_count += 1
-            generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow())})
+            generated_alerts.append({
+                "id": str(uuid.uuid4()),
+                "carga_id": carga_data["id"],
+                "mensaje": rule["message_es"],
+                "nivel": rule["severity"],
+                "fecha": str(datetime.utcnow())
+            })
+
+    # R003 – altura
+    if carga_data.get("height_cm", 0) > 180:
+        rule = next((r for r in rules_db if r["rule_id"] == "R003"), None)
+        if rule:
+            alertas_count += 1
+            generated_alerts.append({
+                "id": str(uuid.uuid4()),
+                "carga_id": carga_data["id"],
+                "mensaje": rule["message_es"],
+                "nivel": rule["severity"],
+                "fecha": str(datetime.utcnow())
+            })
 
     alertas_db.extend(generated_alerts)
     carga_data["alertas"] = len(generated_alerts)
     carga_data["estado"] = "Revisión con Alertas" if generated_alerts else "Aprobada AIPA"
-    
+
     return carga_data
 
 # =====================================================
-# ENDPOINTS (SIN CAMBIOS)
+# ENDPOINTS
 # =====================================================
 
 @app.get("/")
@@ -106,14 +123,14 @@ async def create_carga(payload: dict):
     payload["estado"] = "En revisión"
     payload["alertas"] = 0
     payload["fecha_creacion"] = str(datetime.utcnow())
-    
-    payload["inconsistencias"] = 0 
+
+    payload["inconsistencias"] = payload.get("inconsistencias", 0)
     payload["pallet_type"] = payload.get("pallet_type", "madera")
     payload["ispm15_verified"] = payload.get("ispm15_verified", False)
     payload["height_cm"] = payload.get("height_cm", 150)
-    
+
     validated_carga = validate_cargo(payload)
-    
+
     cargas_db.append(validated_carga)
     return {"id": carga_id, "alertas": validated_carga["alertas"]}
 
@@ -122,74 +139,80 @@ async def create_carga(payload: dict):
 async def upload_file(file: UploadFile = File(...), carga_id: str = Form("N/A")):
     filename = f"{uuid.uuid4()}_{file.filename}"
 
+    # Simula error documental
     if "invoice" in filename.lower() and carga_id == "SC-AIPA-TEST-01":
-        alerta = next((r for r in rules_db if r["rule_id"] == "R005"], None)
+        alerta = next((r for r in rules_db if r["rule_id"] == "R005"), None)
         if alerta:
             global alertas_count
             alertas_count += 1
-            alertas_db.append({"id": str(uuid.uuid4()), "carga_id": carga_id, "mensaje": alerta["message_es"], "nivel": alerta["severity"], "fecha": str(datetime.utcnow())})
-    
-    documents_db.append({"id": str(uuid.uuid4()), "filename": filename, "carga_id": carga_id, "fecha_subida": str(datetime.utcnow())})
-    
+            alertas_db.append({
+                "id": str(uuid.uuid4()),
+                "carga_id": carga_id,
+                "mensaje": alerta["message_es"],
+                "nivel": alerta["severity"],
+                "fecha": str(datetime.utcnow())
+            })
+
+    documents_db.append({
+        "id": str(uuid.uuid4()),
+        "filename": filename,
+        "carga_id": carga_id,
+        "fecha_subida": str(datetime.utcnow())
+    })
+
     return {"data": {"filename": filename, "carga_id": carga_id}}
 
 # ------------------ ALERTAS ------------------
 @app.get("/alertas")
 async def get_alertas():
-    sorted_alertas = sorted(alertas_db, key=lambda a: a['nivel'], reverse=True)
+    sorted_alertas = sorted(alertas_db, key=lambda a: a["nivel"], reverse=True)
     return {"alertas": sorted_alertas}
 
-# ------------------ ADVISORY (SMARTCARGO CONSULTING) ------------------
+# ------------------ ADVISORY ------------------
 @app.post("/advisory")
 async def advisory(question: str = Form(...)):
     if not GEMINI_API_KEY:
-        return JSONResponse({"error":"GEMINI_API_KEY no configurada. Asesoría IA (SmartCargo Consulting) inactiva."}, status_code=500)
+        return JSONResponse({"error": "GEMINI_API_KEY no configurada. Asesoría IA inactiva."}, status_code=500)
 
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
-        
-        # 💡 INSTRUCCIÓN DE SISTEMA FINAL: ENFOQUE DOCUMENTAL AGREGADO
+
         system_instruction = (
-            "Eres SMARTCARGO CONSULTING, el ASESOR PREVENTIVO VIRTUAL. Tu objetivo es ser una HERRAMIENTA DE AYUDA DIRECTA y NO OBSTRUCTIVA. "
-            "Tu misión es la **REVISIÓN, ASESORÍA y OPINIÓN Experta** para *TODA LA CADENA LOGÍSTICA*. "
-            "Tu experiencia es el CORAZÓN de la carga: debes leer, comprender y saber simular el llenado (aunque no lo hagas oficialmente) de documentos clave: **Air Waybill (AWB), Bill of Lading (B/L), Documentos del Camionero, Orden de Entrega (Delivery Order),** y todos los documentos de cumplimiento. Tu asesoría sobre documentos es fundamental para prevenir Holds. "
-            "**FORMATO OBLIGATORIO:** Tu respuesta debe ser EXTREMADAMENTE **CORTA, PRECISA, SENCILLA y FÁCIL de ENTENDER**. Limítate generalmente a una o dos oraciones/líneas. Solo si la solución es compleja, puedes usar un máximo de tres oraciones/líneas. Siempre enfócate en soluciones accionables. "
-            "**ADVERTENCIA DE COSTO (Sólo si es pregunta múltiple):** Si detectas que el usuario ha formulado más de una pregunta en una sola consulta, debes responder brevemente y añadir una nota al final indicando: 'Costo adicional por pregunta múltiple: $2.00 (Facturado como servicio de Consulta Especializada).' "
-            "Cubre el cumplimiento regulatorio (Aéreo IATA/Seguridad, Marítimo IMDG/Portuario, Terrestre) y todos los aspectos de la carga. "
-            "Importante: No eres autoridad, Handler, ni realizas cobros o tocas la carga. Tu rol es solo de consulta experto. Responde en el idioma de la pregunta."
+            "Eres SMARTCARGO CONSULTING, el ASESOR PREVENTIVO VIRTUAL. "
+            "Responde en máximo 2 líneas, simple, claro y accionable. "
+            "Si hay más de una pregunta, añade: 'Costo adicional por pregunta múltiple: $2.00'."
         )
 
-        prompt = f"Consulta específica sobre la carga/logística: {question}"
-        
+        prompt = f"Consulta: {question}"
+
         response = client.models.generate_content(
-            model='gemini-2.5-flash', 
+            model="gemini-2.5-flash",
             contents=[prompt],
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction
-            )
+            config=types.GenerateContentConfig(system_instruction=system_instruction)
         )
-        
+
         return {"data": response.text}
+
     except Exception as e:
-        print(f"Error en la llamada a la IA: {e}") 
-        return JSONResponse({"error": "Fallo en la conexión con SmartCargo Consulting. Error del servicio."}, status_code=500)
+        print("Error en la IA:", e)
+        return JSONResponse({"error": "Fallo en SmartCargo Consulting"}, status_code=500)
 
 # ------------------ SIMULACION ------------------
 @app.get("/simulacion/{tipo}/{count}")
 async def run_simulation(tipo: str, count: int):
-    riesgo = min(count * 8, 100) 
-    sugerencia = "La carga cumple con la mayoría de los requisitos. Riesgo Bajo. Proceso fluido para todos."
+    riesgo = min(count * 8, 100)
+    sugerencia = "La carga cumple con la mayoría de los requisitos. Riesgo Bajo."
 
     if tipo.lower() in ["dg", "hazmat", "quimicos"] or count > 5:
-        riesgo = min(riesgo + 25, 100) 
-        sugerencia = "¡CRÍTICO! Múltiples fallas regulatorias detectadas. Riesgo de HOLD y MULTA. ¡Corrección inmediata en etiquetado y documentos!"
-    
+        riesgo = min(riesgo + 25, 100)
+        sugerencia = "¡CRÍTICO! Posible HOLD. Corrige documentos y etiquetado."
+
     elif count >= 3:
-        sugerencia = "Inconsistencias detectadas. Recomendamos doble chequeo y validación de embalaje. Evite retrasos innecesarios."
+        sugerencia = "Inconsistencias detectadas. Recomiendo revisar embalaje."
 
     return {"riesgo_rechazo": f"{riesgo}%", "sugerencia": sugerencia}
 
-# ------------------ OTROS ENDPOINTS (Mocks) ------------------
+# ------------------ OTROS ENDPOINTS ------------------
 @app.post("/create-payment")
 async def create_payment(amount: int = Form(...), description: str = Form(...)):
     payment_url = f"https://stripe.com/pay/simulated?amount={amount}&desc={description}"
