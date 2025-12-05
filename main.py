@@ -1,111 +1,123 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
-from typing import List
-import os, uuid, shutil, datetime
+from fastapi.responses import JSONResponse
+import os
+import uuid
+from datetime import datetime
 
+# =====================================================
+# CONFIGURACIÓN BÁSICA
+# =====================================================
 app = FastAPI(title="SmartCargo-AIPA Backend")
 
-# ================== CORS ==================
-origins = ["*"]
+# Permitir que el frontend en Render acceda
+origins = [
+    "https://smartcargo-advisory.onrender.com",  # tu sitio estático
+    "*",  # opcional, para pruebas
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
-# ================== DATA ==================
-cargas_db = []  # lista de cargas
-uploads_dir = "uploads"
-os.makedirs(uploads_dir, exist_ok=True)
+# =====================================================
+# VARIABLES DE ENTORNO
+# =====================================================
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    print("⚠️ GEMINI_API_KEY no configurada. /advisory no funcionará correctamente.")
 
-# ================== ROUTES ==================
+# =====================================================
+# MOCK DATABASE
+# =====================================================
+cargas_db = []
+documents_db = []
+alertas_db = []
+fotos_db = []
+
+# =====================================================
+# ENDPOINTS
+# =====================================================
+
 @app.get("/")
 async def root():
     return {
-        "message":"SmartCargo-AIPA Backend activo",
-        "mode":"free",
-        "routes":["/cargas","/upload","/advisory","/simulacion","/simulacion-avanzada",
-                  "/create-payment","/update-checklist","/alertas","/fotos"]
+        "message": "SmartCargo-AIPA Backend activo",
+        "mode": "free",
+        "routes": ["/cargas","/upload","/advisory","/simulacion","/simulacion-avanzada","/create-payment","/update-checklist","/alertas"]
     }
 
-# --------------- CARGAS ----------------
+# ------------------ CARGAS ------------------
 @app.get("/cargas")
-async def list_cargas():
+async def get_cargas():
     return {"cargas": cargas_db}
 
 @app.post("/cargas")
-async def create_carga(cliente: str = Form(...), tipo_carga: str = Form(...)):
+async def create_carga(payload: dict):
     carga_id = str(uuid.uuid4())
     carga = {
         "id": carga_id,
-        "cliente": cliente,
-        "tipo_carga": tipo_carga,
+        "cliente": payload.get("cliente"),
+        "tipo_carga": payload.get("tipo_carga"),
         "estado": "En revisión",
         "alertas": 0,
-        "fotos": [],
-        "documentos": []
+        "fecha_creacion": str(datetime.utcnow())
     }
     cargas_db.append(carga)
-    return carga
+    return {"id": carga_id}
 
-# --------------- UPLOAD FILE ----------------
+# ------------------ DOCUMENTOS ------------------
 @app.post("/upload")
-async def upload_file(carga_id: str = Form(...), file: UploadFile = File(...), tipo: str = Form(...)):
+async def upload_file(file: UploadFile = File(...)):
     filename = f"{uuid.uuid4()}_{file.filename}"
-    filepath = os.path.join(uploads_dir, filename)
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    # Asociar al carga
-    for c in cargas_db:
-        if c["id"] == carga_id:
-            if tipo.lower() == "foto":
-                c["fotos"].append(filename)
-            else:
-                c["documentos"].append(filename)
-            break
-    return {"message":"Archivo subido", "filename": filename, "tipo": tipo}
+    file_path = f"uploads/{filename}"
+    os.makedirs("uploads", exist_ok=True)
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+    documents_db.append({"id": str(uuid.uuid4()), "filename": filename, "fecha_subida": str(datetime.utcnow())})
+    return {"data": {"filename": filename}}
 
-@app.get("/fotos/{filename}")
-async def get_photo(filename: str):
-    path = os.path.join(uploads_dir, filename)
-    if os.path.exists(path):
-        return FileResponse(path)
-    return JSONResponse({"error":"Archivo no encontrado"}, status_code=404)
-
-# --------------- ADVISORY ----------------
+# ------------------ ADVISORY ------------------
 @app.post("/advisory")
 async def advisory(question: str = Form(...)):
-    # respuesta simulada
-    return {"data": f"Respuesta a tu consulta: {question} (solo asesoría informativa)"}
+    if not GEMINI_API_KEY:
+        return JSONResponse({"error":"GEMINI_API_KEY no configurada"}, status_code=500)
 
-# --------------- SIMULACION ----------------
+    # Simulación de respuesta usando la clave
+    respuesta = f"Simulación: respuesta para '{question}' usando GEMINI_API_KEY configurada."
+    return {"data": respuesta}
+
+# ------------------ SIMULACION ------------------
 @app.get("/simulacion/{tipo}/{count}")
-async def simulacion(tipo: str, count: int):
-    riesgo = min(count*10,100)
-    return {"tipo": tipo, "riesgo_rechazo": f"{riesgo}%"}
+async def run_simulation(tipo: str, count: int):
+    riesgo = min(count * 10, 100)  # cálculo de riesgo simplificado
+    return {"riesgo_rechazo": f"{riesgo}%"}
 
-# --------------- ALERTAS ----------------
-@app.get("/alertas")
-async def get_alertas():
-    alertas = []
-    for c in cargas_db:
-        if c["alertas"]>0:
-            alertas.append({"carga_id": c["id"], "nivel": c["alertas"], "mensaje":"Revisar embalaje/documentos"})
-    return {"alertas": alertas}
-
-# --------------- CHECKLIST ----------------
-@app.post("/update-checklist")
-async def update_checklist(carga_id: str = Form(...), estado: str = Form(...)):
-    for c in cargas_db:
-        if c["id"] == carga_id:
-            c["estado"] = estado
-            break
-    return {"message":"Checklist updated"}
-
-# --------------- PAYMENT SIMULADO ----------------
+# ------------------ CREATE PAYMENT ------------------
 @app.post("/create-payment")
 async def create_payment(amount: int = Form(...), description: str = Form(...)):
-    return {"message": f"Pago simulado ${amount/100} - {description}", "url": None}
+    # Simulación de creación de pago Stripe
+    payment_url = f"https://stripe.com/pay/simulated?amount={amount}&desc={description}"
+    return {"url": payment_url, "message": "Simulated payment link"}
+
+# ------------------ ALERTAS ------------------
+@app.get("/alertas")
+async def get_alertas():
+    return {"alertas": alertas_db}
+
+# ------------------ UPDATE CHECKLIST ------------------
+@app.post("/update-checklist")
+async def update_checklist(payload: dict):
+    # Simulación de actualización de checklist
+    return {"message": "Checklist updated", "data": payload}
+
+# =====================================================
+# INSTRUCCIONES ADICIONALES
+# =====================================================
+# 1. Asegúrate de tener la variable de entorno GEMINI_API_KEY en Render.
+# 2. Subir la carpeta uploads/ en caso de usar documentos o fotos.
+# 3. Frontend debe apuntar a BACKEND_URL = "https://smartcargo-aipa.onrender.com"
