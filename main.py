@@ -1,119 +1,194 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import os, stripe, psycopg2, datetime, json
+from fastapi.responses import JSONResponse
+from typing import Optional, Any, Dict, List
+import stripe
+import os
+import json
+import asyncpg
+import base64
+import asyncio
 
-# -------- CONFIGURACIÓN GLOBAL SEGURA -------- #
-stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
-DATABASE_URI = os.environ.get("DATABASE_URI")
+# ---------------------------------------------------------
+# INIT FASTAPI
+# ---------------------------------------------------------
+app = FastAPI(
+    title="SmartCargo-AIPA Backend",
+    description="Asistencia Inteligente Profesional para Carga Aérea y Marítima — AIPA Advisory Mode Only (No TSA, No Certificaciones).",
+    version="1.0.0",
+)
 
-conn = psycopg2.connect(DATABASE_URI)
-cur = conn.cursor()
-
-app = FastAPI(title="SmartCargo-AIPA Backend")
-
+# ---------------------------------------------------------
+# CORS CONFIG
+# ---------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],      # Ajustable si deseas limitarlo
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# -------- MODELOS -------- #
-class Carga(BaseModel):
-    cliente: str
-    tipo: str
-    estado: str
-    alertas: int
 
-class Pregunta(BaseModel):
-    pregunta: str
+# ---------------------------------------------------------
+# DATABASE CONNECTION (Render ENV VAR: DATABASE_URL)
+# ---------------------------------------------------------
+DB_URL = os.getenv("DATABASE_URL")
 
-# -------- FUNCIONES INTERNAS -------- #
-def registrar_carga(carga: Carga):
-    cur.execute(
-        """
-        INSERT INTO cargas (cliente,tipo,estado,alertas,fecha_creacion)
-        VALUES (%s,%s,%s,%s,%s) RETURNING id
-        """,
-        (carga.cliente, carga.tipo, carga.estado, carga.alertas, datetime.datetime.now())
-    )
-    conn.commit()
-    return cur.fetchone()[0]
-
-def prediccion_rechazo(tipo, alertas):
-    # Sistema de IA SIMPLE simulada (seguro legal)
-    riesgo = "Bajo"
-    if alertas >= 2: riesgo = "Medio"
-    if alertas >= 4: riesgo = "Alto"
-    return {
-        "tipo": tipo,
-        "alertas": alertas,
-        "riesgo_rechazo": riesgo,
-        "mensaje": f"Riesgo potencial de rechazo: {riesgo}. Esto es asesoría, no certificación."
-    }
-
-def analizar_documento(nombre):
-    if "awb" in nombre.lower(): return "Air Waybill detectado, listo para revisión."
-    if "invoice" in nombre.lower(): return "Factura detectada, validación iniciada."
-    if "packing" in nombre.lower(): return "Packing List detectado, comparando cantidades."
-    return "Documento general cargado y registrado para asesoría."
-
-# -------- ENDPOINTS PRINCIPALES -------- #
-
-@app.get("/cargas")
-def obtener_cargas():
-    cur.execute("SELECT * FROM cargas ORDER BY id DESC")
-    return {"cargas": cur.fetchall()}
-
-@app.post("/carga")
-def crear_carga(carga: Carga):
-    id_carga = registrar_carga(carga)
-    return {"id": id_carga, "mensaje": "Carga registrada profesionalmente."}
-
-@app.post("/documento")
-async def subir_documento(file: UploadFile = File(...)):
-    contenido = await file.read()
-    nombre = file.filename
-    analisis = analizar_documento(nombre)
-    return {
-        "archivo": nombre,
-        "tamano": len(contenido),
-        "analisis": analisis,
-        "nota_legal": "SmartCargo-AIPA sólo asesora. No valida legalmente documentos."
-    }
-
-@app.get("/simulacion/{tipo}/{alertas}")
-def simulacion(tipo: str, alertas: int):
-    return prediccion_rechazo(tipo, alertas)
-
-@app.post("/asistente")
-def asistente_virtual(p: Pregunta):
-    respuesta = f"Análisis experto sobre '{p.pregunta}'. Esto es solo asesoría preventiva."
-    return {"respuesta": respuesta}
-
-# -------- PAGOS PROFESIONALES -------- #
-@app.post("/checkout")
-def checkout(data: dict):
+async def connect_db():
     try:
-        precio = data["precio"]
-        success = data["success"]
-        cancel = data["cancel"]
+        return await asyncpg.connect(DB_URL)
+    except Exception as e:
+        print("Error connecting to DB:", e)
+        return None
 
+# ---------------------------------------------------------
+# STRIPE CONFIG (Render ENV VAR: STRIPE_SECRET_KEY)
+# ---------------------------------------------------------
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+
+# ---------------------------------------------------------
+# UTILITY: STANDARD RESPONSE
+# ---------------------------------------------------------
+def success(message: str, data: Any = None):
+    return {"status": "success", "message": message, "data": data}
+
+def error(message: str, code: int = 400):
+    raise HTTPException(status_code=code, detail=message)
+
+
+# ---------------------------------------------------------
+# ROOT
+# ---------------------------------------------------------
+@app.get("/")
+async def root():
+    return success("SmartCargo-AIPA Backend está ONLINE y en modo Asesoría Profesional.")
+
+
+# ---------------------------------------------------------
+# FILE UPLOAD — Ej: imágenes, documentos de carga, fotos
+# ---------------------------------------------------------
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        encoded = base64.b64encode(content).decode("utf-8")
+
+        return success(
+            "Archivo recibido correctamente.",
+            {
+                "filename": file.filename,
+                "content_type": file.content_type,
+                "base64": encoded[:200] + "..."  # No enviar completo (seguridad)
+            }
+        )
+    except Exception as e:
+        return error(f"Error al procesar archivo: {str(e)}")
+
+
+# ---------------------------------------------------------
+# JSON ADVISORY — Asesoría inteligente cargo
+# ---------------------------------------------------------
+@app.post("/advisory")
+async def advisory(data: Dict[str, Any]):
+    """
+    Recibe datos de carga y devuelve una asesoría técnica profesional.
+    """
+    try:
+        # Aquí puedes expandir la lógica
+        response = {
+            "analisis": "Asesoría preliminar generada.",
+            "recomendaciones": [
+                "Verificar documentación comercial.",
+                "Confirmar clasificación correcta según la IATA vigente.",
+                "Revisar embalaje, peso bruto y neto.",
+                "Asegurar que el shipper declaration sea coherente.",
+            ],
+            "nota_legal": "SmartCargo-AIPA solo proporciona asesoría. No certifica, no valida y no reemplaza requisitos TSA ni regulatorios."
+        }
+
+        return success("Asesoría generada.", response)
+
+    except Exception as e:
+        return error(f"Error generando asesoría: {e}")
+
+
+# ---------------------------------------------------------
+# STRIPE PAYMENT LINK — Paga y accede a servicios premium
+# ---------------------------------------------------------
+@app.post("/create-payment")
+async def create_payment(amount: int = Form(...), description: str = Form(...)):
+    try:
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=[{
-                "price_data": {
-                    "currency":"usd",
-                    "product_data":{"name":"SmartCargo-AIPA Subscription"},
-                    "unit_amount": int(precio * 100)
-                },
-                "quantity": 1
-            }],
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {"name": description},
+                        "unit_amount": amount,
+                    },
+                    "quantity": 1,
+                }
+            ],
             mode="payment",
-            success_url=success,
-            cancel_url=cancel
+            success_url="https://smartcargo-advisory.onrender.com/success",
+            cancel_url="https://smartcargo-advisory.onrender.com/cancel",
         )
-        return {"url": session.url}
+
+        return success("Pago iniciado.", {"url": session.url})
+
     except Exception as e:
-        raise HTTPException(400, str(e))
+        return error(f"Stripe error: {str(e)}", 500)
+
+
+# ---------------------------------------------------------
+# DB SAVE ANALYSIS
+# ---------------------------------------------------------
+@app.post("/save-analysis")
+async def save_analysis(
+    client_name: str = Form(...),
+    cargo_json: str = Form(...),
+    advisory_json: str = Form(...)
+):
+
+    try:
+        conn = await connect_db()
+        if not conn:
+            return error("No se pudo conectar con la base de datos.", 500)
+
+        await conn.execute(
+            """
+            INSERT INTO advisory_reports (client_name, cargo_json, advisory_json)
+            VALUES ($1, $2, $3);
+            """,
+            client_name,
+            cargo_json,
+            advisory_json
+        )
+
+        await conn.close()
+        return success("Reporte guardado correctamente.")
+
+    except Exception as e:
+        return error(f"Error guardando datos: {str(e)}")
+
+
+# ---------------------------------------------------------
+# HEALTH CHECK
+# ---------------------------------------------------------
+@app.get("/health")
+async def health():
+    return success("OK")
+
+
+# ---------------------------------------------------------
+# CUSTOM ERROR HANDLER
+# ---------------------------------------------------------
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"status": "error", "detail": str(exc)},
+    )
