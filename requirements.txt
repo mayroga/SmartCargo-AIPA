@@ -1,27 +1,8 @@
-# Backend FastAPI
-fastapi==0.111.1
-uvicorn[standard]==0.23.2
-
-# Subida de archivos y multipart
-python-multipart==0.0.6
-aiofiles==23.2.1
-
-# PostgreSQL
-psycopg2-binary==2.9.7
-
-# Requests y utilidades HTTP
-requests==2.32.3
-python-dotenv==1.0.0
-
-# Stripe
-stripe==10.0.0
-
-# Plantillas
-jinja2==3.1.6
-
-# JSON y utilidades
-pydantic==2.5.2
-
-# Para AI o integraciones (si usas genai de Google)
-httpx>=0.28.0
-
+fastapi
+uvicorn
+python-dotenv
+stripe
+pydantic
+httpx
+jinja2
+python-multipart
