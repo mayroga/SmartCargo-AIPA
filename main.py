@@ -4,7 +4,6 @@ from fastapi.responses import JSONResponse
 import os
 import uuid
 from datetime import datetime
-# CORRECCIÓN CRÍTICA: Se usa la importación estándar para robustez en FastAPI
 from google import genai
 from google.genai import types
 
@@ -13,7 +12,7 @@ from google.genai import types
 # =====================================================
 app = FastAPI(title="SmartCargo-AIPA Backend")
 
-# Permitir que el frontend acceda (Asegura que el frontend de Render pueda hablar con este backend)
+# Permitir que el frontend acceda
 origins = [
     "https://smartcargo-advisory.onrender.com", 
     "*", 
@@ -34,7 +33,7 @@ app.add_middleware(
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") 
 
 # =====================================================
-# MOCK DATABASE Y REGLAS DE NEGOCIO (Actualización de Ahorros)
+# MOCK DATABASE Y REGLAS DE NEGOCIO
 # =====================================================
 cargas_db = []
 documents_db = []
@@ -42,11 +41,11 @@ alertas_db = []
 alertas_count = 0
 
 rules_db = [
-    {"rule_id": "R001", "source": "IATA", "category": "DG", "severity": "CRITICAL", "message_es": "Falta etiqueta de Manejo DG (IATA 5.2.1) o placard de transporte terrestre.", "message_en": "Missing DG Handling Label (IATA 5.2.1) or ground transport placard.", "time_saved_hours": 12, "cost_saved_usd": 300},
-    {"rule_id": "R002", "source": "ISPM15", "category": "Pallet", "severity": "CRITICAL", "message_es": "Pallet de madera sin certificación ISPM-15. Riesgo de retención fitosanitaria.", "message_en": "Wooden pallet without ISPM-15 certification. Phytosanitary retention risk.", "time_saved_hours": 72, "cost_saved_usd": 1500},
-    {"rule_id": "R003", "source": "Aerolínea", "category": "Embalaje", "severity": "WARNING", "message_es": "Altura excede el máximo permitido (180cm). Riesgo de rechazo en rampa.", "message_en": "Height exceeds maximum allowed (180cm). Risk of rejection at ramp.", "time_saved_hours": 4, "cost_saved_usd": 150},
-    {"rule_id": "R004", "source": "Compatibilidad", "category": "Mercancía", "severity": "CRITICAL", "message_es": "Mercancía DG incompatible (por segregación IATA/IMDG) con otros artículos consolidados.", "message_en": "DG goods incompatible (due to IATA/IMDG segregation) with other consolidated items.", "time_saved_hours": 24, "cost_saved_usd": 800},
-    {"rule_id": "R005", "source": "Documentos", "category": "AWB", "severity": "WARNING", "message_es": "AWB, Packing List y Peso NO concuerdan (Inconsistencia documental).", "message_en": "AWB, Packing List and Weight DO NOT match (Documentary inconsistency).", "time_saved_hours": 8, "cost_saved_usd": 250},
+    {"rule_id": "R001", "source": "IATA", "category": "DG", "severity": "CRITICAL", "message_es": "Falta etiqueta de Manejo DG (IATA 5.2.1) o placard de transporte terrestre.", "message_en": "Missing DG Handling Label (IATA 5.2.1) or ground transport placard."},
+    {"rule_id": "R002", "source": "ISPM15", "category": "Pallet", "severity": "CRITICAL", "message_es": "Pallet de madera sin certificación ISPM-15. Riesgo de retención fitosanitaria.", "message_en": "Wooden pallet without ISPM-15 certification. Phytosanitary retention risk."},
+    {"rule_id": "R003", "source": "Aerolínea", "category": "Embalaje", "severity": "WARNING", "message_es": "Altura excede el máximo permitido (180cm). Riesgo de rechazo en rampa.", "message_en": "Height exceeds maximum allowed (180cm). Risk of rejection at ramp."},
+    {"rule_id": "R004", "source": "Compatibilidad", "category": "Mercancía", "severity": "CRITICAL", "message_es": "Mercancía DG incompatible (por segregación IATA/IMDG) con otros artículos consolidados.", "message_en": "DG goods incompatible (due to IATA/IMDG segregation) with other consolidated items."},
+    {"rule_id": "R005", "source": "Documentos", "category": "AWB", "severity": "WARNING", "message_es": "AWB, Packing List y Peso NO concuerdan (Inconsistencia documental).", "message_en": "AWB, Packing List and Weight DO NOT match (Documentary inconsistency)."},
 ]
 
 # =====================================================
@@ -61,23 +60,25 @@ def validate_cargo(carga_data):
     
     # Simulación de Incompatibilidad (R004)
     if tipo_carga == "quimicos" or tipo_carga == "dg":
-        rule = next((r for r in rules_db if r["rule_id"] == "R004"), None)
-        if rule and carga_data.get("inconsistencias", 0) > 4: 
-            alertas_count += 1
-            # Se asegura que la alerta incluya los datos de ahorro
-            generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow()), "time_saved_hours": rule["time_saved_hours"], "cost_saved_usd": rule["cost_saved_usd"]})
+        if carga_data.get("inconsistencias", 0) > 4: 
+            rule = next((r for r in rules_db if r["rule_id"] == "R004"], None)
+            if rule:
+                alertas_count += 1
+                generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow())})
                 
     # Simulación de Pallet (R002)
-    rule = next((r for r in rules_db if r["rule_id"] == "R002"), None)
-    if rule and carga_data.get("pallet_type", "madera") == "madera" and not carga_data.get("ispm15_verified", False):
-        alertas_count += 1
-        generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow()), "time_saved_hours": rule["time_saved_hours"], "cost_saved_usd": rule["cost_saved_usd"]})
+    if carga_data.get("pallet_type", "madera") == "madera" and not carga_data.get("ispm15_verified", False):
+        rule = next((r for r in rules_db if r["rule_id"] == "R002"], None)
+        if rule:
+            alertas_count += 1
+            generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow())})
 
     # Simulación de Altura (R003)
-    rule = next((r for r in rules_db if r["rule_id"] == "R003"), None)
-    if rule and carga_data.get("height_cm", 0) > 180:
-        alertas_count += 1
-        generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow()), "time_saved_hours": rule["time_saved_hours"], "cost_saved_usd": rule["cost_saved_usd"]})
+    if carga_data.get("height_cm", 0) > 180:
+        rule = next((r for r in rules_db if r["rule_id"] == "R003"], None)
+        if rule:
+            alertas_count += 1
+            generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow())})
 
     alertas_db.extend(generated_alerts)
     carga_data["alertas"] = len(generated_alerts)
@@ -106,8 +107,7 @@ async def create_carga(payload: dict):
     payload["alertas"] = 0
     payload["fecha_creacion"] = str(datetime.utcnow())
     
-    # Asegura que las claves mock existan para evitar fallos de validación
-    payload["inconsistencias"] = payload.get("inconsistencias", 0)
+    payload["inconsistencias"] = 0 
     payload["pallet_type"] = payload.get("pallet_type", "madera")
     payload["ispm15_verified"] = payload.get("ispm15_verified", False)
     payload["height_cm"] = payload.get("height_cm", 150)
@@ -123,31 +123,21 @@ async def upload_file(file: UploadFile = File(...), carga_id: str = Form("N/A"))
     filename = f"{uuid.uuid4()}_{file.filename}"
 
     if "invoice" in filename.lower() and carga_id == "SC-AIPA-TEST-01":
-        alerta = next((r for r in rules_db if r["rule_id"] == "R005"), None)
+        alerta = next((r for r in rules_db if r["rule_id"] == "R005"], None)
         if alerta:
             global alertas_count
             alertas_count += 1
-            alertas_db.append({"id": str(uuid.uuid4()), "carga_id": carga_id, "mensaje": alerta["message_es"], "nivel": alerta["severity"], "fecha": str(datetime.utcnow()), "time_saved_hours": alerta["time_saved_hours"], "cost_saved_usd": alerta["cost_saved_usd"]})
+            alertas_db.append({"id": str(uuid.uuid4()), "carga_id": carga_id, "mensaje": alerta["message_es"], "nivel": alerta["severity"], "fecha": str(datetime.utcnow())})
     
     documents_db.append({"id": str(uuid.uuid4()), "filename": filename, "carga_id": carga_id, "fecha_subida": str(datetime.utcnow())})
     
     return {"data": {"filename": filename, "carga_id": carga_id}}
 
-# ------------------ ALERTAS (Se calcula el ahorro total) ------------------
+# ------------------ ALERTAS ------------------
 @app.get("/alertas")
 async def get_alertas():
-    # Cálculo de ahorro total
-    total_time_saved = sum(a.get("time_saved_hours", 0) for a in alertas_db)
-    total_cost_saved = sum(a.get("cost_saved_usd", 0) for a in alertas_db)
-
     sorted_alertas = sorted(alertas_db, key=lambda a: a['nivel'], reverse=True)
-    return {
-        "alertas": sorted_alertas,
-        "summary": {
-            "total_time_saved": total_time_saved,
-            "total_cost_saved": total_cost_saved
-        }
-    }
+    return {"alertas": sorted_alertas}
 
 # ------------------ ADVISORY (SMARTCARGO CONSULTING) ------------------
 @app.post("/advisory")
@@ -156,10 +146,9 @@ async def advisory(question: str = Form(...)):
         return JSONResponse({"error":"GEMINI_API_KEY no configurada. Asesoría IA (SmartCargo Consulting) inactiva."}, status_code=500)
 
     try:
-        # Inicialización del cliente con la clave de entorno
         client = genai.Client(api_key=GEMINI_API_KEY)
         
-        # 💡 INSTRUCCIÓN DE SISTEMA FINAL: ROL DE ASESORÍA NO-OPERATIVA
+        # 💡 INSTRUCCIÓN DE SISTEMA FINAL: ROL DE ASESORÍA NO-OPERATIVA REFORZADO
         system_instruction = (
             "Eres SMARTCARGO CONSULTING, el ASESOR PREVENTIVO VIRTUAL. **NO ERES** Inspector, TSA, Handler, Forwarder, Aerolínea, ni Operador Marítimo. "
             "Tu misión es proporcionar **asesoría experta** y anticiparte a los problemas que estas entidades podrían detectar, asegurando la garantía de destino de la carga. "
@@ -184,7 +173,6 @@ async def advisory(question: str = Form(...)):
         return {"data": response.text}
     except Exception as e:
         print(f"Error en la llamada a la IA: {e}") 
-        # Devuelve un 500 si falla la IA o la conexión
         return JSONResponse({"error": "Fallo en la conexión con SmartCargo Consulting. Error del servicio."}, status_code=500)
 
 # ------------------ SIMULACION ------------------
@@ -205,17 +193,8 @@ async def run_simulation(tipo: str, count: int):
 # ------------------ OTROS ENDPOINTS (Mocks) ------------------
 @app.post("/create-payment")
 async def create_payment(amount: int = Form(...), description: str = Form(...)):
-    invoice_id = str(uuid.uuid4())
-    print(f"Mock Factura creada: {invoice_id} por {description}. Enviada por email y almacenada temporalmente.")
-    
     payment_url = f"https://stripe.com/pay/simulated?amount={amount}&desc={description}"
-    download_url = f"/api/downloads/{invoice_id.split('-')[0]}_report.pdf" 
-    
-    return {
-        "url": payment_url, 
-        "download_url": download_url,
-        "message": "Simulated payment link and download access granted. Invoice sent to client email and stored temporarily."
-    }
+    return {"url": payment_url, "message": "Simulated payment link"}
 
 @app.post("/update-checklist")
 async def update_checklist(payload: dict):
