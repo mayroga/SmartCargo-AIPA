@@ -31,8 +31,6 @@ app.add_middleware(
 # =====================================================
 # Asegúrate de configurar esta variable en el entorno de Render o localmente
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") 
-if not GEMINI_API_KEY:
-    print("⚠️ GEMINI_API_KEY no configurada. /advisory no funcionará correctamente.")
 
 # =====================================================
 # MOCK DATABASE Y REGLAS DE NEGOCIO
@@ -63,21 +61,21 @@ def validate_cargo(carga_data):
     # Simulación de Incompatibilidad (R004)
     if tipo_carga == "quimicos" or tipo_carga == "dg":
         if carga_data.get("inconsistencias", 0) > 4: 
-            rule = next((r for r in rules_db if r["rule_id"] == "R004"), None)
+            rule = next((r for r in rules_db if r["rule_id"] == "R004"], None)
             if rule:
                 alertas_count += 1
                 generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow())})
                 
     # Simulación de Pallet (R002)
     if carga_data.get("pallet_type", "madera") == "madera" and not carga_data.get("ispm15_verified", False):
-        rule = next((r for r in rules_db if r["rule_id"] == "R002"), None)
+        rule = next((r for r in rules_db if r["rule_id"] == "R002"], None)
         if rule:
             alertas_count += 1
             generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow())})
 
     # Simulación de Altura (R003)
     if carga_data.get("height_cm", 0) > 180:
-        rule = next((r for r in rules_db if r["rule_id"] == "R003"), None)
+        rule = next((r for r in rules_db if r["rule_id"] == "R003"], None)
         if rule:
             alertas_count += 1
             generated_alerts.append({"id": str(uuid.uuid4()), "carga_id": carga_data["id"], "mensaje": rule["message_es"], "nivel": rule["severity"], "fecha": str(datetime.utcnow())})
@@ -125,7 +123,7 @@ async def upload_file(file: UploadFile = File(...), carga_id: str = Form("N/A"))
     filename = f"{uuid.uuid4()}_{file.filename}"
 
     if "invoice" in filename.lower() and carga_id == "SC-AIPA-TEST-01":
-        alerta = next((r for r in rules_db if r["rule_id"] == "R005"), None)
+        alerta = next((r for r in rules_db if r["rule_id"] == "R005"], None)
         if alerta:
             global alertas_count
             alertas_count += 1
@@ -150,14 +148,16 @@ async def advisory(question: str = Form(...)):
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
         
-        # 💡 INSTRUCCIÓN DE SISTEMA FINAL: SMARTCARGO CONSULTING
+        # 💡 INSTRUCCIÓN DE SISTEMA FINAL: ROL DE ASESORÍA NO-OPERATIVA
         system_instruction = (
-            "Eres SMARTCARGO CONSULTING, el ASESOR PREVENTIVO VIRTUAL. Tu objetivo es ser una HERRAMIENTA DE AYUDA DIRECTA y NO OBSTRUCTIVA. "
-            "Tu misión es la **REVISIÓN, ASESORÍA y OPINIÓN Experta** para *TODA LA CADENA LOGÍSTICA* (Cliente, Forwarder, Transportista/Camionero, Handler, Counter, Aerolínea/Puerto). "
-            "Tu respuesta debe ser DIRECTA, PRECISA y SIEMPRE OFRECER SOLUCIONES ACCIONABLES, enfocadas en prevenir errores, holds, devoluciones, y pérdidas financieras. "
-            "Cubre el cumplimiento regulatorio (Aéreo IATA/Seguridad, Marítimo IMDG/Portuario, Terrestre) y todos los aspectos de la carga (DG/HAZMAT, Embalaje, ISPM-15, Separación). "
-            "Importante: No eres autoridad, Handler, ni realizas cobros o tocas la carga. Tu rol es solo de consulta experto. "
-            "NO OBSTRUYAS el proceso, AYUDA a resolverlo. Responde de manera concisa y profesional en el idioma de la pregunta."
+            "Eres SMARTCARGO CONSULTING, el ASESOR PREVENTIVO VIRTUAL. **NO ERES** Inspector, TSA, Handler, Forwarder, Aerolínea, ni Operador Marítimo. "
+            "Tu misión es proporcionar **asesoría experta** y anticiparte a los problemas que estas entidades podrían detectar, asegurando la garantía de destino de la carga. "
+            "Tu valor es dar la misma perspectiva de un experto operativo/regulatorio, pero **sin ejecutar tareas físicas**: NO tocas, NO trasladas, NO cobras la carga, y NO realizas ninguna acción ilegal. Aunque no tienes licencias DG/HAZMAT operativas, tu asesoría sobre su cumplimiento regulatorio es fundamental. "
+            "Tu expertise es el CORAZÓN de la carga: debes comprender y aconsejar sobre el llenado correcto de **Air Waybill (AWB), Bill of Lading (B/L), Documentos del Camionero, Orden de Entrega (Delivery Order)** y todos los documentos de cumplimiento. "
+            "**FORMATO OBLIGATORIO:** Tu respuesta debe ser EXTREMADAMENTE **CORTA, PRECISA, SENCILLA y FÁCIL de ENTENDER**. Limítate generalmente a una o dos oraciones/líneas, máximo tres. Siempre enfócate en soluciones accionables para prevenir Holds, devoluciones o pérdidas. "
+            "**ADVERTENCIA DE COSTO (Sólo si es pregunta múltiple):** Si detectas que el usuario ha formulado más de una pregunta en una sola consulta, debes responder brevemente y añadir una nota al final indicando: 'Costo adicional por pregunta múltiple: $2.00 (Facturado como servicio de Consulta Especializada).' "
+            "Cubre el cumplimiento regulatorio (IATA, IMDG, ISPM-15, Seguridad, etc.). "
+            "Tu rol es solo de consulta experto. Responde en el idioma de la pregunta."
         )
 
         prompt = f"Consulta específica sobre la carga/logística: {question}"
@@ -173,7 +173,7 @@ async def advisory(question: str = Form(...)):
         return {"data": response.text}
     except Exception as e:
         print(f"Error en la llamada a la IA: {e}") 
-        return JSONResponse({"error": "Fallo en la conexión con el Asistente SmartCargo. Error del servicio."}, status_code=500)
+        return JSONResponse({"error": "Fallo en la conexión con SmartCargo Consulting. Error del servicio."}, status_code=500)
 
 # ------------------ SIMULACION ------------------
 @app.get("/simulacion/{tipo}/{count}")
@@ -193,8 +193,19 @@ async def run_simulation(tipo: str, count: int):
 # ------------------ OTROS ENDPOINTS (Mocks) ------------------
 @app.post("/create-payment")
 async def create_payment(amount: int = Form(...), description: str = Form(...)):
+    invoice_id = str(uuid.uuid4())
+    # Lógica de almacenamiento y envío de factura (simulado)
+    print(f"Mock Factura creada: {invoice_id} por {description}. Enviada por email y almacenada temporalmente.")
+    
     payment_url = f"https://stripe.com/pay/simulated?amount={amount}&desc={description}"
-    return {"url": payment_url, "message": "Simulated payment link"}
+    # URL de descarga simulada para el cliente
+    download_url = f"/api/downloads/{invoice_id.split('-')[0]}_report.pdf" 
+    
+    return {
+        "url": payment_url, 
+        "download_url": download_url,
+        "message": "Simulated payment link and download access granted. Invoice sent to client email and stored temporarily."
+    }
 
 @app.post("/update-checklist")
 async def update_checklist(payload: dict):
