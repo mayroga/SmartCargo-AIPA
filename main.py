@@ -1,21 +1,25 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 import os
-import uuid
-from datetime import datetime
+import random
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from pydantic import BaseModel
+from typing import List, Optional
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from fastapi.middleware.cors import CORSMiddleware
+import stripe
 
-# =====================================================
-# CONFIGURACIÓN BÁSICA
-# =====================================================
+load_dotenv()
+
+# --- CONFIGURACIÓN DE FASTAPI Y CORS ---
 app = FastAPI(title="SmartCargo-AIPA Backend")
 
-# Permitir que el frontend acceda
+# Permitir CORS para desarrollo y entornos de Render
 origins = [
-    "https://smartcargo-advisory.onrender.com",
-    "*",
+    "http://localhost:8080",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://smartcargo-advisory.onrender.com"
 ]
 
 app.add_middleware(
@@ -26,200 +30,224 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# =====================================================
-# VARIABLES DE ENTORNO
-# =====================================================
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# --- CONFIGURACIÓN DE GEMINI Y STRIPE ---
+# La API Key de Gemini se cargará desde las variables de entorno (.env o Render)
+try:
+    client = genai.Client()
+except Exception:
+    print("WARNING: Gemini client failed to initialize. Advisory service will not work.")
+    client = None
 
-# =====================================================
-# MOCK DATABASE Y REGLAS DE NEGOCIO
-# =====================================================
-cargas_db = []
-documents_db = []
-alertas_db = []
-alertas_count = 0
+# Configuración de Stripe (para pagos reales)
+stripe_secret_key = os.getenv("STRIPE_SECRET_KEY")
+if stripe_secret_key:
+    stripe.api_key = stripe_secret_key
+else:
+    print("WARNING: STRIPE_SECRET_KEY not set. Payment route will use simulation.")
 
-rules_db = [
-    {"rule_id": "R001", "source": "IATA", "category": "DG", "severity": "CRITICAL", "message_es": "Falta etiqueta de Manejo DG (IATA 5.2.1) o placard de transporte terrestre.", "message_en": "Missing DG Handling Label (IATA 5.2.1) or ground transport placard."},
-    {"rule_id": "R002", "source": "ISPM15", "category": "Pallet", "severity": "CRITICAL", "message_es": "Pallet de madera sin certificación ISPM-15. Riesgo de retención fitosanitaria.", "message_en": "Wooden pallet without ISPM-15 certification. Phytosanitary retention risk."},
-    {"rule_id": "R003", "source": "Aerolínea", "category": "Embalaje", "severity": "WARNING", "message_es": "Altura excede el máximo permitido (180cm). Riesgo de rechazo en rampa.", "message_en": "Height exceeds maximum allowed (180cm). Risk of rejection at ramp."},
-    {"rule_id": "R004", "source": "Compatibilidad", "category": "Mercancía", "severity": "CRITICAL", "message_es": "Mercancía DG incompatible (por segregación IATA/IMDG) con otros artículos consolidados.", "message_en": "DG goods incompatible (due to IATA/IMDG segregation) with other consolidated items."},
-    {"rule_id": "R005", "source": "Documentos", "category": "AWB", "severity": "WARNING", "message_es": "AWB, Packing List y Peso NO concuerdan (Inconsistencia documental).", "message_en": "AWB, Packing List and Weight DO NOT match (Documentary inconsistency)."},
-]
 
-# =====================================================
-# FUNCIONES DE LÓGICA DE AIPA
-# =====================================================
-def validate_cargo(carga_data):
-    """Ejecuta el Motor de Reglas de AIPA."""
-    global alertas_count
-    generated_alerts = []
+# --- DATABASE SIMULATION (Reglas y Alertas) ---
 
-    tipo_carga = carga_data.get("tipo_carga", "").lower()
+# Base de datos de Alertas (Motor de Reglas)
+ALERTS_DB = {
+    "R001": {"msg": "Pallet de madera sin sello ISPM-15.", "desc": "Alto riesgo fitosanitario. Necesita tratamiento.", "risk": 30},
+    "R002": {"msg": "Altura excede límite de ULD estándar (180cm).", "desc": "Riesgo de rechazo por sobredimensión (R003).", "risk": 20},
+    "R003": {"msg": "Embalaje CRÍTICO (Roto/Fuga).", "desc": "Violación TSA/IATA. Rechazo inmediato en rampa.", "risk": 50}, 
+    "R004": {"msg": "Etiquetas DG/Frágil Faltantes.", "desc": "Incumplimiento de placarding (TSA/IATA).", "risk": 25}, 
+    "R005": {"msg": "Segregación DG CRÍTICA (Mezcla con NO DG).", "desc": "Peligro de incompatibilidad química/incendio.", "risk": 45}, 
+    "R006": {"msg": "Discrepancia de Peso AWB/Físico.", "desc": "Alto riesgo de HOLD y re-facturación.", "risk": 20}, 
+    "R007": {"msg": "Contenido DG requiere documento Shipper's Declaration.", "desc": "Documento obligatorio DG faltante.", "risk": 35},
+}
 
-    # R004 – incompatibilidad
-    if tipo_carga in ["quimicos", "dg"]:
-        if carga_data.get("inconsistencias", 0) > 4:
-            rule = next((r for r in rules_db if r["rule_id"] == "R004"), None)
-            if rule:
-                alertas_count += 1
-                generated_alerts.append({
-                    "id": str(uuid.uuid4()),
-                    "carga_id": carga_data["id"],
-                    "mensaje": rule["message_es"],
-                    "nivel": rule["severity"],
-                    "fecha": str(datetime.utcnow())
-                })
+# Base de datos de Cargas (Simulación de persistencia)
+CARGOS_DB = []
 
-    # R002 – pallet sin ISPM15
-    if carga_data.get("pallet_type", "madera") == "madera" and not carga_data.get("ispm15_verified", False):
-        rule = next((r for r in rules_db if r["rule_id"] == "R002"), None)
-        if rule:
-            alertas_count += 1
-            generated_alerts.append({
-                "id": str(uuid.uuid4()),
-                "carga_id": carga_data["id"],
-                "mensaje": rule["message_es"],
-                "nivel": rule["severity"],
-                "fecha": str(datetime.utcnow())
-            })
 
-    # R003 – altura
-    if carga_data.get("height_cm", 0) > 180:
-        rule = next((r for r in rules_db if r["rule_id"] == "R003"), None)
-        if rule:
-            alertas_count += 1
-            generated_alerts.append({
-                "id": str(uuid.uuid4()),
-                "carga_id": carga_data["id"],
-                "mensaje": rule["message_es"],
-                "nivel": rule["severity"],
-                "fecha": str(datetime.utcnow())
-            })
+# --- SCHEMAS (Pydantic Models) ---
 
-    alertas_db.extend(generated_alerts)
-    carga_data["alertas"] = len(generated_alerts)
-    carga_data["estado"] = "Revisión con Alertas" if generated_alerts else "Aprobada AIPA"
+class CargoInput(BaseModel):
+    awb: str
+    content: str
+    length_cm: float
+    width_cm: float
+    height_cm: float
+    weight_declared: float
+    weight_unit: str
+    # Checkpoints de la Consola Operacional
+    packing_integrity: str
+    labeling_complete: str
+    ispm15_seal: str
+    dg_type: str
+    dg_separation: Optional[str] = 'NA'
+    weight_match: str
 
-    return carga_data
+class AdvisoryRequest(BaseModel):
+    prompt: str
 
-# =====================================================
-# ENDPOINTS
-# =====================================================
+
+# --- LÓGICA DE NEGOCIO Y MOTOR DE REGLAS ---
+
+def calculate_risk_score(alerts: List[str]) -> int:
+    """Calcula el puntaje total de riesgo basado en las alertas activas."""
+    total_risk = sum(ALERTS_DB[alert]["risk"] for alert in alerts)
+    
+    # Si hay una alerta de rechazo CRÍTICO, el score debe ser alto.
+    if "R003" in alerts or "R005" in alerts:
+        return max(85, total_risk)
+        
+    return min(total_risk, 99) # Máximo 99%
+
+
+def validate_cargo(cargo: CargoInput) -> dict:
+    """Aplica el Motor de Reglas AIPA (simulando TSA/IATA/IMDG/Aduana)
+       utilizando los datos de la Consola Operacional y Documentos."""
+       
+    active_alerts = []
+
+    # --- 1. Reglas Físicas/Dimensiones (Counter/Balanza) ---
+    
+    # R002: Altura Excedida 
+    if cargo.height_cm > 180.0:
+        active_alerts.append("R002")
+        
+    # R001: ISPM-15 
+    if cargo.ispm15_seal == "NO":
+        active_alerts.append("R001")
+        
+    # R003: Integridad del Embalaje 
+    if cargo.packing_integrity == "CRITICAL":
+        active_alerts.append("R003")
+        
+    # R006: Discrepancia de Peso 
+    if cargo.weight_match == "NO":
+        active_alerts.append("R006")
+        
+    # --- 2. Reglas DG/Hazmat (Forwarder/Especialista) ---
+    
+    is_dg = cargo.dg_type != "NO_DG"
+    
+    if is_dg:
+        # R004: Etiquetado DG/Placarding 
+        if cargo.labeling_complete == "NO":
+            active_alerts.append("R004")
+
+        # R005: Segregación CRÍTICA (IATA/IMDG)
+        if cargo.dg_separation == "MIXED":
+            active_alerts.append("R005")
+            
+        # R007: Documentación 
+        if not cargo.labeling_complete == "YES": 
+             active_alerts.append("R007")
+        
+    # --- 3. Reglas Documentales (Simulación de Inconsistencia) ---
+    
+    if is_dg and "ropa" in cargo.content.lower():
+        active_alerts.append("R007")
+
+    # Calculamos el riesgo
+    risk_score = calculate_risk_score(list(set(active_alerts)))
+
+    return {
+        "awb": cargo.awb,
+        "content": cargo.content,
+        "length_cm": cargo.length_cm,
+        "width_cm": cargo.width_cm,
+        "height_cm": cargo.height_cm,
+        "weight_declared": cargo.weight_declared,
+        "weight_unit": cargo.weight_unit,
+        "alertaScore": risk_score,
+        "alerts": list(set(active_alerts)) 
+    }
+
+
+# --- ENDPOINTS ---
 
 @app.get("/")
-async def root():
-    return {"message": "SmartCargo-AIPA Backend activo"}
+def read_root():
+    return {"message": "SmartCargo AIPA Backend Operational"}
 
-# ------------------ CARGAS ------------------
-@app.get("/cargas")
-async def get_cargas():
-    return {"cargas": cargas_db}
 
 @app.post("/cargas")
-async def create_carga(payload: dict):
-    carga_id = str(uuid.uuid4())
-    payload["id"] = carga_id
-    payload["estado"] = "En revisión"
-    payload["alertas"] = 0
-    payload["fecha_creacion"] = str(datetime.utcnow())
+async def create_cargo_validation(cargo: CargoInput):
+    """
+    Recibe los datos de la Consola Operacional y aplica el Motor de Reglas AIPA.
+    """
+    validation_result = validate_cargo(cargo)
+    CARGOS_DB.append(validation_result)
+    return validation_result
 
-    payload["inconsistencias"] = payload.get("inconsistencias", 0)
-    payload["pallet_type"] = payload.get("pallet_type", "madera")
-    payload["ispm15_verified"] = payload.get("ispm15_verified", False)
-    payload["height_cm"] = payload.get("height_cm", 150)
 
-    validated_carga = validate_cargo(payload)
-
-    cargas_db.append(validated_carga)
-    return {"id": carga_id, "alertas": validated_carga["alertas"]}
-
-# ------------------ DOCUMENTOS ------------------
-@app.post("/upload")
-async def upload_file(file: UploadFile = File(...), carga_id: str = Form("N/A")):
-    filename = f"{uuid.uuid4()}_{file.filename}"
-
-    # Simula error documental
-    if "invoice" in filename.lower() and carga_id == "SC-AIPA-TEST-01":
-        alerta = next((r for r in rules_db if r["rule_id"] == "R005"), None)
-        if alerta:
-            global alertas_count
-            alertas_count += 1
-            alertas_db.append({
-                "id": str(uuid.uuid4()),
-                "carga_id": carga_id,
-                "mensaje": alerta["message_es"],
-                "nivel": alerta["severity"],
-                "fecha": str(datetime.utcnow())
-            })
-
-    documents_db.append({
-        "id": str(uuid.uuid4()),
-        "filename": filename,
-        "carga_id": carga_id,
-        "fecha_subida": str(datetime.utcnow())
-    })
-
-    return {"data": {"filename": filename, "carga_id": carga_id}}
-
-# ------------------ ALERTAS ------------------
-@app.get("/alertas")
-async def get_alertas():
-    sorted_alertas = sorted(alertas_db, key=lambda a: a["nivel"], reverse=True)
-    return {"alertas": sorted_alertas}
-
-# ------------------ ADVISORY ------------------
 @app.post("/advisory")
-async def advisory(question: str = Form(...)):
-    if not GEMINI_API_KEY:
-        return JSONResponse({"error": "GEMINI_API_KEY no configurada. Asesoría IA inactiva."}, status_code=500)
-
+async def get_advisory(request: AdvisoryRequest):
+    """
+    Consulta al Asesor IA (Gemini) para obtener una respuesta profesional centrada en SOLUCIONES.
+    """
+    if not client:
+        raise HTTPException(status_code=503, detail="Gemini client is not initialized.")
+        
+    system_instruction = (
+        "Eres SMARTCARGO CONSULTING, el ASESOR PREVENTIVO VIRTUAL y SOLUCIONADOR. "
+        "Tu misión es: 1. IDENTIFICAR el riesgo y 2. PROPORCIONAR la SOLUCIÓN CORRECTIVA INMEDIATA para garantizar que la mercancía llegue a destino sin problema. "
+        "Dirígete al usuario (Cliente, Forwarder, Handler) con autoridad profesional. "
+        "La respuesta principal DEBE ser el diagnóstico y la SOLUCIÓN MÁS CRÍTICA, simple, clara y accionable en un MÁXIMO de 4 líneas. "
+        "Siempre MENCIONA la regulación de autoridad (IATA DGR, IMDG, TSA, ISPM-15, 49 CFR) en las primeras líneas. "
+        "Solo si es estrictamente necesario y agrega valor, añade una SEGUNDA PARTE corta con contexto adicional."
+    )
+    
     try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-
-        system_instruction =(
-            "Eres SMARTCARGO CONSULTING, el ASESOR PREVENTIVO VIRTUAL. "
-            "Tu misión es guiar al usuario (Cliente, Forwarder, Handler) para evitar Holds y Multas. "
-            "La respuesta principal DEBE ser simple, clara y accionable en un máximo de 4 líneas. "
-            "Si el tema es regulatorio (DG, embalaje, aduana), MENCIONA la regulación de autoridad (IATA, IMDG, TSA, ISPM-15) en las primeras líneas. "
-            "Solo si es estrictamente necesario y agrega valor, añade una SEGUNDA PARTE corta con contexto adicional. "
-        ) 
-
-        prompt = f"Consulta: {question}"
-
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[prompt],
-            config=types.GenerateContentConfig(system_instruction=system_instruction)
+            model='gemini-2.5-flash',
+            contents=[request.prompt],
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction
+            )
         )
-
         return {"data": response.text}
-
+        
     except Exception as e:
-        print("Error en la IA:", e)
-        return JSONResponse({"error": "Fallo en SmartCargo Consulting"}, status_code=500)
+        print(f"Error during Gemini API call: {e}")
+        raise HTTPException(status_code=500, detail="Error en la consulta al Asesor IA.")
 
-# ------------------ SIMULACION ------------------
-@app.get("/simulacion/{tipo}/{count}")
-async def run_simulation(tipo: str, count: int):
-    riesgo = min(count * 8, 100)
-    sugerencia = "La carga cumple con la mayoría de los requisitos. Riesgo Bajo."
 
-    if tipo.lower() in ["dg", "hazmat", "quimicos"] or count > 5:
-        riesgo = min(riesgo + 25, 100)
-        sugerencia = "¡CRÍTICO! Posible HOLD. Corrige documentos y etiquetado."
+@app.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    awb: str = Form(""),
+    is_photo: bool = Form(False)
+):
+    """
+    Simula el proceso de revisión de documentos/fotos por el Asesor IA.
+    """
+    if file.content_type not in ["application/pdf", "image/jpeg", "image/png", "text/plain"]:
+        return {"status": "FAILED", "reason": "Tipo de archivo no soportado para análisis AIPA."}
+        
+    # --- SIMULACIÓN DE ANÁLISIS ---
+    
+    if file.content_type == "application/pdf" and random.random() < 0.2:
+        return {"status": "ALERT", "reason": "Alerta R007: Posible documento DG incompleto o inconsistente (Revisar Shipper's Declaration)."}
 
-    elif count >= 3:
-        sugerencia = "Inconsistencias detectadas. Recomiendo revisar embalaje."
+    if is_photo and random.random() < 0.1:
+        return {"status": "ALERT", "reason": "Alerta R003: La IA detectó posible daño crítico al embalaje en la foto subida. Verificación manual requerida."}
+        
+    return {"status": "OK", "reason": f"Análisis de {file.filename} completado. Cumplimiento preliminar OK."}
 
-    return {"riesgo_rechazo": f"{riesgo}%", "sugerencia": sugerencia}
 
-# ------------------ OTROS ENDPOINTS ------------------
 @app.post("/create-payment")
-async def create_payment(amount: int = Form(...), description: str = Form(...)):
-    payment_url = f"https://stripe.com/pay/simulated?amount={amount}&desc={description}"
+async def create_payment_link(amount: int = Form(...), description: str = Form(...)):
+    """
+    Simulación de la creación de un enlace de pago real con Stripe (la lógica de redirección está en app.js).
+    """
+    if stripe_secret_key:
+        # Si hay clave Stripe, esta ruta podría crear la sesión real. Por ahora, mantiene la simulación.
+        payment_url = "https://stripe.com/pay/real_url_goes_here"
+        
+    else:
+        payment_url = f"https://stripe.com/pay/simulated?amount={amount}&desc={description}"
+        
     return {"url": payment_url, "message": "Simulated payment link"}
 
-@app.post("/update-checklist")
-async def update_checklist(payload: dict):
-    return {"message": "Checklist updated", "data": payload}
+
+@app.get("/simulacion")
+def get_simulation_data():
+    """Devuelve la base de datos de cargas simuladas."""
+    return CARGOS_DB
