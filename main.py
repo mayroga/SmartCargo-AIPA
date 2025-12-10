@@ -33,9 +33,19 @@ app.add_middleware(
 # --- CONFIGURACIÓN DE GEMINI Y STRIPE ---
 # La API Key de Gemini se cargará desde las variables de entorno (.env o Render)
 try:
-    client = genai.Client()
-except Exception:
-    print("WARNING: Gemini client failed to initialize. Advisory service will not work.")
+    # 🌟 CORRECCIÓN DE INICIALIZACIÓN: Usa explícitamente GEMINI_API_KEY
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if gemini_key:
+        client = genai.Client(api_key=gemini_key)
+    else:
+        # Si no se encuentra GEMINI_API_KEY, el cliente se dejará como None.
+        raise ValueError("GEMINI_API_KEY not found in environment variables.")
+
+except ValueError as e:
+    print(f"WARNING: Gemini client failed to initialize. {e}. Advisory service will not work.")
+    client = None
+except Exception as e:
+    print(f"WARNING: General error initializing Gemini client: {e}. Advisory service will not work.")
     client = None
 
 # Configuración de Stripe (para pagos reales)
@@ -48,7 +58,7 @@ else:
 
 # --- DATABASE SIMULATION (Reglas y Alertas) ---
 
-# Base de datos de Alertas (Motor de Reglas)
+# Base de datos de Alertas (Motor de Reglas AIPA)
 ALERTS_DB = {
     "R001": {"msg": "Pallet de madera sin sello ISPM-15.", "desc": "Alto riesgo fitosanitario. Necesita tratamiento.", "risk": 30},
     "R002": {"msg": "Altura excede límite de ULD estándar (180cm).", "desc": "Riesgo de rechazo por sobredimensión (R003).", "risk": 20},
@@ -183,8 +193,10 @@ async def get_advisory(request: AdvisoryRequest):
     Consulta al Asesor IA (Gemini) para obtener una respuesta profesional centrada en SOLUCIONES.
     """
     if not client:
-        raise HTTPException(status_code=503, detail="Gemini client is not initialized.")
+        # Si el cliente no se inicializó correctamente debido a la clave faltante, lanzamos un 503
+        raise HTTPException(status_code=503, detail="Gemini client is not initialized. Check GEMINI_API_KEY.")
         
+    # 🎯 FILOSOFÍA DE SOLUCIÓN: Instrucción de sistema para el Asesor IA
     system_instruction = (
         "Eres SMARTCARGO CONSULTING, el ASESOR PREVENTIVO VIRTUAL y SOLUCIONADOR. "
         "Tu misión es: 1. IDENTIFICAR el riesgo y 2. PROPORCIONAR la SOLUCIÓN CORRECTIVA INMEDIATA para garantizar que la mercancía llegue a destino sin problema. "
@@ -206,6 +218,7 @@ async def get_advisory(request: AdvisoryRequest):
         
     except Exception as e:
         print(f"Error during Gemini API call: {e}")
+        # Si la API falla por cualquier otro motivo, se lanza un 500
         raise HTTPException(status_code=500, detail="Error en la consulta al Asesor IA.")
 
 
@@ -238,7 +251,6 @@ async def create_payment_link(amount: int = Form(...), description: str = Form(.
     Simulación de la creación de un enlace de pago real con Stripe (la lógica de redirección está en app.js).
     """
     if stripe_secret_key:
-        # Si hay clave Stripe, esta ruta podría crear la sesión real. Por ahora, mantiene la simulación.
         payment_url = "https://stripe.com/pay/real_url_goes_here"
         
     else:
