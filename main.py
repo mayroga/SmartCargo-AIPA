@@ -48,15 +48,14 @@ else:
 
 # --- DATABASE SIMULATION (Reglas y Alertas) ---
 
-# Base de datos de Alertas (Ampliada para la Consola Operacional)
-# El ID de la alerta (ej: R002) se usa en la lógica de validación
+# Base de datos de Alertas (Motor de Reglas)
 ALERTS_DB = {
     "R001": {"msg": "Pallet de madera sin sello ISPM-15.", "desc": "Alto riesgo fitosanitario. Necesita tratamiento.", "risk": 30},
     "R002": {"msg": "Altura excede límite de ULD estándar (180cm).", "desc": "Riesgo de rechazo por sobredimensión (R003).", "risk": 20},
-    "R003": {"msg": "Embalaje CRÍTICO (Roto/Fuga).", "desc": "Violación TSA/IATA. Rechazo inmediato en rampa.", "risk": 50}, # Nueva R003
-    "R004": {"msg": "Etiquetas DG/Frágil Faltantes.", "desc": "Incumplimiento de placarding (TSA/IATA).", "risk": 25}, # Nueva R004
-    "R005": {"msg": "Segregación DG CRÍTICA (Mezcla con NO DG).", "desc": "Peligro de incompatibilidad química/incendio.", "risk": 45}, # Nueva R005
-    "R006": {"msg": "Discrepancia de Peso AWB/Físico.", "desc": "Alto riesgo de HOLD y re-facturación.", "risk": 20}, # Nueva R006
+    "R003": {"msg": "Embalaje CRÍTICO (Roto/Fuga).", "desc": "Violación TSA/IATA. Rechazo inmediato en rampa.", "risk": 50}, 
+    "R004": {"msg": "Etiquetas DG/Frágil Faltantes.", "desc": "Incumplimiento de placarding (TSA/IATA).", "risk": 25}, 
+    "R005": {"msg": "Segregación DG CRÍTICA (Mezcla con NO DG).", "desc": "Peligro de incompatibilidad química/incendio.", "risk": 45}, 
+    "R006": {"msg": "Discrepancia de Peso AWB/Físico.", "desc": "Alto riesgo de HOLD y re-facturación.", "risk": 20}, 
     "R007": {"msg": "Contenido DG requiere documento Shipper's Declaration.", "desc": "Documento obligatorio DG faltante.", "risk": 35},
 }
 
@@ -74,7 +73,7 @@ class CargoInput(BaseModel):
     height_cm: float
     weight_declared: float
     weight_unit: str
-    # Nuevos Checkpoints de la Consola Operacional
+    # Checkpoints de la Consola Operacional
     packing_integrity: str
     labeling_complete: str
     ispm15_seal: str
@@ -107,21 +106,19 @@ def validate_cargo(cargo: CargoInput) -> dict:
 
     # --- 1. Reglas Físicas/Dimensiones (Counter/Balanza) ---
     
-    # R002: Altura Excedida (Límite ULD estándar: 180cm / ~71in)
+    # R002: Altura Excedida 
     if cargo.height_cm > 180.0:
         active_alerts.append("R002")
         
-    # R001: ISPM-15 (Revisión Aduana/Fitosanitaria)
-    # Se activa si el sello no está presente (asumiendo que usa pallet de madera)
+    # R001: ISPM-15 
     if cargo.ispm15_seal == "NO":
-        # Nota: La lógica real requeriría saber si es un pallet de madera, aquí lo asumimos.
         active_alerts.append("R001")
         
-    # R003: Integridad del Embalaje (Revisión TSA/IATA, a menudo por FOTO)
+    # R003: Integridad del Embalaje 
     if cargo.packing_integrity == "CRITICAL":
         active_alerts.append("R003")
         
-    # R006: Discrepancia de Peso (Revisión Balanza/Counter)
+    # R006: Discrepancia de Peso 
     if cargo.weight_match == "NO":
         active_alerts.append("R006")
         
@@ -130,7 +127,7 @@ def validate_cargo(cargo: CargoInput) -> dict:
     is_dg = cargo.dg_type != "NO_DG"
     
     if is_dg:
-        # R004: Etiquetado DG/Placarding (Revisión visual/FOTO)
+        # R004: Etiquetado DG/Placarding 
         if cargo.labeling_complete == "NO":
             active_alerts.append("R004")
 
@@ -138,18 +135,13 @@ def validate_cargo(cargo: CargoInput) -> dict:
         if cargo.dg_separation == "MIXED":
             active_alerts.append("R005")
             
-        # R007: Documentación (Shipper's Declaration/Documentos)
-        # Esto simula una verificación documental que el Forwarder necesita rectificar
-        if "lithium" in cargo.content.lower() or "quimic" in cargo.content.lower():
-            # Simulamos que la Declaración DG no está adjunta/marcada
-            if not cargo.labeling_complete == "YES": # Usamos labeling como proxy para documentación
-                 active_alerts.append("R007")
+        # R007: Documentación 
+        if not cargo.labeling_complete == "YES": 
+             active_alerts.append("R007")
         
-    # --- 3. Reglas Documentales (Forwarder/AWB) ---
+    # --- 3. Reglas Documentales (Simulación de Inconsistencia) ---
     
-    # Simulamos una alerta documental basada en contenido (ej: contenido incorrecto vs. tipo DG)
     if is_dg and "ropa" in cargo.content.lower():
-        # Ejemplo: Si es DG pero el contenido es general, hay inconsistencia documental
         active_alerts.append("R007")
 
     # Calculamos el riesgo
@@ -164,7 +156,7 @@ def validate_cargo(cargo: CargoInput) -> dict:
         "weight_declared": cargo.weight_declared,
         "weight_unit": cargo.weight_unit,
         "alertaScore": risk_score,
-        "alerts": list(set(active_alerts)) # Aseguramos unicidad
+        "alerts": list(set(active_alerts)) 
     }
 
 
@@ -179,7 +171,6 @@ def read_root():
 async def create_cargo_validation(cargo: CargoInput):
     """
     Recibe los datos de la Consola Operacional y aplica el Motor de Reglas AIPA.
-    Esto proporciona el Puntaje de Riesgo (Fast Pass) a todos los actores.
     """
     validation_result = validate_cargo(cargo)
     CARGOS_DB.append(validation_result)
@@ -189,17 +180,17 @@ async def create_cargo_validation(cargo: CargoInput):
 @app.post("/advisory")
 async def get_advisory(request: AdvisoryRequest):
     """
-    Consulta al Asesor IA (Gemini) para obtener una respuesta profesional.
-    El Asesor debe ser conciso y fundamentado.
+    Consulta al Asesor IA (Gemini) para obtener una respuesta profesional centrada en SOLUCIONES.
     """
     if not client:
         raise HTTPException(status_code=503, detail="Gemini client is not initialized.")
         
     system_instruction = (
-        "Eres SMARTCARGO CONSULTING, el ASESOR PREVENTIVO VIRTUAL. "
-        "Tu misión es guiar al usuario (Cliente, Forwarder, Handler) para evitar Holds y Multas. "
-        "La respuesta principal DEBE ser simple, clara y accionable en un máximo de 4 líneas. "
-        "Si el tema es regulatorio (DG, embalaje, aduana), MENCIONA la regulación de autoridad (IATA DGR, IMDG, TSA, ISPM-15, 49 CFR) en las primeras líneas. "
+        "Eres SMARTCARGO CONSULTING, el ASESOR PREVENTIVO VIRTUAL y SOLUCIONADOR. "
+        "Tu misión es: 1. IDENTIFICAR el riesgo y 2. PROPORCIONAR la SOLUCIÓN CORRECTIVA INMEDIATA para garantizar que la mercancía llegue a destino sin problema. "
+        "Dirígete al usuario (Cliente, Forwarder, Handler) con autoridad profesional. "
+        "La respuesta principal DEBE ser el diagnóstico y la SOLUCIÓN MÁS CRÍTICA, simple, clara y accionable en un MÁXIMO de 4 líneas. "
+        "Siempre MENCIONA la regulación de autoridad (IATA DGR, IMDG, TSA, ISPM-15, 49 CFR) en las primeras líneas. "
         "Solo si es estrictamente necesario y agrega valor, añade una SEGUNDA PARTE corta con contexto adicional."
     )
     
@@ -211,7 +202,6 @@ async def get_advisory(request: AdvisoryRequest):
                 system_instruction=system_instruction
             )
         )
-        # Devolvemos la respuesta para que el frontend la muestre
         return {"data": response.text}
         
     except Exception as e:
@@ -227,18 +217,15 @@ async def upload_file(
 ):
     """
     Simula el proceso de revisión de documentos/fotos por el Asesor IA.
-    Esta ruta es clave para el Forwarder (documentos) y el Camionero (fotos de carga).
     """
     if file.content_type not in ["application/pdf", "image/jpeg", "image/png", "text/plain"]:
         return {"status": "FAILED", "reason": "Tipo de archivo no soportado para análisis AIPA."}
         
     # --- SIMULACIÓN DE ANÁLISIS ---
     
-    # Simulación de Inconsistencia (Ej: Documento PDF contiene palabra prohibida)
     if file.content_type == "application/pdf" and random.random() < 0.2:
         return {"status": "ALERT", "reason": "Alerta R007: Posible documento DG incompleto o inconsistente (Revisar Shipper's Declaration)."}
 
-    # Simulación de Análisis de Foto (Ej: Verificar si el pallet está roto, R003)
     if is_photo and random.random() < 0.1:
         return {"status": "ALERT", "reason": "Alerta R003: La IA detectó posible daño crítico al embalaje en la foto subida. Verificación manual requerida."}
         
@@ -248,20 +235,15 @@ async def upload_file(
 @app.post("/create-payment")
 async def create_payment_link(amount: int = Form(...), description: str = Form(...)):
     """
-    Simulación de la creación de un enlace de pago real con Stripe.
-    Esta ruta no se usa directamente por el frontend (app.js) ahora, ya que usa los Payment Links fijos.
-    Si se cambia el frontend para usar esta ruta, se habilitaría el cobro real.
+    Simulación de la creación de un enlace de pago real con Stripe (la lógica de redirección está en app.js).
     """
     if stripe_secret_key:
-        # Lógica de Stripe Real (NO ESTÁ IMPLEMENTADA, USAMOS SIMULACIÓN)
-        # Esto requeriría crear un Checkout Session con la API de Stripe
+        # Si hay clave Stripe, esta ruta podría crear la sesión real. Por ahora, mantiene la simulación.
         payment_url = "https://stripe.com/pay/real_url_goes_here"
         
     else:
-        # Si no hay clave de Stripe, usamos la simulación
         payment_url = f"https://stripe.com/pay/simulated?amount={amount}&desc={description}"
         
-    # Devolvemos la URL al frontend
     return {"url": payment_url, "message": "Simulated payment link"}
 
 
