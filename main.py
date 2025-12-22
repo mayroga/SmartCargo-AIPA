@@ -10,7 +10,38 @@ from google.genai import types
 from sqlalchemy import create_engine, Column, String, Float, Integer, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import httpx # Asegúrate de agregar httpx a requirements.txt
 
+EMAIL_API_KEY = os.getenv("EMAIL_API_KEY")
+SENDER_EMAIL = "reports@smartcargo-advisory.com"
+
+async def send_confirmation_email(customer_email: str, awb: str, risk_score: int):
+    if not EMAIL_API_KEY:
+        print("Email no enviado: Falta EMAIL_API_KEY")
+        return
+
+    url = "https://api.sendgrid.com/v3/mail/send" # Ejemplo con SendGrid
+    headers = {"Authorization": f"Bearer {EMAIL_API_KEY}"}
+    data = {
+        "personalizations": [{"to": [{"email": customer_email}]}],
+        "from": {"email": SENDER_EMAIL},
+        "subject": f"Resumen de Auditoría AIPA - AWB: {awb}",
+        "content": [{
+            "type": "text/plain",
+            "value": f"Tu auditoría para el AWB {awb} se completó con un riesgo del {risk_score}%. Ingresa al portal para descargar tu certificado."
+        }]
+    }
+    
+    async with httpx.AsyncClient() as client:
+        await client.post(url, json=data, headers=headers)
+
+# --- Actualizar el endpoint de validación para capturar el email si lo deseas ---
+@app.post("/cargas")
+async def validate_cargo_endpoint(cargo: CargoInput, email: Optional[str] = Form(None)):
+    result = validate_cargo(cargo)
+    if email:
+        await send_confirmation_email(email, cargo.awb, result["alertaScore"])
+    return result
 # --- CONFIGURACIÓN ---
 load_dotenv()
 app = FastAPI(title="SmartCargo-AIPA Backend")
