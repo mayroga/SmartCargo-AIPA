@@ -1,13 +1,8 @@
 fastapi
 uvicorn
-python-dotenv
 stripe
-pydantic
 httpx
-jinja2
 python-multipart
+python-dotenv
 google-genai
-sqlalchemy
-psycopg2-binary
-httpx
-pip install openai
+openai
