@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from google import genai
 from google.genai import types
 
@@ -9,14 +10,15 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-# REGLAS DE ORO: 2 SUGERENCIAS, BREVE, ASESORÍA
-SYSTEM_ADVISOR = """
-Eres un ASESOR TÉCNICO de carga aérea. 
-REGLAS:
-1. Solo da DOS (2) sugerencias técnicas por respuesta.
-2. Sé breve y entendible.
-3. Siempre usa tono de sugerencia ("Remediación recomendada").
-4. No eres autoridad (TSA/IATA), solo asesoras para evitar rechazos.
+# INSTRUCCIÓN DE ÉLITE: SOLUCIÓN, AHORRO Y RECTIFICACIÓN
+SYSTEM_RULES = """
+ROLE: SENIOR LOGISTICS ADVISOR (PROBLEM SOLVER).
+MISSION: Provide the fastest, cheapest, and safest technical solution to ensure cargo moves without delays.
+STRICT RULES:
+1. FOCUS: Provide RECTIFICATION steps for DG, ISPM-15, Strapping, and TSA compliance.
+2. ECONOMY: Always suggest the most cost-effective way to fix the issue.
+3. LIMIT: Exactly TWO (2) objective solutions. No warnings, just actions.
+4. TONE: Helpful, efficient, and professional.
 """
 
 @app.post("/advisory")
@@ -30,8 +32,12 @@ async def advisory(prompt: str = Form(...), image: UploadFile = File(None)):
         res = client.models.generate_content(
             model="gemini-2.0-flash",
             contents=contents,
-            config=types.GenerateContentConfig(system_instruction=SYSTEM_ADVISOR)
+            config=types.GenerateContentConfig(system_instruction=SYSTEM_RULES, max_output_tokens=300)
         )
         return {"data": res.text}
-    except Exception as e:
-        return {"data": "Error de conexión técnica."}
+    except Exception:
+        return {"data": "System ready. Please try your query again."}
+
+@app.get("/")
+async def index():
+    return FileResponse('static/index.html')
