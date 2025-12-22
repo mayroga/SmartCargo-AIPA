@@ -1,5 +1,6 @@
 import os
 import stripe
+import httpx
 from fastapi import FastAPI, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -10,39 +11,8 @@ from google.genai import types
 from sqlalchemy import create_engine, Column, String, Float, Integer, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import httpx # Asegúrate de agregar httpx a requirements.txt
 
-EMAIL_API_KEY = os.getenv("EMAIL_API_KEY")
-SENDER_EMAIL = "reports@smartcargo-advisory.com"
-
-async def send_confirmation_email(customer_email: str, awb: str, risk_score: int):
-    if not EMAIL_API_KEY:
-        print("Email no enviado: Falta EMAIL_API_KEY")
-        return
-
-    url = "https://api.sendgrid.com/v3/mail/send" # Ejemplo con SendGrid
-    headers = {"Authorization": f"Bearer {EMAIL_API_KEY}"}
-    data = {
-        "personalizations": [{"to": [{"email": customer_email}]}],
-        "from": {"email": SENDER_EMAIL},
-        "subject": f"Resumen de Auditoría AIPA - AWB: {awb}",
-        "content": [{
-            "type": "text/plain",
-            "value": f"Tu auditoría para el AWB {awb} se completó con un riesgo del {risk_score}%. Ingresa al portal para descargar tu certificado."
-        }]
-    }
-    
-    async with httpx.AsyncClient() as client:
-        await client.post(url, json=data, headers=headers)
-
-# --- Actualizar el endpoint de validación para capturar el email si lo deseas ---
-@app.post("/cargas")
-async def validate_cargo_endpoint(cargo: CargoInput, email: Optional[str] = Form(None)):
-    result = validate_cargo(cargo)
-    if email:
-        await send_confirmation_email(email, cargo.awb, result["alertaScore"])
-    return result
-# --- CONFIGURACIÓN ---
+# --- CONFIGURACIÓN INICIAL ---
 load_dotenv()
 app = FastAPI(title="SmartCargo-AIPA Backend")
 
@@ -50,6 +20,8 @@ ADMIN_USER = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD", "secret123")
 FRONTEND_URL = "https://smartcargo-advisory.onrender.com"
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+EMAIL_API_KEY = os.getenv("EMAIL_API_KEY")
+SENDER_EMAIL = "reports@smartcargo-advisory.com"
 
 # --- BASE DE DATOS ---
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -63,16 +35,46 @@ class AuditRecord(Base):
     awb = Column(String)
     risk_score = Column(Integer)
     alerts = Column(JSON)
-    status = Column(String) # 'PAID' o 'ADMIN_BYPASS'
+    status = Column(String)
 
 Base.metadata.create_all(bind=engine)
 
+# --- MODELOS DE DATOS ---
+class CargoInput(BaseModel):
+    awb: str
+    content: str
+    height_cm: float
+    weight_declared: float
+    packing_integrity: str
+    ispm15_seal: str
+    dg_type: str
+    weight_match: str
+    email: Optional[str] = None # Capturamos el email aquí
+
+class AdvisoryRequest(BaseModel):
+    prompt: str
+
+# --- FUNCIONES AUXILIARES ---
 def save_audit(awb: str, score: int, alerts: list, status: str):
     db = SessionLocal()
     record = AuditRecord(awb=awb, risk_score=score, alerts=alerts, status=status)
     db.add(record)
     db.commit()
     db.close()
+
+async def send_confirmation_email(customer_email: str, awb: str, risk_score: int):
+    if not EMAIL_API_KEY:
+        return
+    url = "https://api.sendgrid.com/v3/mail/send"
+    headers = {"Authorization": f"Bearer {EMAIL_API_KEY}"}
+    data = {
+        "personalizations": [{"to": [{"email": customer_email}]}],
+        "from": {"email": SENDER_EMAIL},
+        "subject": f"Resumen de Auditoría AIPA - AWB: {awb}",
+        "content": [{"type": "text/plain", "value": f"Auditoría AWB {awb} completada: {risk_score}% de riesgo."}]
+    }
+    async with httpx.AsyncClient() as client:
+        await client.post(url, json=data, headers=headers)
 
 # --- CORS ---
 app.add_middleware(
@@ -83,31 +85,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- GEMINI ---
-client = None
-try:
-    gemini_key = os.getenv("GEMINI_API_KEY")
-    if gemini_key:
-        client = genai.Client(api_key=gemini_key)
-except Exception as e:
-    print(f"Gemini Error: {e}")
-
-# --- MODELOS ---
-class CargoInput(BaseModel):
-    awb: str
-    content: str
-    height_cm: float
-    weight_declared: float
-    packing_integrity: str
-    ispm15_seal: str
-    dg_type: str
-    weight_match: str
-
-class AdvisoryRequest(BaseModel):
-    prompt: str
+# --- GEMINI IA ---
+client_gemini = None
+if os.getenv("GEMINI_API_KEY"):
+    client_gemini = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 # --- ENDPOINTS ---
-
 @app.post("/cargas")
 async def validate_cargo_endpoint(cargo: CargoInput):
     alerts = []
@@ -117,16 +100,20 @@ async def validate_cargo_endpoint(cargo: CargoInput):
     if cargo.weight_match == "NO": alerts.append("Weight mismatch")
     
     risk_score = min(len(alerts) * 25, 99)
+    
+    if cargo.email:
+        await send_confirmation_email(cargo.email, cargo.awb, risk_score)
+        
     return {"awb": cargo.awb, "alerts": alerts, "alertaScore": risk_score}
 
 @app.post("/advisory")
 async def advisory(request: AdvisoryRequest):
-    if not client: raise HTTPException(status_code=503, detail="IA no configurada")
+    if not client_gemini: raise HTTPException(status_code=503, detail="IA no configurada")
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
+        response = client_gemini.models.generate_content(
+            model="gemini-2.0-flash", # Actualizado a versión estable
             contents=[request.prompt],
-            config=types.GenerateContentConfig(system_instruction="Expert logistics advisor. Concise solutions.")
+            config=types.GenerateContentConfig(system_instruction="Expert logistics advisor. Concise.")
         )
         return {"data": response.text}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
@@ -157,21 +144,14 @@ async def create_payment(
         return {"url": session.url}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/")
-def health(): return {"status": "AIPA Operational"}
-# -----------------------------------------------------
-# CONSULTA DE HISTORIAL (SOLO ADMIN)
-# -----------------------------------------------------
 @app.get("/admin/history")
 async def get_audit_history(user: str, password: str):
-    # Validar que sea el administrador quien consulta
     if user != ADMIN_USER or password != ADMIN_PASS:
         raise HTTPException(status_code=401, detail="No autorizado")
-
     db = SessionLocal()
-    try:
-        # Traer las últimas 50 auditorías
-        records = db.query(AuditRecord).order_by(AuditRecord.id.desc()).limit(50).all()
-        return records
-    finally:
-        db.close()
+    records = db.query(AuditRecord).order_by(AuditRecord.id.desc()).limit(50).all()
+    db.close()
+    return records
+
+@app.get("/")
+def health(): return {"status": "AIPA Operational"}
