@@ -1,109 +1,67 @@
-import os
-import stripe
-import httpx
-import base64
-from fastapi import FastAPI, Form, File, UploadFile, HTTPException
+import os, stripe, httpx, base64
+from fastapi import FastAPI, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
-
 app = FastAPI()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# Permitir que el navegador acepte respuestas de este servidor
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-
-# Configuración de llaves
 STRIPE_KEY = os.getenv("STRIPE_SECRET_KEY")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-ADMIN_PASS_SERVER = os.getenv("ADMIN_PASSWORD", "Ley") # "Ley" es el valor por defecto
-
-stripe.api_key = STRIPE_KEY
-
-class CargoAudit(BaseModel):
-    awb: str
-    length: float
-    width: float
-    height: float
-    weight: float
-    ispm15_seal: str
-    unit_system: str
+ADMIN_PASS_SERVER = os.getenv("ADMIN_PASSWORD", "Ley")
 
 @app.post("/cargas")
-async def process_audit(cargo: CargoAudit):
-    alerts = []
-    score = 0
+async def process_audit(role: str = Form(...), h: float = Form(...), ispm: str = Form(...), dg: str = Form(...), labels: str = Form(...)):
+    results = []
     
-    # Conversión a CM para lógica de auditoría
-    L, W, H = cargo.length, cargo.width, cargo.height
-    is_in = cargo.unit_system == "in"
+    # Lógica Transversal (Seguridad de Vuelo)
+    if h > 158:
+        results.append({"msg": "VASCULERO/RAMPA: Altura excede 158cm. No apto para Avión de Pasajeros (PAX). Solo Freighter.", "level": "high"})
+    
+    if ispm == "NO":
+        results.append({"msg": "COUNTER/ADUANA: Sin sello ISPM-15. Riesgo de confiscación y multa fitosanitaria.", "level": "high"})
 
-    L_cm = L * 2.54 if is_in else L
-    W_cm = W * 2.54 if is_in else W
-    H_cm = H * 2.54 if is_in else H
+    if dg == "SI":
+        results.append({"msg": "OPERATIVO: Mercancía Peligrosa. Verificar 'NOTOC' para el Capitán y etiquetas UN visibles.", "level": "high"})
 
-    # Cálculos técnicos
-    factor_vol = 166 if is_in else 6000
-    vol_m3 = (L_cm * W_cm * H_cm) / 1_000_000
-    peso_v = (L * W * H) / factor_vol
+    if labels == "NO":
+        results.append({"msg": "GENERAL: Todo label (Orientación, TSA, DG) DEBE estar hacia afuera para inspección rápida.", "level": "high"})
 
-    # Reglas de negocio
-    if H_cm > 158:
-        alerts.append("ALTURA CRÍTICA: No apto para ULD estándar.")
-        score += 35
-    if cargo.ispm15_seal.upper() == "NO":
-        alerts.append("RIESGO MADERA: Sin sello ISPM-15 detectado.")
-        score += 40
-
-    return {
-        "score": min(score, 100),
-        "alerts": alerts,
-        "details": f"{vol_m3:.3f} m³ | Peso Vol: {peso_v:.2f}"
-    }
+    return results
 
 @app.post("/advisory")
 async def advisory_vision(prompt: str = Form(...), image: Optional[UploadFile] = File(None)):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
     
-    parts = [{"text": f"Eres SMARTCARGO CONSULTING. Da una respuesta logística breve a: {prompt}"}]
+    instruction = (
+        "Eres SMARTCARGO CONSULTING. Tu misión es asesorar a: Shippers, Camioneros, Counters, Vasculeros y Operarios de Rampa. "
+        "Reglas: 1. Labels siempre visibles. 2. Altura máxima 158cm para PAX. 3. Madera siempre sellada. 4. DG requiere etiquetas Clase 9/UN. "
+        "Si ves la imagen, analiza la integridad del pallet y la posición de las marcas de seguridad."
+    )
 
+    parts = [{"text": f"{instruction}\n\nConsulta técnica: {prompt}"}]
     if image:
         img_data = await image.read()
-        parts.append({
-            "inline_data": {
-                "mime_type": image.content_type,
-                "data": base64.b64encode(img_data).decode("utf-8")
-            }
-        })
+        parts.append({"inline_data": {"mime_type": image.content_type, "data": base64.b64encode(img_data).decode("utf-8")}})
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=30.0)
+        res = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=30.0)
         try:
-            answer = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-            return {"data": answer}
+            return {"data": res.json()["candidates"][0]["content"]["parts"][0]["text"]}
         except:
-            return {"data": "Error al procesar la respuesta de la IA."}
+            return {"data": "Error en el análisis. Verifique la conexión o el tamaño de la imagen."}
 
 @app.post("/create-payment")
 async def payment(amount: float = Form(...), awb: str = Form(...), password: Optional[str] = Form(None)):
-    # El éxito redirige al index con el parámetro access=granted
     success_url = f"https://smartcargo-aipa.onrender.com/index.html?access=granted&awb={awb}"
-    
     if password and password.strip() == ADMIN_PASS_SERVER:
         return {"url": success_url}
-
+    
     session = stripe.checkout.Session.create(
         payment_method_types=["card"],
-        line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"AWB {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
-        mode="payment",
-        success_url=success_url,
-        cancel_url="https://smartcargo-aipa.onrender.com/index.html"
+        line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Consultoría AWB {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
+        mode="payment", success_url=success_url, cancel_url=success_url
     )
     return {"url": session.url}
