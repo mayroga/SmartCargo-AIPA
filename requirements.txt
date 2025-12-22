@@ -10,3 +10,4 @@ google-genai
 sqlalchemy
 psycopg2-binary
 httpx
+pip install openai
