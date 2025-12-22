@@ -8,7 +8,81 @@ from google import genai
 from google.genai import types
 from fastapi.middleware.cors import CORSMiddleware
 import stripe
+import os
+import stripe
+from fastapi import FastAPI, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Optional, List
+from dotenv import load_dotenv
+from google import genai
 
+load_dotenv()
+
+app = FastAPI(title="SmartCargo-AIPA Backend")
+
+# --- VARIABLES DE ENTORNO ---
+ADMIN_USER = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASS = os.getenv("ADMIN_PASSWORD", "secret123")
+FRONTEND_URL = "https://smartcargo-advisory.onrender.com"
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+# --- CORS ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[FRONTEND_URL, "http://localhost:8080"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class CargoInput(BaseModel):
+    awb: str
+    content: str
+    height_cm: float
+    weight_declared: float
+    packing_integrity: str
+    ispm15_seal: str
+    dg_type: str
+    weight_match: str
+
+@app.post("/create-payment")
+async def create_payment(
+    amount: float = Form(...), 
+    description: str = Form(...),
+    user: Optional[str] = Form(None),
+    password: Optional[str] = Form(None)
+):
+    # 1. LOGICA DE BYPASS ADMIN
+    if user == ADMIN_USER and password == ADMIN_PASS:
+        return {
+            "url": f"{FRONTEND_URL}/success.html?access=granted",
+            "message": "Bypass Admin Activado"
+        }
+
+    # 2. LOGICA DE COBRO REAL STRIPE
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {'name': description},
+                    'unit_amount': int(amount * 100),
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=f"{FRONTEND_URL}/success.html?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{FRONTEND_URL}/cancel.html",
+        )
+        return {"url": session.url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/")
+def health_check():
+    return {"status": "AIPA Operational"}
 load_dotenv()
 
 # --- CONFIGURACIÓN DE FASTAPI Y CORS ---
