@@ -102,7 +102,35 @@ def validate_cargo(cargo: CargoInput):
         "alerts": alerts,
         "alertaScore": risk_score
     }
+from sqlalchemy import create_engine, Column, String, Float, Integer, JSON
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
+# --- CONFIGURACIÓN DE BASE DE DATOS ---
+DATABASE_URL = os.getenv("DATABASE_URL")
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+class AuditRecord(Base):
+    __tablename__ = "audits"
+    id = Column(Integer, primary_key=True, index=True)
+    awb = Column(String)
+    risk_score = Column(Integer)
+    alerts = Column(JSON)
+    status = Column(String) # 'PAID' o 'ADMIN_BYPASS'
+
+# Crear las tablas automáticamente
+Base.metadata.create_all(bind=engine)
+
+# Función para guardar
+def save_audit(awb: str, score: int, alerts: list, status: str):
+    db = SessionLocal()
+    record = AuditRecord(awb=awb, risk_score=score, alerts=alerts, status=status)
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    db.close()
 # =====================================================
 # ENDPOINTS
 # =====================================================
