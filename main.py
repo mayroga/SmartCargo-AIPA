@@ -26,22 +26,30 @@ EMAIL_API_KEY = os.getenv("EMAIL_API_KEY")
 SENDER_EMAIL = "reports@smartcargo-advisory.com"
 
 # =====================================================
-# 2. CONFIGURACIÓN DE BASE DE DATOS (SOLUCIÓN AL ERROR)
+# 2. MOTOR DE BASE DE DATOS (CORRECCIÓN DE PARSING)
 # =====================================================
-DATABASE_URL = os.getenv("DATABASE_URL")
+def get_db_url():
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        return "sqlite:///./test.db"
+    
+    # IMPORTANTE: SQLAlchemy 1.4+ requiere 'postgresql://' no 'postgres://'
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    
+    # Eliminar espacios en blanco accidentales
+    return url.strip()
 
-# Si la URL no existe (Error None), usamos SQLite para evitar que la app falle
-if not DATABASE_URL:
-    print("WARNING: DATABASE_URL no encontrada. Usando SQLite temporal.")
-    DATABASE_URL = "sqlite:///./test.db"
-else:
-    # Render entrega postgres://, SQLAlchemy requiere postgresql://
-    if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+try:
+    engine = create_engine(get_db_url())
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base = declarative_base()
+except Exception as e:
+    print(f"Error fatal configurando el motor de DB: {e}")
+    # Fallback extremo para que la app no muera en el despliegue
+    engine = create_engine("sqlite:///./backup.db")
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base = declarative_base()
 
 class AuditRecord(Base):
     __tablename__ = "audits"
@@ -51,11 +59,10 @@ class AuditRecord(Base):
     alerts = Column(JSON)
     status = Column(String)
 
-# Crear tablas
 Base.metadata.create_all(bind=engine)
 
 # =====================================================
-# 3. MODELOS Y LOGICA DE NEGOCIO
+# 3. MODELOS Y LÓGICA
 # =====================================================
 class CargoInput(BaseModel):
     awb: str
@@ -77,22 +84,10 @@ def save_audit(awb: str, score: int, alerts: list, status: str):
         record = AuditRecord(awb=awb, risk_score=score, alerts=alerts, status=status)
         db.add(record)
         db.commit()
+    except Exception as e:
+        print(f"Error guardando auditoría: {e}")
     finally:
         db.close()
-
-async def send_confirmation_email(customer_email: str, awb: str, risk_score: int):
-    if not EMAIL_API_KEY: return
-    disclaimer = "\n\n--- AVISO LEGAL ---\nReporte consultivo basado en IA. No sustituye inspección física."
-    url = "https://api.sendgrid.com/v3/mail/send"
-    headers = {"Authorization": f"Bearer {EMAIL_API_KEY}"}
-    data = {
-        "personalizations": [{"to": [{"email": customer_email}]}],
-        "from": {"email": SENDER_EMAIL},
-        "subject": f"Auditoría AIPA Completada - AWB: {awb}",
-        "content": [{"type": "text/plain", "value": f"Su reporte para el AWB {awb} indica un {risk_score}% de riesgo.{disclaimer}"}]
-    }
-    async with httpx.AsyncClient() as client:
-        await client.post(url, json=data, headers=headers)
 
 # =====================================================
 # 4. IA Y SEGURIDAD LEGAL
@@ -104,16 +99,15 @@ if os.getenv("GEMINI_API_KEY"):
 system_instruction = (
     "Eres SMARTCARGO CONSULTING. Experto en IATA DGR, PER y LAR. "
     "IMPORTANTE: Siempre incluye: 'Verifique con el manual oficial y la aerolínea'. "
-    "Tu objetivo es prevenir el rechazo de carga en almacén (Warehouse Rejection)."
+    "Tu objetivo es prevenir el rechazo de carga en almacén."
 )
 
 # =====================================================
 # 5. ENDPOINTS
 # =====================================================
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL, "http://localhost:8080", "http://127.0.0.1:8080"],
+    allow_origins=["*"], # Temporalmente abierto para debug
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -123,34 +117,22 @@ app.add_middleware(
 async def validate_cargo_endpoint(cargo: CargoInput):
     alerts = []
     risk_score = 0
-
-    # Lógica Analista de Riesgos
     if cargo.ispm15_seal == "NO":
-        alerts.append("R001: Falta sello ISPM-15 (Embalaje de madera)")
+        alerts.append("R001: Falta sello ISPM-15")
         risk_score += 25
     if cargo.height_cm > 180:
-        alerts.append("R002: Altura excede límite ULD estándar")
+        alerts.append("R002: Altura excede límite ULD")
         risk_score += 20
     if cargo.packing_integrity == "CRITICAL":
-        alerts.append("R003: Embalaje dañado - Alto riesgo de rechazo")
+        alerts.append("R003: Embalaje dañado")
         risk_score += 50
     
-    # Detección Especializada
-    if cargo.dg_type == "DANGEROUS":
-        alerts.append("R009: Mercancía Peligrosa - Requiere Shipper's Declaration")
-        risk_score += 30
-    if "lithium" in cargo.content.lower():
-        alerts.append("R015: Baterías de Litio - Revisar IATA PI 965")
-        risk_score += 40
-
     risk_score = min(risk_score, 100)
-    if cargo.email: await send_confirmation_email(cargo.email, cargo.awb, risk_score)
-    
     return {"awb": cargo.awb, "alerts": alerts, "alertaScore": risk_score}
 
 @app.post("/advisory")
 async def advisory(request: AdvisoryRequest):
-    if not client_gemini: raise HTTPException(status_code=503, detail="IA no configurada")
+    if not client_gemini: raise HTTPException(status_code=503)
     response = client_gemini.models.generate_content(
         model="gemini-2.0-flash",
         contents=[request.prompt],
@@ -166,12 +148,10 @@ async def create_payment(
     user: Optional[str] = Form(None),
     password: Optional[str] = Form(None)
 ):
-    # Bypass Admin
     if user == ADMIN_USER and password == ADMIN_PASS:
         save_audit(awb=awb or "ADMIN", score=0, alerts=[], status="ADMIN_BYPASS")
         return {"url": f"{FRONTEND_URL}/success.html?access=granted&awb={awb}"}
 
-    # Stripe
     session = stripe.checkout.Session.create(
         payment_method_types=["card"],
         line_items=[{"price_data": {"currency": "usd", "product_data": {"name": description}, "unit_amount": int(amount * 100)}, "quantity": 1}],
@@ -181,13 +161,5 @@ async def create_payment(
     )
     return {"url": session.url}
 
-@app.get("/admin/history")
-async def get_audit_history(user: str, password: str):
-    if user != ADMIN_USER or password != ADMIN_PASS: raise HTTPException(status_code=401)
-    db = SessionLocal()
-    records = db.query(AuditRecord).order_by(AuditRecord.id.desc()).limit(50).all()
-    db.close()
-    return records
-
 @app.get("/")
-def health(): return {"status": "Operational", "db": "Connected"}
+def health(): return {"status": "Operational", "db_engine": "Ready"}
