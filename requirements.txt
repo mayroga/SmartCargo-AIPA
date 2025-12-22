@@ -7,3 +7,5 @@ httpx
 jinja2
 python-multipart
 google-genai
+sqlalchemy
+psycopg2-binary
