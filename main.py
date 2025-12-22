@@ -128,3 +128,19 @@ async def create_payment(
 
 @app.get("/")
 def health(): return {"status": "AIPA Operational"}
+# -----------------------------------------------------
+# CONSULTA DE HISTORIAL (SOLO ADMIN)
+# -----------------------------------------------------
+@app.get("/admin/history")
+async def get_audit_history(user: str, password: str):
+    # Validar que sea el administrador quien consulta
+    if user != ADMIN_USER or password != ADMIN_PASS:
+        raise HTTPException(status_code=401, detail="No autorizado")
+
+    db = SessionLocal()
+    try:
+        # Traer las últimas 50 auditorías
+        records = db.query(AuditRecord).order_by(AuditRecord.id.desc()).limit(50).all()
+        return records
+    finally:
+        db.close()
