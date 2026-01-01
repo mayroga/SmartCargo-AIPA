@@ -1,102 +1,73 @@
 const translations = {
     en: {
-        h_subtitle: "Technical Consulting by MAY ROGA LLC",
-        l_aviso: "LEGAL SHIELD NOTICE:",
-        l_desc: "MAY ROGA LLC is a private consulting firm. We are NOT a government agency, NOT TSA, IATA, DOT, or IMO. We do not hold DG licenses nor handle cargo physically. Our role is to provide technical advice to prevent errors. By using this system, you accept our solutions as preventive suggestions.",
-        b_title: "Why use our Advisor?",
-        p_title: "Activate Professional Service",
-        app_title: "Global Solution Center",
-        b_html: `<div class="benefit-card">✅ <strong>Avoid Holds:</strong> Don't let your cargo stop at any global hub.</div><div class="benefit-card">✅ <strong>Save Money:</strong> Prevent costly storage and rejections.</div>`
+        h_subtitle: "BY MAY ROGA LLC",
+        l_aviso: "⚠️ Legal Notice",
+        l_desc: "Virtual preventive advisor for cargo. NO certifies, NO inspects. MAY ROGA LLC provides data-based expert advice to prevent losses.",
+        p_title: "ACTIVATE NOW",
+        app_title: "Solution Center"
     },
     es: {
-        h_subtitle: "Consultoría Técnica por MAY ROGA LLC",
-        l_aviso: "AVISO LEGAL DE BLINDAJE:",
-        l_desc: "MAY ROGA LLC es una firma de consultoría privada. NO somos una agencia del gobierno, NO somos TSA, IATA, DOT ni IMO. NO poseemos licencia de DG ni manejamos carga físicamente. Nuestra función es asesorar técnicamente para evitar errores de estiba y documentación. Al usar este sistema, usted acepta que nuestras soluciones son sugerencias de cumplimiento preventivo.",
-        b_title: "¿Por qué usar nuestro Asesor?",
-        p_title: "Activar Servicio Profesional",
-        app_title: "Centro de Soluciones Globales",
-        b_html: `<div class="benefit-card">✅ <strong>Evite Retrasos:</strong> No deje que su carga se detenga en ningún puerto.</div><div class="benefit-card">✅ <strong>Ahorre Dinero:</strong> Prevenga gastos de almacenamiento y rechazos.</div>`
+        h_subtitle: "POR MAY ROGA LLC",
+        l_aviso: "⚠️ Aviso Legal",
+        l_desc: "Asesor preventivo virtual. NO certifica, NO inspecciona. MAY ROGA LLC ofrece asesoría experta basada en datos para evitar pérdidas.",
+        p_title: "ACTIVAR AHORA",
+        app_title: "Centro de Soluciones"
     },
-    pt: {
-        h_subtitle: "Consultoria Técnica por MAY ROGA LLC",
-        l_aviso: "AVISO DE PROTEÇÃO LEGAL:",
-        l_desc: "MAY ROGA LLC é uma empresa de consultoria privada. NÃO somos uma agência governamental...",
-        b_title: "Por que usar nosso consultor?",
-        p_title: "Ativar Serviço",
-        app_title: "Centro de Soluções",
-        b_html: `<div class="benefit-card">✅ Evite Atrasos</div><div class="benefit-card">✅ Economize Dinheiro</div>`
-    },
-    zh: {
-        h_subtitle: "MAY ROGA LLC 的技术咨询",
-        l_aviso: "法律保护公告:",
-        l_desc: "MAY ROGA LLC 是一家私人咨询公司。我们不是政府机构...",
-        b_title: "为什么选择我们的咨询？",
-        p_title: "激活服务",
-        app_title: "全球解决方案中心",
-        b_html: `<div class="benefit-card">✅ 避免停滞</div><div class="benefit-card">✅ 节省资金</div>`
-    },
-    fr: {
-        h_subtitle: "Conseil Technique par MAY ROGA LLC",
-        l_aviso: "AVIS DE PROTECTION JURIDIQUE:",
-        l_desc: "MAY ROGA LLC est un cabinet de conseil privé...",
-        b_title: "Pourquoi utiliser notre conseil ?",
-        p_title: "Activer le service",
-        app_title: "Centre de solutions",
-        b_html: `<div class="benefit-card">✅ Éviter les retards</div><div class="benefit-card">✅ Économiser de l'argent</div>`
-    },
-    hi: {
-        h_subtitle: "MAY ROGA LLC द्वारा तकनीकी परामर्श",
-        l_aviso: "कानूनी सुरक्षा नोटिस:",
-        l_desc: "MAY ROGA LLC एक निजी परामर्श फर्म है। हम सरकारी एजेंसी नहीं हैं...",
-        b_title: "हमारी सलाह का उपयोग क्यों करें?",
-        p_title: "सेवा सक्रिय करें",
-        app_title: "समाधान केंद्र",
-        b_html: `<div class="benefit-card">✅ देरी से बचें</div><div class="benefit-card">✅ पैसे बचाएं</div>`
-    }
+    zh: { h_subtitle: "由 MAY ROGA LLC 提供", l_aviso: "⚠️ 法律声明", l_desc: "货运虚拟预防顾问。不认证，不检查。MAY ROGA LLC 提供基于数据的专家建议以防止损失。", p_title: "现在激活", app_title: "解决方案中心" },
+    hi: { h_subtitle: "MAY ROGA LLC द्वारा", l_aviso: "⚠️ कानूनी नोटिस", l_desc: "कार्गो के लिए आभासी निवारक सलाहकार। प्रमाणित नहीं करता, निरीक्षण नहीं करता। MAY ROGA LLC नुकसान को रोकने के लिए डेटा-आधारित विशेषज्ञ सलाह प्रदान करता है।", p_title: "अब सक्रिय करें", app_title: "समाधान केंद्र" },
+    fr: { h_subtitle: "PAR MAY ROGA LLC", l_aviso: "⚠️ Avis Légal", l_desc: "Conseiller préventif virtuel. NE certifie PAS, N'inspecte PAS. MAY ROGA LLC fournit des conseils d'experts basés sur des données.", p_title: "ACTIVER", app_title: "Centre de Solutions" },
+    pt: { h_subtitle: "POR MAY ROGA LLC", l_aviso: "⚠️ Aviso Legal", l_desc: "Consultor preventivo virtual. NÃO certifica, NÃO inspeciona. A MAY ROGA LLC oferece assessoria especializada.", p_title: "ATIVAR", app_title: "Centro de Soluções" }
 };
 
 function changeLang(lang) {
     localStorage.setItem("user_lang", lang);
     const t = translations[lang] || translations['en'];
-    
     document.getElementById("h_subtitle").innerText = t.h_subtitle;
     document.getElementById("l_aviso").innerText = t.l_aviso;
-    document.getElementById("l_desc").innerText = t.l_desc;
-    document.getElementById("b_title").innerText = t.b_title;
-    document.getElementById("b_list").innerHTML = t.b_html;
-    document.getElementById("p_title").innerText = t.p_title;
-    document.getElementById("app_title").innerText = t.app_title;
+    document.getElementById("l_desc").innerHTML = translations[lang].l_desc || translations['en'].l_desc;
+}
+
+let timer;
+function startInactivityTimer() {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+        alert("Session expired for security.");
+        location.reload();
+    }, 300000); // 5 minutes
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    // INGLÉS POR DEFECTO
-    const savedLang = localStorage.getItem("user_lang") || "en";
-    changeLang(savedLang);
+    changeLang(localStorage.getItem("user_lang") || "en");
     
-    // Lógica de pago y desbloqueo... (Mantenida de versiones anteriores)
+    document.getElementById("activateBtn").onclick = () => {
+        document.getElementById("mainApp").style.display = "block";
+        document.getElementById("accessSection").style.display = "none";
+        startInactivityTimer();
+    };
+
+    document.getElementById("advForm").onsubmit = async (e) => {
+        e.preventDefault();
+        startInactivityTimer();
+        const out = document.getElementById("advResponse");
+        out.innerHTML = "<h4>🔍 Analyzing...</h4>";
+        
+        const fd = new FormData(e.target);
+        fd.append("lang", localStorage.getItem("user_lang") || "en");
+
+        try {
+            const res = await fetch("/advisory", { method: "POST", body: fd });
+            const data = await res.json();
+            out.innerHTML = `
+                <div class="report-box">
+                    <h3>MAY ROGA LLC | Technical Report</h3>
+                    <p style="white-space: pre-wrap;">${data.data}</p>
+                    <div class="legal-footer">${translations[localStorage.getItem("user_lang") || "en"].l_desc}</div>
+                </div>
+                <button onclick="window.print()">Print PDF</button>
+            `;
+            e.target.reset(); // Privacidad: Borra fotos y texto al terminar
+        } catch (err) {
+            out.innerHTML = "<p>Error. Please try again.</p>";
+        }
+    };
 });
-
-document.getElementById("advForm").onsubmit = async (e) => {
-    e.preventDefault();
-    const lang = localStorage.getItem("user_lang") || "en";
-    const out = document.getElementById("advResponse");
-    out.innerHTML = "<h4>🔍 Processing Compliance...</h4>";
-    
-    const fd = new FormData(e.target);
-    fd.append("lang", lang);
-
-    const res = await fetch("/advisory", { method: "POST", body: fd });
-    const data = await res.json();
-    
-    out.innerHTML = `
-        <div id="printArea">
-            <h3 style="color:#002855;">TECHNICAL REPORT | MAY ROGA LLC</h3>
-            <p style="white-space: pre-wrap;">${data.data}</p>
-            <div class="legal-footer">
-                <strong>SHIELD NOTICE:</strong> ${translations[lang].l_desc}
-            </div>
-        </div>
-        <button onclick="window.print()" style="width:100%; margin-top:10px;">Print / Save PDF</button>
-    `;
-    e.target.reset(); // BORRA FOTOS Y TEXTO AUTOMÁTICAMENTE
-};
