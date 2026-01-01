@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCargo Advisor 360°</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        .risk-high { background: #ffebee; color: #b71c1c; border-left: 10px solid #b71c1c; padding: 15px; margin: 10px 0; }
+        .risk-medium { background: #fff3e0; color: #e65100; border-left: 10px solid #e65100; padding: 15px; margin: 10px 0; }
+        #legalHeader { background: #000; color: #ffd600; padding: 10px; text-align: center; font-weight: bold; }
+        .btn-sol { background: #2e7d32; color: white; width: 100%; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="legalHeader">ASESORÍA TÉCNICA PREVENTIVA (NO SOMOS AGENCIA REGULADORA)</div>
+
+    <section id="access">
+        <h3>1. Activación de Servicio</h3>
+        <input type="text" name="awb" placeholder="Guía Aérea (AWB) o Referencia">
+        <select id="priceSelect">
+            <option value="35">Revisión Estándar - $35</option>
+            <option value="65">Revisión Profesional - $65</option>
+            <option value="120">Asesoría Integral Premium - $120</option>
+        </select>
+        <button id="payBtn" class="btn-sol">ACTIVAR ASESOR VIRTUAL</button>
+    </section>
+
+    <section id="mainApp" style="opacity: 0.5; pointer-events: none;">
+        <h3>2. Verificación Técnica (Checkpoint)</h3>
+        <form id="auditForm">
+            <input type="number" name="h" placeholder="Altura en cm (Max 213cm TSA)" required>
+            <label>¿Pallet Certificado HT?</label>
+            <select name="ispm"><option value="SI">SÍ</option><option value="NO">NO</option></select>
+            <label>¿Carga Peligrosa (DG)?</label>
+            <select name="dg"><option value="NO">NO</option><option value="SI">SÍ</option></select>
+            <label>¿Etiquetas Visibles?</label>
+            <select name="labels"><option value="SI">SÍ</option><option value="NO">NO</option></select>
+            <button type="submit">VALIDAR CUMPLIMIENTO</button>
+        </form>
+        <div id="auditResponse"></div>
+
+        <h3>3. Inspección Visual y Soluciones</h3>
+        <p>Suba hasta 3 fotos para análisis de estiba y etiquetas.</p>
+        <form id="advForm">
+            <textarea name="prompt" placeholder="Pregunte: ¿Cómo evito que se rompan las cajas? ¿Esta etiqueta es legal?"></textarea>
+            <input type="file" name="images" accept="image/*" multiple>
+            <button type="submit" class="btn-sol">OBTENER SOLUCIONES DE RECTIFICACIÓN</button>
+        </form>
+        
+        <div id="advResponse"></div>
+        <div id="actionBtns" style="display:none; margin-top:10px;">
+            <button onclick="downloadPDF()">📄 DESCARGAR REPORTE PDF</button>
+            <button onclick="shareWA()" style="background:#25d366;">📱 COMPARTIR POR WHATSAPP</button>
+        </div>
+    </section>
+
+    <script src="app.js"></script>
+</body>
+</html>
