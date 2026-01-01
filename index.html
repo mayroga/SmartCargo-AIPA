@@ -1,56 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo Advisor 360°</title>
+    <title>SMARTCARGO ADVISORY LLC | Global Compliance</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        .lang-bar { background: #000; padding: 10px; display: flex; gap: 8px; justify-content: center; position: sticky; top: 0; z-index: 999; }
-        .lang-btn { cursor: pointer; border: 1px solid #ffd600; background: transparent; color: #ffd600; padding: 6px 12px; border-radius: 4px; font-weight: bold; }
-        .lang-btn:hover { background: #ffd600; color: #000; }
-        #mainApp { opacity: 0.1; pointer-events: none; transition: 0.5s; border-top: 2px solid #01579b; margin-top: 20px; }
-        .report-box { background: #fff; color: #000; padding: 20px; border: 2px solid #01579b; border-radius: 8px; margin-top: 15px; }
+        :root { --blue: #002855; --gold: #ffd600; }
+        .hero { background: var(--blue); color: white; padding: 20px; text-align: center; border-radius: 0 0 20px 20px; }
+        .alert-red { border-left: 10px solid #d32f2f; background: #fff5f5; padding: 15px; margin: 10px 0; color: #b71c1c; }
+        .alert-green { border-left: 10px solid #2e7d32; background: #f1f8f1; padding: 15px; margin: 10px 0; color: #1b5e20; }
+        #mainApp { opacity: 0; pointer-events: none; transition: 0.5s; }
+        #timerBox { background: #ffeb3b; color: #000; font-weight: bold; padding: 5px; text-align: center; display: none; }
     </style>
 </head>
 <body>
-    <div class="lang-bar">
-        <button class="lang-btn" onclick="setLang('en')">EN 🇺🇸</button>
-        <button class="lang-btn" onclick="setLang('es')">ES 🇪🇸</button>
-        <button class="lang-btn" onclick="setLang('fr')">FR 🇫🇷</button>
-        <button class="lang-btn" onclick="setLang('pt')">PT 🇧🇷</button>
-        <button class="lang-btn" onclick="setLang('zh')">ZH 🇨🇳</button>
+    <div id="timerBox">Sesión Protegida: 5:00</div>
+
+    <div class="hero">
+        <h2 style="color:var(--gold); margin:0;">SMARTCARGO ADVISORY LLC</h2>
+        <p>Expertos Globales en Carga Aérea, Marítima y Terrestre</p>
     </div>
 
     <section id="accessSection">
-        <h2 id="t_act">1. Service Activation</h2>
-        <input type="text" id="awbField" placeholder="AWB / Loading Reference">
+        <h3>🌍 Activación Global de Asesoría</h3>
+        <p style="font-size:0.85em;">Nuestras soluciones cubren regulaciones de Florida y el resto del mundo.</p>
+        <input type="text" id="awbField" placeholder="AWB / B.L. / Número de Referencia">
         <select id="priceSelect">
-            <option value="35">Basic Review - $35</option>
-            <option value="120">Premium Integral Advisory - $120</option>
+            <option value="5">Micro-Envío (Económico) - $5.00</option>
+            <option value="15">Driver Check (Terrestre) - $15.00</option>
+            <option value="35">Estándar Profesional - $35.00</option>
+            <option value="95">Auditoría Global Premium - $95.00</option>
         </select>
-        <button id="activateBtn" style="width:100%; background:#01579b; color:white; font-weight:bold;">ACTIVATE ADVISOR</button>
+        <button id="activateBtn" style="width:100%; background:var(--gold); color:black; font-weight:bold;">DESBLOQUEAR ASESOR</button>
     </section>
 
     <section id="mainApp">
-        <h2 id="t_sol">2. Solution Center</h2>
-        <p id="p_desc">Describe the technical issue or upload up to 3 photos for immediate analysis.</p>
+        <h3 style="color:var(--blue);">Centro de Soluciones Inteligentes</h3>
         <form id="advForm">
-            <textarea name="prompt" id="promptArea" placeholder="How can we help you move your cargo safely?" required></textarea>
-            <label>Inspection Photos (Max 3):</label>
+            <select name="cargo_type" id="cargoType">
+                <option value="air">Aéreo (IATA / TSA)</option>
+                <option value="ocean">Marítimo (IMO / Puertos)</option>
+                <option value="land">Terrestre (DOT / Locales)</option>
+            </select>
+            <textarea name="prompt" id="promptArea" placeholder="Escriba su consulta. (Ej: 'Necesito revisar esta estiba para Australia')" required></textarea>
+            <label>Suba fotos para análisis visual (Máx 3):</label>
             <input type="file" name="images" id="imageFiles" accept="image/*" multiple>
-            <button type="submit" style="width:100%; background:#2e7d32; color:white;">GENERATE ACTION PLAN</button>
+            <button type="submit" style="width:100%; background:#2e7d32; color:white; font-weight:bold;">OBTENER RESULTADO TÉCNICO</button>
         </form>
         <div id="advResponse"></div>
-        <div id="actionBtns" style="display:none; margin-top:20px; display:flex; gap:10px;">
-            <button onclick="downloadPDF()" style="flex:1;">📄 PDF</button>
-            <button onclick="shareWA()" style="flex:1; background:#25d366; color:white;">WhatsApp</button>
-        </div>
     </section>
 
     <script src="app.js"></script>
-    <script src="legal_warning.js"></script>
-    <script src="standards.js"></script>
 </body>
 </html>
