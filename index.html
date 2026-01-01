@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,55 +7,64 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        .risk-high { background: #ffebee; color: #b71c1c; border-left: 10px solid #b71c1c; padding: 15px; margin: 10px 0; }
-        .risk-medium { background: #fff3e0; color: #e65100; border-left: 10px solid #e65100; padding: 15px; margin: 10px 0; }
-        #legalHeader { background: #000; color: #ffd600; padding: 10px; text-align: center; font-weight: bold; }
-        .btn-sol { background: #2e7d32; color: white; width: 100%; font-weight: bold; }
+        .risk-high { background: #ffebee; color: #b71c1c; border-left: 8px solid #b71c1c; padding: 15px; border-radius: 5px; }
+        .btn-sol { background: #01579b; color: white; width: 100%; font-size: 1.1em; cursor: pointer; }
+        #report { background: white; color: #333; padding: 25px; border: 2px solid #01579b; border-radius: 10px; }
+        .lang-switch { text-align: right; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-    <div id="legalHeader">ASESORÍA TÉCNICA PREVENTIVA (NO SOMOS AGENCIA REGULADORA)</div>
+    <div class="lang-switch">
+        <select id="langSelect" onchange="changeLanguage()">
+            <option value="en">English</option>
+            <option value="es" selected>Español</option>
+            <option value="fr">Français</option>
+            <option value="pt">Português</option>
+            <option value="zh">中文</option>
+        </select>
+    </div>
+
+    <div id="legalHeader" style="background:#000; color:#ffd600; padding:10px; text-align:center; font-weight:bold;">
+        PREVENTIVE LOGISTICS ADVISORY - TSA / IATA / DOT COMPLIANCE
+    </div>
 
     <section id="access">
-        <h3>1. Activación de Servicio</h3>
-        <input type="text" name="awb" placeholder="Guía Aérea (AWB) o Referencia">
+        <h3 id="t1">1. Service Activation</h3>
+        <input type="text" name="awb" id="awbInput" placeholder="Air Waybill (AWB) / Reference">
         <select id="priceSelect">
-            <option value="35">Revisión Estándar - $35</option>
-            <option value="65">Revisión Profesional - $65</option>
-            <option value="120">Asesoría Integral Premium - $120</option>
+            <option value="35">Basic Review - $35</option>
+            <option value="120">Premium Integral Advisory - $120</option>
         </select>
-        <button id="payBtn" class="btn-sol">ACTIVAR ASESOR VIRTUAL</button>
+        <button id="payBtn" class="btn-sol">ACTIVATE ADVISOR</button>
     </section>
 
-    <section id="mainApp" style="opacity: 0.5; pointer-events: none;">
-        <h3>2. Verificación Técnica (Checkpoint)</h3>
+    <section id="mainApp" style="opacity: 0.3; pointer-events: none; transition: 0.5s;">
+        <h3 id="t2">2. Quick Compliance Check</h3>
         <form id="auditForm">
-            <input type="number" name="h" placeholder="Altura en cm (Max 213cm TSA)" required>
-            <label>¿Pallet Certificado HT?</label>
-            <select name="ispm"><option value="SI">SÍ</option><option value="NO">NO</option></select>
-            <label>¿Carga Peligrosa (DG)?</label>
-            <select name="dg"><option value="NO">NO</option><option value="SI">SÍ</option></select>
-            <label>¿Etiquetas Visibles?</label>
-            <select name="labels"><option value="SI">SÍ</option><option value="NO">NO</option></select>
-            <button type="submit">VALIDAR CUMPLIMIENTO</button>
+            <input type="number" name="h" id="hInput" placeholder="Height (cm)" required>
+            <label id="l1">ISPM-15 Wood Stamp?</label>
+            <select name="ispm"><option value="SI">YES</option><option value="NO">NO</option></select>
+            <label id="l2">Dangerous Goods (DG)?</label>
+            <select name="dg"><option value="NO">NO</option><option value="SI">YES</option></select>
+            <button type="submit" id="b1">CHECK LEGAL RULES</button>
         </form>
         <div id="auditResponse"></div>
 
-        <h3>3. Inspección Visual y Soluciones</h3>
-        <p>Suba hasta 3 fotos para análisis de estiba y etiquetas.</p>
+        <hr>
+        <h3 id="t3">3. Solution Center (Text or Photo)</h3>
+        <p id="p1">Describe the issue or upload up to 3 photos for a rectification plan.</p>
         <form id="advForm">
-            <textarea name="prompt" placeholder="Pregunte: ¿Cómo evito que se rompan las cajas? ¿Esta etiqueta es legal?"></textarea>
-            <input type="file" name="images" accept="image/*" multiple>
-            <button type="submit" class="btn-sol">OBTENER SOLUCIONES DE RECTIFICACIÓN</button>
+            <textarea name="prompt" id="promptInput" placeholder="Describe your situation here..." required></textarea>
+            <input type="file" name="images" id="fileInput" accept="image/*" multiple>
+            <button type="submit" class="btn-sol" id="b2" style="background:#2e7d32;">GENERATE ACTION PLAN</button>
         </form>
         
         <div id="advResponse"></div>
-        <div id="actionBtns" style="display:none; margin-top:10px;">
-            <button onclick="downloadPDF()">📄 DESCARGAR REPORTE PDF</button>
-            <button onclick="shareWA()" style="background:#25d366;">📱 COMPARTIR POR WHATSAPP</button>
+        <div id="actionBtns" style="display:none; margin-top:15px;">
+            <button onclick="downloadPDF()" id="b3" style="background:#555;">📄 SAVE PDF</button>
+            <button onclick="shareWA()" id="b4" style="background:#25d366;">📱 SEND TO WHATSAPP</button>
         </div>
     </section>
-
     <script src="app.js"></script>
 </body>
 </html>
