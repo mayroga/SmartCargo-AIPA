@@ -1,51 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo Advisor 360°</title>
+    <title>SmartCargo Advisor</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        .lang-bar { background: #000; padding: 10px; display: flex; gap: 8px; justify-content: center; position: sticky; top: 0; z-index: 100; }
-        .lang-btn { cursor: pointer; border: 1px solid #ffd600; background: transparent; color: #ffd600; padding: 5px 10px; font-size: 0.8em; border-radius: 4px; }
+        .lang-bar { background: #000; padding: 10px; display: flex; gap: 10px; justify-content: center; sticky; top: 0; z-index: 1000; }
+        .lang-btn { cursor: pointer; border: 1px solid #ffd600; background: transparent; color: #ffd600; padding: 5px 12px; border-radius: 4px; font-weight: bold; }
         .lang-btn:hover { background: #ffd600; color: #000; }
-        .btn-main { background: #01579b; color: white; width: 100%; font-weight: bold; margin-top: 10px; }
-        #report { background: white; color: black; padding: 20px; border: 1px solid #000; margin-top: 20px; }
+        #mainApp { transition: opacity 0.5s; margin-top: 20px; }
+        .btn-pay { background: #01579b; color: white; width: 100%; padding: 15px; font-size: 1.2em; font-weight: bold; cursor: pointer; border: none; border-radius: 8px; }
     </style>
 </head>
 <body>
     <div class="lang-bar">
-        <button class="lang-btn" onclick="setLang('en')">EN 🇺🇸</button>
-        <button class="lang-btn" onclick="setLang('es')">ES 🇪🇸</button>
-        <button class="lang-btn" onclick="setLang('fr')">FR 🇫🇷</button>
-        <button class="lang-btn" onclick="setLang('pt')">PT 🇧🇷</button>
-        <button class="lang-btn" onclick="setLang('zh')">ZH 🇨🇳</button>
+        <button class="lang-btn" onclick="setLang('en')">English 🇺🇸</button>
+        <button class="lang-btn" onclick="setLang('es')">Español 🇪🇸</button>
+        <button class="lang-btn" onclick="setLang('fr')">Français 🇫🇷</button>
+        <button class="lang-btn" onclick="setLang('pt')">Português 🇧🇷</button>
+        <button class="lang-btn" onclick="setLang('zh')">中文 🇨🇳</button>
     </div>
 
-    <header style="text-align: center; padding: 20px;">
-        <h1 id="title">SmartCargo Advisor</h1>
-        <p id="subtitle">Logistics Compliance & Technical Solutions</p>
-    </header>
-
-    <section id="access">
-        <h3 id="t1">1. Activation</h3>
-        <input type="text" id="awbInput" placeholder="AWB / Reference">
-        <button id="payBtn" class="btn-main">ACTIVATE SYSTEM</button>
+    <section id="accessSection">
+        <h2 id="t_act">1. Activación de Servicio</h2>
+        <input type="text" id="awbField" placeholder="Número de Guía (AWB) / Referencia">
+        <select id="servicePrice">
+            <option value="35">Basic Review - $35</option>
+            <option value="120">Premium Integral Advisory - $120</option>
+        </select>
+        <button id="activateBtn" class="btn-pay">ACTIVATE ADVISOR / ACTIVAR ASESOR</button>
     </section>
 
     <section id="mainApp" style="opacity: 0.1; pointer-events: none;">
-        <h3 id="t2">2. Solution Center</h3>
-        <p id="p1">Describe your issue and/or upload up to 3 photos.</p>
+        <h2 id="t_sol">2. Centro de Soluciones</h2>
         <form id="advForm">
-            <textarea name="prompt" id="promptInput" placeholder="Type here..." required></textarea>
-            <input type="file" name="images" accept="image/*" multiple>
-            <button type="submit" class="btn-main" style="background: #2e7d32;">GET SOLUTIONS</button>
+            <textarea name="prompt" id="promptArea" placeholder="Escriba su consulta técnica..." required></textarea>
+            <input type="file" name="images" id="imageFiles" accept="image/*" multiple>
+            <button type="submit" class="btn-pay" style="background: #2e7d32;">GENERAR REPORTE</button>
         </form>
         <div id="advResponse"></div>
-        <div id="actionBtns" style="display:none; margin-top:15px;">
-            <button onclick="downloadPDF()">PDF</button>
-            <button onclick="shareWA()" style="background:#25d366; color:white;">WhatsApp</button>
+        <div id="actionBtns" style="display:none; margin-top: 20px; display: flex; gap: 10px;">
+            <button onclick="downloadPDF()" style="flex:1;">📄 PDF</button>
+            <button onclick="shareWA()" style="background:#25d366; color:white; flex:1;">WhatsApp</button>
         </div>
     </section>
 
