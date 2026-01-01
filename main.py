@@ -1,12 +1,13 @@
 import os, stripe, httpx, base64
-from fastapi import FastAPI, Form, File, UploadFile, List
+from fastapi import FastAPI, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional
+from typing import Optional, List  # Importación correcta de List
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = FastAPI()
+
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # --- CONFIGURACIÓN DE SEGURIDAD Y PAGOS ---
