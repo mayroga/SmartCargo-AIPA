@@ -1,24 +1,58 @@
-const API_PATH = "";
-let timeoutHandle;
+const texts = {
+    es: {
+        h_subtitle: "Consultoría Técnica Independiente en Logística",
+        l_aviso: "AVISO LEGAL DE BLINDAJE:",
+        l_desc: "SMARTCARGO ADVISORY LLC es una firma de consultoría privada. NO somos una agencia del gobierno, NO somos TSA, IATA, DOT ni IMO...",
+        b_title: "¿Por qué usar nuestro Asesor?",
+        p_title: "Activar Servicio",
+        app_title: "Centro de Soluciones Globales"
+    },
+    en: {
+        h_subtitle: "Independent Technical Logistics Consulting",
+        l_aviso: "LEGAL SHIELD NOTICE:",
+        l_desc: "SMARTCARGO ADVISORY LLC is a private consulting firm. We are NOT a government agency, NOT TSA, IATA, DOT, or IMO...",
+        b_title: "Why use our Advisor?",
+        p_title: "Activate Service",
+        app_title: "Global Solution Center"
+    },
+    pt: {
+        h_subtitle: "Consultoria Técnica Independente em Logística",
+        l_aviso: "AVISO DE PROTEÇÃO LEGAL:",
+        l_desc: "SMARTCARGO ADVISORY LLC é uma empresa de consultoria privada. NÃO somos uma agência governamental, NÃO somos TSA, IATA, DOT ou IMO...",
+        b_title: "Por que usar nosso Consultor?",
+        p_title: "Ativar Serviço",
+        app_title: "Centro de Soluções Globais"
+    }
+};
 
-function startTimer() {
-    clearTimeout(timeoutHandle);
-    document.getElementById("timerBox").style.display = "block";
-    timeoutHandle = setTimeout(() => {
-        alert("Sesión cerrada por seguridad. Todos los datos temporales han sido eliminados.");
+function changeLang(lang) {
+    localStorage.setItem("lang", lang);
+    const t = texts[lang];
+    for (let id in t) {
+        const el = document.getElementById(id);
+        if (el) el.innerText = t[id];
+    }
+}
+
+// Inactividad y Desbloqueo
+let timer;
+function resetTimer() {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+        alert("Sesión cerrada por seguridad.");
         localStorage.clear();
-        location.href = "/";
-    }, 300000); // 5 minutos
+        location.reload();
+    }, 300000); // 5 min
 }
 
 function unlock() {
-    document.getElementById("mainApp").style.opacity = "1";
-    document.getElementById("mainApp").style.pointerEvents = "all";
+    document.getElementById("mainApp").style.display = "block";
     document.getElementById("accessSection").style.display = "none";
-    startTimer();
+    resetTimer();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    changeLang(localStorage.getItem("lang") || "es");
     const params = new URLSearchParams(window.location.search);
     if (params.get("access") === "granted" || localStorage.getItem("sc_auth") === "true") {
         localStorage.setItem("sc_auth", "true");
@@ -28,50 +62,11 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("activateBtn").onclick = async () => {
         const awb = document.getElementById("awbField").value || "N/A";
         const amt = document.getElementById("priceSelect").value;
-        const user = prompt("ADMIN USER:");
-        const pass = prompt("ADMIN PASS:");
-
-        const fd = new FormData();
-        fd.append("awb", awb); fd.append("amount", amt);
-        if(user) fd.append("user", user); if(pass) fd.append("password", pass);
-
-        const res = await fetch(`${API_PATH}/create-payment`, { method: "POST", body: fd });
+        const res = await fetch("/create-payment", {
+            method: "POST",
+            body: new URLSearchParams({ 'awb': awb, 'amount': amt })
+        });
         const data = await res.json();
         if(data.url) window.location.href = data.url;
     };
-
-    document.getElementById("advForm").onsubmit = async (e) => {
-        e.preventDefault();
-        startTimer(); // Reinicia el tiempo al trabajar
-        const out = document.getElementById("advResponse");
-        out.innerHTML = "<h4>🔍 Procesando cumplimiento legal...</h4>";
-        
-        const fd = new FormData(e.target);
-        fd.append("lang", "es");
-
-        try {
-            const res = await fetch(`${API_PATH}/advisory`, { method: "POST", body: fd });
-            const data = await res.json();
-            
-            let reportClass = data.data.includes("🔴") ? "alert-red" : "alert-green";
-            
-            out.innerHTML = `
-                <div id="finalReport" class="${reportClass}">
-                    <h3 style="margin-top:0;">REPORTE PROFESIONAL SMARTCARGO</h3>
-                    <p style="white-space: pre-wrap;">${data.data}</p>
-                    <p style="font-size:0.7em; border-top:1px solid #ccc; padding-top:10px;">
-                        ⚠️ PRIVACIDAD: Este reporte es efímero. Imprímalo ahora si lo necesita.
-                    </p>
-                </div>
-                <button onclick="window.print()" style="width:100%;">Imprimir / Guardar PDF</button>
-            `;
-            e.target.reset(); // Borra fotos y texto inmediatamente del formulario
-        } catch (err) {
-            out.innerHTML = "<p>Error técnico. Intente de nuevo.</p>";
-        }
-    };
 });
-
-// Reinicia el contador ante cualquier actividad
-document.onmousemove = startTimer;
-document.onkeypress = startTimer;
