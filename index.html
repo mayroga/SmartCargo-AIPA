@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,60 +7,63 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
     <style>
         :root { --blue: #002855; --gold: #ffd600; }
-        .lang-bar { background: #000; padding: 10px; text-align: center; position: sticky; top: 0; z-index: 1000; }
-        .lang-btn { cursor: pointer; border: 1px solid var(--gold); background: transparent; color: var(--gold); padding: 5px 10px; margin: 0 5px; font-weight: bold; }
-        .hero { background: var(--blue); color: white; padding: 25px; text-align: center; }
-        .shield-box { background: #fff3e0; border: 2px solid #e65100; padding: 15px; border-radius: 8px; font-size: 0.8em; margin-bottom: 20px; }
+        .lang-bar { background: #000; padding: 10px; text-align: center; position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid var(--gold); }
+        .lang-btn { cursor: pointer; border: 1px solid var(--gold); background: transparent; color: var(--gold); padding: 5px 8px; margin: 2px; font-weight: bold; border-radius: 4px; }
+        .hero { background: var(--blue); color: white; padding: 25px; text-align: center; border-radius: 0 0 20px 20px; }
+        .shield-box { background: #fff3e0; border: 2px solid #e65100; padding: 15px; border-radius: 8px; font-size: 0.85em; margin: 20px 0; color: #444; }
         .benefit-card { background: #f0f4f8; border-left: 5px solid var(--gold); padding: 15px; margin: 10px 0; }
         #mainApp { display: none; }
+        .legal-footer { margin-top: 20px; padding: 10px; border-top: 2px solid #000; font-size: 0.75em; background: #eee; color: #333; }
     </style>
 </head>
 <body>
     <div class="lang-bar">
-        <button class="lang-btn" onclick="changeLang('es')">ESPAÑOL 🇪🇸</button>
-        <button class="lang-btn" onclick="changeLang('en')">ENGLISH 🇺🇸</button>
-        <button class="lang-btn" onclick="changeLang('pt')">PORTUGUÊS 🇧🇷</button>
+        <button class="lang-btn" onclick="changeLang('en')">EN 🇺🇸</button>
+        <button class="lang-btn" onclick="changeLang('es')">ES 🇪🇸</button>
+        <button class="lang-btn" onclick="changeLang('pt')">PT 🇧🇷</button>
+        <button class="lang-btn" onclick="changeLang('zh')">ZH 🇨🇳</button>
+        <button class="lang-btn" onclick="changeLang('fr')">FR 🇫🇷</button>
+        <button class="lang-btn" onclick="changeLang('hi')">HI 🇮🇳</button>
     </div>
 
     <div class="hero">
         <h1 id="h_title">SMARTCARGO ADVISORY LLC</h1>
-        <p id="h_subtitle">Consultoría Técnica Independiente en Logística</p>
+        <p id="h_subtitle">Independent Technical Logistics Consulting</p>
     </div>
 
     <section id="accessSection">
         <div class="shield-box">
-            <strong id="l_aviso">AVISO LEGAL DE BLINDAJE:</strong>
-            <p id="l_desc">SMARTCARGO ADVISORY LLC es una firma de consultoría privada. NO somos una agencia del gobierno, NO somos TSA, IATA, DOT ni IMO. NO poseemos licencia de DG ni manejamos carga físicamente. Nuestra función es asesorar técnicamente para evitar errores de estiba y documentación. Al usar este sistema, usted acepta que nuestras soluciones son sugerencias de cumplimiento preventivo.</p>
+            <strong id="l_aviso">LEGAL SHIELD NOTICE:</strong>
+            <p id="l_desc">SMARTCARGO ADVISORY LLC is a private consulting firm. We are NOT a government agency (TSA, IATA, DOT, IMO). We do not hold DG licenses nor handle cargo physically. Advice provided consists of suggestions for preventive compliance.</p>
         </div>
 
-        <h3 id="b_title">¿Por qué usar nuestro Asesor?</h3>
-        <div class="benefit-card" id="b1">✅ <strong>Evite "Holds":</strong> No deje que su carga se detenga en Miami o cualquier puerto del mundo.</div>
-        <div class="benefit-card" id="b2">✅ <strong>Ahorre Dinero:</strong> Prevenga multas por mal pesaje o estiba incorrecta.</div>
-        <div class="benefit-card" id="b3">✅ <strong>Eficiencia:</strong> Camioneros y Forwarders pasan el counter sin rechazos.</div>
+        <h3 id="b_title">Why Use Our Advisory?</h3>
+        <div class="benefit-card" id="b1">✅ Avoid Holds: Ensure smooth movement in any global hub.</div>
+        <div class="benefit-card" id="b2">✅ Save Money: Prevent costly storage and rejections.</div>
 
         <hr>
-        <h3 id="p_title">Activar Servicio</h3>
-        <input type="text" id="awbField" placeholder="AWB / B.L. / Referencia">
+        <h3 id="p_title">Activate Professional Service</h3>
+        <input type="text" id="awbField" placeholder="Reference (AWB, B/L, etc.)">
         <select id="priceSelect">
-            <option value="5">Carga Micro - $5.00</option>
-            <option value="15">Driver Check (Terrestre) - $15.00</option>
-            <option value="35">Estándar Profesional - $35.00</option>
-            <option value="95">Auditoría Premium - $95.00</option>
+            <option value="5">Micro Load - $5.00</option>
+            <option value="15">Driver Check - $15.00</option>
+            <option value="35">Standard Pro - $35.00</option>
+            <option value="95">Premium Audit - $95.00</option>
         </select>
-        <button id="activateBtn" style="width:100%; background:var(--gold); color:black; font-weight:bold;">ACTIVAR AHORA</button>
+        <button id="activateBtn" style="width:100%; background:var(--gold); color:black; font-weight:bold;">ACTIVATE NOW</button>
     </section>
 
     <section id="mainApp">
-        <h3 id="app_title">Centro de Soluciones Globales</h3>
+        <h3 id="app_title">Global Solution Center</h3>
         <form id="advForm">
             <select name="cargo_type" id="cargoType">
-                <option value="air">Aéreo</option>
-                <option value="ocean">Marítimo</option>
-                <option value="land">Terrestre</option>
+                <option value="air">Air (IATA/TSA)</option>
+                <option value="ocean">Ocean (IMO/FMC)</option>
+                <option value="land">Ground (DOT/FMCSA)</option>
             </select>
-            <textarea name="prompt" id="promptArea" placeholder="Describa el problema o suba fotos..." required></textarea>
+            <textarea name="prompt" id="promptArea" placeholder="Describe the issue or upload photos..." required></textarea>
             <input type="file" name="images" id="imageFiles" accept="image/*" multiple>
-            <button type="submit" style="width:100%; background:#2e7d32; color:white;">ANALIZAR CARGA</button>
+            <button type="submit" style="width:100%; background:#2e7d32; color:white; font-weight:bold;">ANALYZE NOW</button>
         </form>
         <div id="advResponse"></div>
     </section>
