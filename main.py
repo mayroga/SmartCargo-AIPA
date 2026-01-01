@@ -1,8 +1,8 @@
 import os, stripe, httpx, base64, openai
 from fastapi import FastAPI, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from typing import Optional, List
+from fastapi.responses import FileResponse, JSONResponse
+from typing import List, Optional
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,33 +11,41 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 @app.get("/")
 async def home(): return FileResponse("index.html")
 
 @app.post("/advisory")
-async def advisory_engine(prompt: str = Form(...), lang: str = Form("es"), cargo_type: str = Form("air"), images: List[UploadFile] = File(None)):
-    # Instrucción Maestra para un Asesor Global
+async def advisory_engine(
+    prompt: str = Form(...), 
+    lang: str = Form("en"), 
+    cargo_type: str = Form("air"), 
+    images: List[UploadFile] = File(None)
+):
+    # Instrucción Maestra con Blindaje Legal de MAY ROGA LLC
     instruction = (
-        f"Eres el Asesor Senior Global de SMARTCARGO ADVISORY LLC. Responde en {lang}. "
-        "TU PODER: Conoces todas las reglas legales de carga (Aéreo, Mar, Tierra) del MUNDO. "
-        "Si el cliente menciona un país (ej. Australia, España, China), aplica sus leyes locales. "
-        "Si no menciona país, asume USA/Florida (TSA/DOT/IATA). "
-        "REGLAS OBLIGATORIAS: "
-        "1. No menciones IA. Eres un experto humano. "
-        "2. SEMÁFORO: 🔴 [ALERTA] para riesgo de rechazo, 🟢 [CUMPLIMIENTO] para carga segura. "
-        "3. SOLUCIONES: Enfócate en que la carga fluya y el cliente ahorre dinero."
+        f"You are the Virtual Advisory Expert for MAY ROGA LLC. Respond strictly in {lang}. "
+        "MANDATORY DISCLOSURE: You DO NOT certify, DO NOT inspect, and DO NOT replace regulators. "
+        "You are a preventive advisor developed to protect merchandise through analysis and 100% automatic alerts. "
+        "MAY ROGA LLC: NO touches/handles cargo, NO certifies DG, NO acts as TSA/IATA/IMO. "
+        "Identify risks: 🔴 [ALERT] for rejection risks or 🟢 [COMPLIANCE] for safe flow. "
+        "Be technical, helpful, and brief."
     )
     
-    parts = [{"text": f"{instruction}\n\nModalidad: {cargo_type}\nConsulta: {prompt}"}]
+    parts = [{"text": f"{instruction}\n\nCargo Mode: {cargo_type}\nUser Issue: {prompt}"}]
+    
     if images:
         for img in images[:3]:
             content = await img.read()
             if content:
-                parts.append({"inline_data": {"mime_type": img.content_type, "data": base64.b64encode(content).decode("utf-8")}})
+                parts.append({
+                    "inline_data": {
+                        "mime_type": img.content_type,
+                        "data": base64.b64encode(content).decode("utf-8")
+                    }
+                })
 
-    # Prioridad Gemini 1.5 Flash (Análisis visual global rápido)
+    # Motor Principal: Gemini (Visión de alta precisión)
     if GEMINI_KEY:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
@@ -46,8 +54,13 @@ async def advisory_engine(prompt: str = Form(...), lang: str = Form("es"), cargo
                 return {"data": r.json()["candidates"][0]["content"]["parts"][0]["text"]}
         except: pass
 
-    # Backup OpenAI GPT-4o
+    # Motor de Respaldo: OpenAI
     if OPENAI_KEY:
         client = openai.OpenAI(api_key=OPENAI_KEY)
-        res = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}])
+        res = client.chat.completions.create(
+            model="gpt-4o", 
+            messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}]
+        )
         return {"data": res.choices[0].message.content}
+
+    return JSONResponse(status_code=500, content={"error": "Engine error"})
