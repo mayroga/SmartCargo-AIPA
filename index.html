@@ -2,61 +2,56 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo | MAY ROGA LLC</title>
+    <title>SmartCargo ADVISORY BY MAY ROGA LLC</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
     <style>
         :root { --blue: #002855; --gold: #ffd600; }
-        .lang-bar { background: #000; padding: 12px; text-align: center; border-bottom: 2px solid var(--gold); position: sticky; top: 0; z-index: 100; }
-        .lang-btn { cursor: pointer; border: 1px solid var(--gold); background: transparent; color: var(--gold); padding: 4px 8px; font-weight: bold; margin: 2px; border-radius: 4px; }
-        .hero { background: var(--blue); color: white; padding: 25px; text-align: center; border-radius: 0 0 20px 20px; }
-        .shield-box { background: #fff3e0; border: 2px solid #e65100; padding: 15px; border-radius: 8px; font-size: 0.85em; margin: 20px 0; color: #000; }
-        #mainApp { display: none; }
-        .report-box { border: 2px solid #ccc; padding: 20px; background: white; margin-top: 20px; }
-        .legal-footer { font-size: 0.75em; margin-top: 20px; padding-top: 10px; border-top: 1px solid #000; font-style: italic; }
+        .lang-bar { background: #000; padding: 12px; text-align: center; border-bottom: 2px solid var(--gold); }
+        .lang-btn { cursor:pointer; background:none; color:var(--gold); border:1px solid var(--gold); margin:2px; padding:4px 10px; font-weight:bold; border-radius:4px; }
+        .hero { background: var(--blue); color: white; padding: 25px; text-align: center; }
+        .shield { background: #fff3e0; border: 2px solid #e65100; padding: 15px; margin: 20px 0; font-size: 0.85em; color: #000; }
+        #appSection { display: none; }
+        .report-out { border: 2px solid #000; padding: 20px; background: #fff; margin-top: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
     <div class="lang-bar">
-        <button class="lang-btn" onclick="changeLang('en')">EN 🇺🇸</button>
-        <button class="lang-btn" onclick="changeLang('es')">ES 🇪🇸</button>
-        <button class="lang-btn" onclick="changeLang('zh')">ZH 🇨🇳</button>
-        <button class="lang-btn" onclick="changeLang('hi')">HI 🇮🇳</button>
-        <button class="lang-btn" onclick="changeLang('fr')">FR 🇫🇷</button>
-        <button class="lang-btn" onclick="changeLang('pt')">PT 🇧🇷</button>
+        <button class="lang-btn" onclick="setLang('en')">EN 🇺🇸</button>
+        <button class="lang-btn" onclick="setLang('es')">ES 🇪🇸</button>
+        <button class="lang-btn" onclick="setLang('zh')">ZH 🇨🇳</button>
+        <button class="lang-btn" onclick="setLang('hi')">HI 🇮🇳</button>
+        <button class="lang-btn" onclick="setLang('fr')">FR 🇫🇷</button>
+        <button class="lang-btn" onclick="setLang('pt')">PT 🇧🇷</button>
     </div>
 
     <div class="hero">
-        <h1 id="h_title">SmartCargo ADVISORY</h1>
-        <p id="h_subtitle">BY MAY ROGA LLC</p>
+        <h1 id="h-title">SmartCargo ADVISORY</h1>
+        <p>Technical Consulting BY <strong>MAY ROGA LLC</strong></p>
     </div>
 
-    <section id="accessSection">
-        <div class="shield-box">
-            <h4 id="l_aviso">⚠️ Legal Notice</h4>
-            <p id="l_desc">Virtual preventive advisor for air and maritime cargo (Does NOT certify, Does NOT inspect, Does NOT replace regulators). Developed to protect the customer's merchandise through analysis, predictions, and 100% automatic alerts.<br><br>
-            <strong>MAY ROGA LLC:</strong><br>
-            - NO touches, inspects, or handles cargo.<br>
-            - NO certifies Dangerous Goods or acts as TSA, IATA, USDA, or any regulatory agency.<br>
-            - NO issues official documents.<br>
-            👉 Expert advisor based on data and public regulations. Information is orientative and does not substitute legal requirements.</p>
+    <div id="authSection">
+        <div class="shield">
+            <h4 id="l-title">⚠️ Legal Notice</h4>
+            <p id="l-desc">Virtual preventive advisor for air and maritime cargo (Does NOT certify, Does NOT inspect, Does NOT replace regulators). Developed to protect the customer's merchandise through analysis, predictions, and 100% automatic alerts. MAY ROGA LLC is a private consulting firm. Information is orientative.</p>
         </div>
-        <button id="activateBtn" style="width:100%; background:var(--gold); color:black; font-weight:bold;">ACTIVATE NOW</button>
-    </section>
+        <p id="p-text">Select service to activate:</p>
+        <select id="price">
+            <option value="5">Micro Load Audit - $5.00</option>
+            <option value="15">Driver Quick-Check - $15.00</option>
+            <option value="35">Professional Technical Audit - $35.00</option>
+        </select>
+        <button id="btn-activate" onclick="activate()" style="width:100%; background:var(--gold); color:black; font-weight:bold;">ACTIVATE NOW</button>
+    </div>
 
-    <section id="mainApp">
-        <form id="advForm">
-            <select name="cargo_type" id="cargoType">
-                <option value="air">Air (IATA/TSA)</option>
-                <option value="ocean">Ocean (IMO/FMC)</option>
-                <option value="land">Ground (DOT/FMCSA)</option>
-            </select>
-            <textarea name="prompt" id="promptArea" placeholder="Describe the problem or upload up to 3 photos..." required></textarea>
-            <input type="file" name="images" id="imageFiles" accept="image/*" multiple>
-            <button type="submit" style="width:100%; background:#2e7d32; color:white;">ANALYZE CARGO</button>
+    <div id="appSection">
+        <form id="cargoForm">
+            <textarea id="prompt" placeholder="Describe the cargo problem OR upload photos..." required></textarea>
+            <label>Upload up to 3 inspection photos:</label>
+            <input type="file" id="pics" multiple accept="image/*">
+            <button id="btn-submit" type="submit" style="width:100%; background:#2e7d32; color:white; font-weight:bold;">GET ANALYSIS</button>
         </form>
-        <div id="advResponse"></div>
-    </section>
+        <div id="result"></div>
+    </div>
 
     <script src="app.js"></script>
 </body>
