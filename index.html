@@ -1,19 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo Advisor 360°</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <style>
-        .lang-bar { background:#000; padding:10px; display:flex; gap:8px; justify-content:center; position:sticky; top:0; z-index:999; }
-        .lang-btn { cursor:pointer; border:1px solid #ffd600; background:transparent; color:#ffd600; padding:6px 12px; border-radius:4px; font-weight:bold; }
-        .lang-btn:hover { background:#ffd600; color:#000; }
-        #mainApp { opacity:0.1; pointer-events:none; transition:0.5s; border-top:2px solid #01579b; margin-top:20px; }
-        .report-box { background:#fff; color:#000; padding:20px; border:2px solid #01579b; border-radius:8px; margin-top:15px; }
-        .note { font-size:12px; opacity:0.8; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartCargo Advisor 360°</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+    .lang-bar { background: #000; padding: 10px; display: flex; gap: 8px; justify-content: center; position: sticky; top: 0; z-index: 999; }
+    .lang-btn { cursor: pointer; border: 1px solid #ffd600; background: transparent; color: #ffd600; padding: 6px 12px; border-radius: 4px; font-weight: bold; }
+    .lang-btn:hover { background: #ffd600; color: #000; }
+    #mainApp { opacity: 0.1; pointer-events: none; transition: 0.5s; border-top: 2px solid #01579b; margin-top: 20px; }
+    .report-box { background: #fff; color: #000; padding: 20px; border: 2px solid #01579b; border-radius: 8px; margin-top: 15px; }
+</style>
 </head>
 <body>
 
@@ -32,38 +31,28 @@
         <option value="35">Basic Review - $35</option>
         <option value="120">Premium Integral Advisory - $120</option>
     </select>
-    <button id="activateBtn" style="width:100%; background:#01579b; color:white; font-weight:bold;">
-        ACTIVATE ADVISOR
-    </button>
+    <button id="activateBtn" style="width:100%; background:#01579b; color:white; font-weight:bold;">ACTIVATE ADVISOR</button>
 </section>
 
 <section id="mainApp">
     <h2 id="t_sol">2. Solution Center</h2>
+    <p id="p_desc">Choose what you want to do first: inspection or text consultation.</p>
 
-    <p id="p_desc">
-        Upload photos of cargo, labels, AWB, delivery order or documents.
-        <strong>Images are inspected first.</strong>
-        Text is optional and used as support.
-    </p>
+    <div id="actionChoice">
+        <button onclick="chooseAction('inspection')">📸 Inspect Photos / Documents</button>
+        <button onclick="chooseAction('consulta')">✏️ Write a Question</button>
+        <button onclick="chooseAction('guide')">❓ I'm not sure, guide me</button>
+    </div>
 
-    <form id="advForm">
-        <textarea name="prompt" id="promptArea"
-            placeholder="Optional: add context or ask a follow-up question"></textarea>
-
-        <label>Inspection Photos (Max 3):</label>
-        <input type="file" name="images" id="imageFiles" accept="image/*" multiple>
-
-        <button type="submit" style="width:100%; background:#2e7d32; color:white;">
-            GENERATE ACTION PLAN
-        </button>
+    <form id="advForm" style="display:none;">
+        <input type="hidden" name="action" id="actionField">
+        <textarea name="prompt" id="promptArea" placeholder="Describe your issue or question here..." style="display:none;"></textarea>
+        <label id="fileLabel" style="display:none;">Upload Photos / Documents (Max 5):</label>
+        <input type="file" name="files" id="fileInput" accept="image/*,.pdf,.doc,.docx,.xlsx" multiple style="display:none;">
+        <button type="submit" style="width:100%; background:#2e7d32; color:white; margin-top:10px;">GENERATE ACTION PLAN</button>
     </form>
 
-    <p class="note">
-        Private technical advisory. Not a legal authority. No cargo handling.
-    </p>
-
     <div id="advResponse"></div>
-
     <div id="actionBtns" style="display:none; margin-top:20px; display:flex; gap:10px;">
         <button onclick="downloadPDF()" style="flex:1;">📄 PDF</button>
         <button onclick="shareWA()" style="flex:1; background:#25d366; color:white;">WhatsApp</button>
@@ -73,6 +62,5 @@
 <script src="app.js"></script>
 <script src="legal_warning.js"></script>
 <script src="standards.js"></script>
-
 </body>
 </html>
