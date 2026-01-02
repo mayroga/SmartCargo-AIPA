@@ -9,17 +9,14 @@ from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI()
 
-# Blindaje de seguridad para que el navegador permita todas las funciones
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# --- VARIABLES DE ENTORNO (Render) ---
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 ADMIN_USER = os.getenv("ADMIN_USERNAME")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-# --- SERVIDOR DE ARCHIVOS ---
 @app.get("/")
 async def home(): return FileResponse("index.html")
 
@@ -32,21 +29,24 @@ async def serve_js(file_name: str):
     if os.path.exists(path): return FileResponse(path, media_type="application/javascript")
     return HTMLResponse("File not found", status_code=404)
 
-# --- MOTOR ASESOR (Gemini + OpenAI Backup) ---
 @app.post("/advisory")
 async def advisory_engine(prompt: str = Form(...), lang: str = Form("en"), images: List[UploadFile] = File(None)):
+    # BLINDAJE LEGAL EN LA INSTRUCCIÓN
     instruction = (
-        f"You are SMARTCARGO CONSULTING. Answer in {lang}. "
-        "Provide multiple legal solutions for cargo mobility (TSA/IATA). "
+        f"You are the Senior Technical Advisor for SMARTCARGO CONSULTING BY MAY ROGA LLC. Answer in {lang}. "
+        "IMPORTANT LEGAL SHIELD: We are a PRIVATE ADVISORY firm. We are NOT IATA, NOT TSA, NOT DOT, NOT a government agency. "
+        "We do not certify Dangerous Goods and we DO NOT handle or touch the cargo. "
+        "Our mission is to provide stability and hope to the logistics chain (Shipper, Forwarder, Driver, Counter, Operator). "
+        "Goal: Prevent money loss, cargo holds, delays, and fines. Provide multiple legal solutions. "
         "ORDER: 1. FASTEST & CHEAPEST. 2. INTERMEDIATE. 3. STRUCTURAL. "
-        "Be helpful, offer stability and hope. Never mention AI."
+        "Identify risks with 🔴 [ALERT] or 🟢 [COMPLIANCE]. Never mention AI."
     )
     
-    # Intento 1: Gemini (Mejor para fotos)
+    parts = [{"text": f"{instruction}\n\nClient Issue: {prompt}"}]
+    
     if GEMINI_KEY:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-            parts = [{"text": f"{instruction}\n\nClient Issue: {prompt}"}]
             if images:
                 for img in images[:3]:
                     content = await img.read()
@@ -56,7 +56,6 @@ async def advisory_engine(prompt: str = Form(...), lang: str = Form("en"), image
                 return {"data": r.json()["candidates"][0]["content"]["parts"][0]["text"]}
         except: pass
 
-    # Intento 2: OpenAI (Backup)
     if OPENAI_KEY:
         try:
             client = openai.OpenAI(api_key=OPENAI_KEY)
@@ -70,7 +69,6 @@ async def advisory_engine(prompt: str = Form(...), lang: str = Form("en"), image
 
     return {"data": "System busy. Try again later."}
 
-# --- PAGOS Y ACTIVACIÓN ---
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
     success_url = f"https://smartcargo-aipa.onrender.com/?access=granted&awb={awb}"
