@@ -1,62 +1,60 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo ADVISORY BY MAY ROGA LLC</title>
+    <title>SMARTCARGO ADVISORY LLC | Expertos en Logística USA</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
     <style>
         :root { --blue: #002855; --gold: #ffd600; }
-        .hero { background: var(--blue); color: white; padding: 25px; text-align: center; }
-        .promo-card { background: #e3f2fd; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 6px solid #1976d2; }
-        .shield-box { background: #fff3e0; border: 2px solid #e65100; padding: 15px; font-size: 0.85em; margin-bottom: 20px; }
-        #appSection { display: none; }
-        .report-frame { border: 2px solid #333; padding: 25px; background: white; margin-top: 20px; }
+        .hero { background: var(--blue); color: white; padding: 25px; text-align: center; border-radius: 0 0 20px 20px; }
+        .benefit-box { background: #f0f4f8; border-left: 5px solid var(--gold); padding: 10px; margin: 10px 0; font-size: 0.85em; }
+        .alert-red { border: 3px solid #d32f2f; background: #fff5f5; padding: 15px; border-radius: 10px; color: #b71c1c; }
+        .alert-green { border: 3px solid #2e7d32; background: #f1f8f1; padding: 15px; border-radius: 10px; color: #1b5e20; }
+        #mainApp { opacity: 0.1; pointer-events: none; transition: 0.5s; }
     </style>
 </head>
 <body>
     <div class="hero">
-        <h1 id="h-title">SmartCargo ADVISORY</h1>
-        <p>Technical Compliance BY <strong>MAY ROGA LLC</strong></p>
-        <button onclick="setLang('en')">ENGLISH 🇺🇸</button> <button onclick="setLang('es')">ESPAÑOL 🇪🇸</button>
+        <h1 style="color:var(--gold); margin:0;">SMARTCARGO ADVISORY LLC</h1>
+        <p>Soluciones Técnicas para Carga Aérea, Marítima y Terrestre</p>
     </div>
 
-    <div id="authSection">
-        <div class="promo-card">
-            <h3 id="m-title">¿Por qué SmartCargo?</h3>
-            <p id="m-desc">En <strong>MAY ROGA LLC</strong>, aportamos estabilidad al comercio global. Este sistema previene rechazos de carga, multas de TSA/IATA y daños materiales, permitiendo que todos los actores de la cadena contribuyan a un transporte seguro y exitoso.</p>
-        </div>
+    <section id="benefits">
+        <h4 style="text-align:center;">¿Por qué asegurar tu carga con nosotros?</h4>
+        <div class="benefit-box">🚀 <strong>Ahorro Directo:</strong> Evita re-estibas costosas y cargos por "Hold" en Miami.</div>
+        <div class="benefit-box">🛡️ <strong>Blindaje Legal:</strong> Cumple con TSA, DOT e IMO antes de llegar al counter.</div>
+        <div class="benefit-box">⏱️ <strong>Agilidad:</strong> Reportes instantáneos para camioneros, forwarders y operadores.</div>
+    </section>
 
-        <div class="shield-box">
-            <h4 id="l-title">⚠️ Blindaje Legal Obligatorio</h4>
-            <p id="l-desc">Este es un asesor preventivo virtual. MAY ROGA LLC NO es una entidad gubernamental, NO certifica mercancías peligrosas y NO reemplaza las inspecciones de TSA, IATA o Aduanas. Nuestra función es asesoría técnica basada en normativas vigentes para minimizar riesgos de rechazo.</p>
-        </div>
-
-        <h3 id="a-title">Activar Asesoría</h3>
+    <section id="accessSection">
+        <h3>1. Activa tu Consulta de Cumplimiento</h3>
+        <input type="text" id="awbField" placeholder="AWB, B/L o Referencia de Carga">
         <select id="priceSelect">
-            <option value="5">Carga Pequeña (Micro) - $5.00</option>
-            <option value="15">Control de Chofer (Standard) - $15.00</option>
-            <option value="35">Auditoría Técnica (Full) - $35.00</option>
+            <option value="5">Carga Micro (Envío pequeño) - $5.00</option>
+            <option value="15">Driver Check (Camioneros/Terrestre) - $15.00</option>
+            <option value="35">Revisión Profesional Estándar - $35.00</option>
+            <option value="95">Auditoría Premium Full Compliance - $95.00</option>
         </select>
-        <button onclick="pay()" style="width:100%; background:var(--gold); color:black; font-weight:bold;">PAGAR Y ACTIVAR</button>
+        <button id="activateBtn" style="width:100%; background:var(--gold); color:black; font-weight:bold;">ACTIVAR ASESORÍA</button>
+    </section>
 
-        <div style="margin-top:40px; opacity:0.7;">
-            <p>Acceso Privado MAY ROGA:</p>
-            <input type="text" id="user" placeholder="User" style="width:40%">
-            <input type="password" id="pass" placeholder="Pass" style="width:40%">
-            <button onclick="adminLogin()">Login</button>
-        </div>
-    </div>
-
-    <div id="appSection">
-        <form id="cargoForm">
-            <textarea id="prompt" placeholder="Describa su carga o dudas legales (IATA, TSA, etc)..." required></textarea>
-            <p>Suba hasta 3 fotos de estiba o etiquetas:</p>
-            <input type="file" id="pics" multiple accept="image/*">
-            <button type="submit" style="width:100%; background:#2e7d32; color:white;">GENERAR INFORME TÉCNICO</button>
+    <section id="mainApp">
+        <h3>2. Centro de Soluciones Legales</h3>
+        <form id="advForm">
+            <select name="cargo_type" id="cargoType">
+                <option value="air">Aéreo (TSA / IATA)</option>
+                <option value="land">Terrestre (USDOT / Florida)</option>
+                <option value="ocean">Marítimo (Port / IMO)</option>
+            </select>
+            <textarea name="prompt" id="promptArea" placeholder="Describa la situación técnica o dudas sobre la carga..." required></textarea>
+            <label>Suba fotos de la estiba/carga (Máx 3):</label>
+            <input type="file" name="images" id="imageFiles" accept="image/*" multiple>
+            <button type="submit" style="width:100%; background:#2e7d32; color:white; font-weight:bold;">GENERAR REPORTE TÉCNICO</button>
         </form>
-        <div id="result"></div>
-    </div>
+        <div id="advResponse"></div>
+    </section>
+
     <script src="app.js"></script>
 </body>
 </html>
