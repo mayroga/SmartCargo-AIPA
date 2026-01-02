@@ -7,13 +7,15 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        :root { --blue: #01579b; --gold: #ffd600; }
+        :root { --blue: #01579b; --gold: #ffd600; --action: #2e7d32; }
         .lang-bar { background: #000; padding: 10px; display: flex; gap: 8px; justify-content: center; position: sticky; top: 0; z-index: 999; }
         .lang-btn { cursor: pointer; border: 1px solid var(--gold); background: transparent; color: var(--gold); padding: 6px 12px; border-radius: 4px; font-weight: bold; }
         .mission-box { background: #e3f2fd; border-left: 5px solid var(--blue); padding: 15px; margin: 20px 0; color: #000; }
         .shield-box { background: #fff3e0; border: 2px solid #e65100; padding: 15px; font-size: 0.85em; margin: 20px 0; }
+        #timerDisplay { display: none; color: #d32f2f; font-weight: bold; text-align: center; padding: 10px; border: 1px solid #d32f2f; border-radius: 5px; margin-bottom: 10px; }
         #mainApp { opacity: 0.1; pointer-events: none; transition: 0.5s; border-top: 3px solid var(--blue); margin-top: 20px; }
-        .report-box { background: #fff; color: #000; padding: 25px; border: 2px solid var(--blue); border-radius: 8px; }
+        .report-box { background: #fff; color: #000; padding: 25px; border: 2px solid var(--blue); border-radius: 8px; position: relative; }
+        .action-tag { background: var(--action); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; }
     </style>
 </head>
 <body>
@@ -24,43 +26,46 @@
 
     <header style="text-align: center;">
         <h1>SmartCargo ADVISORY</h1>
-        <p>Technical Consulting by <strong>MAY ROGA LLC</strong></p>
+        <p>Tactical Logistics Consulting by <strong>MAY ROGA LLC</strong></p>
     </header>
 
     <div class="mission-box">
         <h3 id="m_title">Why SmartCargo?</h3>
-        <p id="m_desc">We provide stability to the entire logistics chain. From Shippers and Forwarders to Drivers and Operators, our system ensures everyone can verify cargo status. <strong>We prevent fines, holds, and returns</strong> so the paying customer never loses money.</p>
-    </div>
-
-    <div class="shield-box">
-        <h4 id="l_title">⚠️ Legal Shield / Blindaje Legal</h4>
-        <p id="l_desc">We are PRIVATE ADVISORS. We are NOT IATA, TSA, DOT, or government regulators. We provide technical solutions to prevent delays; we do not certify dangerous goods and we do not touch or handle cargo.</p>
+        <p id="m_desc">We provide stability and instant satisfaction. We give you the exact "How-to" so your cargo passes inspection first time. <strong>We eliminate uncertainty and prevent financial loss.</strong></p>
     </div>
 
     <section id="accessSection">
         <h2 id="t_act">1. Service Activation</h2>
-        <input type="text" id="awbField" placeholder="AWB / Loading Reference">
+        <input type="text" id="awbField" placeholder="AWB / Reference / Bill of Lading">
         <select id="priceSelect">
-            <option value="35">Micro/Basic Load - $35</option>
-            <option value="120">Premium Integral Audit - $120</option>
+            <option value="35">Quick Fix / Small Load - $35</option>
+            <option value="120">Full Tactical Audit - $120</option>
         </select>
-        <button id="activateBtn" style="width:100%; background:var(--blue); color:white; font-weight:bold;">ACTIVATE ADVISOR</button>
+        <button id="activateBtn" style="width:100%; background:var(--blue); color:white; font-weight:bold;">GET IMMEDIATE SOLUTION</button>
     </section>
 
     <section id="mainApp">
-        <h2 id="t_sol">2. Solution Center</h2>
+        <div id="timerDisplay">⚠️ PRIVACY MODE: Information will be wiped in <span id="secs">300</span>s</div>
+        <h2 id="t_sol">2. Tactical Solution Center</h2>
         <form id="advForm">
-            <textarea name="prompt" id="promptArea" placeholder="Describe the issue or upload photos..." required></textarea>
+            <textarea name="prompt" id="promptArea" placeholder="Describe the issue (e.g. 'Labels rejected', 'Pallet tilted', 'Paperwork error')..." required></textarea>
             <label>Inspection Photos (Max 3):</label>
             <input type="file" name="images" id="imageFiles" accept="image/*" multiple>
-            <button type="submit" style="width:100%; background:#2e7d32; color:white; font-weight:bold;">GENERATE ACTION PLAN</button>
+            <button type="submit" style="width:100%; background:var(--action); color:white; font-weight:bold;">GENERATE TACTICAL ACTION PLAN</button>
         </form>
+        
         <div id="advResponse"></div>
+        
         <div id="actionBtns" style="display:none; margin-top:20px; gap:10px;">
-            <button onclick="downloadPDF()" style="flex:1;">📄 Download PDF</button>
-            <button onclick="shareWA()" style="flex:1; background:#25d366; color:white;">Share WhatsApp</button>
+            <button onclick="downloadPDF()" style="flex:1;">📄 Save Action Plan (PDF)</button>
+            <button onclick="shareWA()" style="flex:1; background:#25d366; color:white;">WhatsApp Dispatch</button>
         </div>
     </section>
+
+    <div class="shield-box">
+        <h4 id="l_title">⚠️ Legal Shield</h4>
+        <p id="l_desc">We are PRIVATE ADVISORS. Our suggestions are technical tactics to facilitate logistics flow. We are NOT a government body. No DG certification provided. Use of this advice is under client responsibility.</p>
+    </div>
 
     <script src="app.js"></script>
 </body>
