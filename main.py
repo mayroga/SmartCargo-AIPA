@@ -59,6 +59,7 @@ async def advisory_engine(
     parts = [{"text": f"{instruction}\n\nClient Issue: {prompt}"}]
 
     # --- 1. Intentar con Gemini ---
+    # --- 1. Intentar con Gemini ---
     if GEMINI_KEY:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
@@ -75,9 +76,9 @@ async def advisory_engine(
             async with httpx.AsyncClient() as client:
                 r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=45.0)
                 return {"data": r.json()["candidates"][0]["content"]["parts"][0]["text"]}
-except Exception as e:  # <--- Agrega "Exception as e"
-    print(f"Error en Gemini: {type(e).__name__}: {e}") # Esto te dará el tipo de error y el mensaje
-    pass       
+        except Exception as e:
+            print(f"Error en Gemini: {type(e).__name__}: {e}")
+            pass    
 
     # --- 2. Respaldo OpenAI ---
     if OPENAI_KEY:
