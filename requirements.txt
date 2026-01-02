@@ -7,3 +7,4 @@ python-dotenv
 google-genai
 openai
 aiofiles
+Pillow==10.1.0
