@@ -2,29 +2,23 @@ import os
 import stripe
 import base64
 import openai
-import google.generativeai as genai  # Librería estable
+import google.generativeai as genai  # <--- ESTA ES LA FORMA CORRECTA
 from fastapi import FastAPI, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from typing import Optional, List
 from dotenv import load_dotenv
 
-# 1. Cargar variables de entorno
 load_dotenv()
+
+# --- CONFIGURACIÓN DE GEMINI ---
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=GEMINI_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash') # Configuración estable
 
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-
-# 2. Configurar Gemini con la versión estable
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+# ... (resto de tu código de middleware y rutas)
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
