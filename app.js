@@ -1,83 +1,55 @@
-const dictionary = {
-    en: {
-        head: "SmartCargo ADVISORY",
-        mT: "Why SmartCargo?",
-        mD: "At **MAY ROGA LLC**, we provide stability to global trade. This system prevents cargo rejections, TSA/IATA fines, and damages, ensuring every participant contributes to a safe transport.",
-        lT: "⚠️ Mandatory Legal Shield",
-        lD: "Virtual preventive advisor. MAY ROGA LLC is NOT a gov entity, does NOT certify DG, and does NOT replace TSA/IATA inspections. This is expert technical advice.",
-        btnP: "PAY & ACTIVATE",
-        btnS: "GENERATE TECHNICAL REPORT"
-    },
-    es: {
-        head: "Asesoría SmartCargo",
-        mT: "¿Por qué SmartCargo?",
-        mD: "En **MAY ROGA LLC**, aportamos estabilidad al comercio global. Este sistema previene rechazos de carga, multas de TSA/IATA y daños, asegurando que todos contribuyan a un transporte seguro.",
-        lT: "⚠️ Blindaje Legal Obligatorio",
-        lD: "Asesor preventivo virtual. MAY ROGA LLC NO es entidad gubernamental, NO certifica carga peligrosa y NO reemplaza inspecciones oficiales. Es asesoría técnica experta.",
-        btnP: "PAGAR Y ACTIVAR",
-        btnS: "GENERAR INFORME TÉCNICO"
+const API_PATH = "";
+
+function unlock() {
+    document.getElementById("mainApp").style.opacity = "1";
+    document.getElementById("mainApp").style.pointerEvents = "all";
+    document.getElementById("accessSection").style.display = "none";
+    document.getElementById("benefits").style.display = "none";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("access") === "granted" || localStorage.getItem("sc_auth") === "true") {
+        localStorage.setItem("sc_auth", "true");
+        unlock();
     }
-};
 
-function setLang(l) {
-    localStorage.setItem("lang", l);
-    const t = dictionary[l] || dictionary.en;
-    document.getElementById("h-title").innerText = t.head;
-    document.getElementById("m-title").innerText = t.mT;
-    document.getElementById("m-desc").innerHTML = t.mD;
-    document.getElementById("l-title").innerText = t.lT;
-    document.getElementById("l-desc").innerText = t.lD;
-    document.getElementById("btn-pay").innerText = t.btnP;
-    document.getElementById("btn-submit").innerText = t.btnS;
-}
+    document.getElementById("activateBtn").onclick = async () => {
+        const awb = document.getElementById("awbField").value || "N/A";
+        const amt = document.getElementById("priceSelect").value;
+        const user = prompt("ADMIN USER:");
+        const pass = prompt("ADMIN PASSWORD:");
 
-async function adminLogin() {
-    const fd = new FormData();
-    fd.append("user", document.getElementById("user").value);
-    fd.append("password", document.getElementById("pass").value);
-    const res = await fetch("/login-admin", { method: "POST", body: fd });
-    if(res.ok) {
-        document.getElementById("appSection").style.display = "block";
-        document.getElementById("authSection").style.display = "none";
-    } else { alert("Error"); }
-}
+        const fd = new FormData();
+        fd.append("awb", awb); fd.append("amount", amt);
+        if(user) fd.append("user", user); if(pass) fd.append("password", pass);
 
-async function pay() {
-    const p = document.getElementById("priceSelect").value;
-    const l = localStorage.getItem("lang") || "en";
-    const res = await fetch("/create-payment", { method: "POST", headers: {"Content-Type": "application/x-www-form-urlencoded"}, body: `price=${p}&lang=${l}` });
-    const data = await res.json();
-    if(data.url) window.location.href = data.url;
-}
+        const res = await fetch(`${API_PATH}/create-payment`, { method: "POST", body: fd });
+        const data = await res.json();
+        if(data.url) window.location.href = data.url;
+    };
 
-document.getElementById("cargoForm").onsubmit = async (e) => {
-    e.preventDefault();
-    const out = document.getElementById("result");
-    out.innerHTML = "<h4>🔍 Analizando bajo normativas internacionales...</h4>";
-    const fd = new FormData(e.target);
-    fd.append("prompt", document.getElementById("prompt").value);
-    fd.append("lang", localStorage.getItem("lang") || "en");
-    const files = document.getElementById("pics").files;
-    for(let i=0; i<Math.min(files.length, 3); i++) fd.append("images", files[i]);
+    document.getElementById("advForm").onsubmit = async (e) => {
+        e.preventDefault();
+        const out = document.getElementById("advResponse");
+        out.innerHTML = "<h4>🔍 Verificando normativas federales y estatales...</h4>";
+        
+        const fd = new FormData(e.target);
+        fd.append("lang", "es");
 
-    const res = await fetch("/advisory", { method: "POST", body: fd });
-    const data = await res.json();
-    const cur = localStorage.getItem("lang") || "en";
-    
-    out.innerHTML = `<div class="report-frame">
-        <h2 style="color:#002855; border-bottom:3px solid #ffd600;">TECHNICAL REPORT | MAY ROGA LLC</h2>
-        <p style="white-space: pre-wrap;">${data.data}</p>
-        <div style="font-size:0.7em; margin-top:30px; border-top:1px solid #000; padding-top:10px; color:#555;">
-            <strong>LEGAL DISCLAIMER:</strong> ${dictionary[cur].lD}
-        </div>
-    </div><button onclick="window.print()">DESCARGAR REPORTE PDF</button>`;
-};
-
-window.onload = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('status') === 'success') {
-        document.getElementById("appSection").style.display = "block";
-        document.getElementById("authSection").style.display = "none";
-    }
-    setLang(localStorage.getItem("lang") || "en");
-};
+        const res = await fetch(`${API_PATH}/advisory`, { method: "POST", body: fd });
+        const data = await res.json();
+        
+        let reportClass = data.data.includes("🔴") ? "alert-red" : "alert-green";
+        
+        out.innerHTML = `
+            <div id="finalReport" class="${reportClass}">
+                <h3 style="margin-top:0;">CERTIFICACIÓN TÉCNICA SMARTCARGO</h3>
+                <p style="white-space: pre-wrap;">${data.data}</p>
+                <hr>
+                <p style="font-size:0.7em;"><em>SmartCargo Advisory LLC es una firma de consultoría independiente. Este reporte busca facilitar el cumplimiento normativo.</em></p>
+            </div>
+            <button onclick="window.print()" style="margin-top:10px; width:100%;">Imprimir Reporte para el Operador</button>
+        `;
+    };
+});
