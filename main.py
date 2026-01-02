@@ -1,4 +1,4 @@
-  import os, stripe, httpx, base64, openai
+import os, stripe, httpx, base64, openai
 from fastapi import FastAPI, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
