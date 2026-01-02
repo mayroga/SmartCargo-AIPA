@@ -1,11 +1,20 @@
-const API_PATH = ""; // Al estar todo en el mismo servidor, usamos rutas relativas
-
 const translations = {
-    en: { act: "1. Service Activation", sol: "2. Solution Center", desc: "Describe the issue or upload 3 photos." },
-    es: { act: "1. Activación de Servicio", sol: "2. Centro de Soluciones", desc: "Describa el problema o suba 3 fotos." },
-    fr: { act: "1. Activation du Service", sol: "2. Centre de Solutions", desc: "Décrivez le problème ou téléchargez 3 photos." },
-    pt: { act: "1. Ativação do Serviço", sol: "2. Centro de Soluções", desc: "Descreva o problema ou envie 3 fotos." },
-    zh: { act: "1. 服务激活", sol: "2. 解决方案中心", desc: "描述问题或上传 3 张照片。" }
+    en: { 
+        act: "1. Service Activation", 
+        sol: "2. Solution Center", 
+        m_title: "Why SmartCargo?",
+        m_desc: "We provide stability to the entire logistics chain. We prevent fines and holds so the paying customer never loses money.",
+        l_title: "⚠️ Legal Shield",
+        l_desc: "We are PRIVATE ADVISORS. Not IATA/TSA/DOT. We provide technical solutions; we don't certify DG or handle cargo."
+    },
+    es: { 
+        act: "1. Activación de Servicio", 
+        sol: "2. Centro de Soluciones", 
+        m_title: "¿Por qué SmartCargo?",
+        m_desc: "Damos estabilidad a toda la cadena logística. Evitamos multas y retenciones para que el cliente que paga nunca pierda dinero.",
+        l_title: "⚠️ Blindaje Legal",
+        l_desc: "Somos ASESORES PRIVADOS. No somos IATA/TSA/DOT. Damos soluciones técnicas; no certificamos carga peligrosa ni manipulamos carga."
+    }
 };
 
 function setLang(lang) {
@@ -13,7 +22,10 @@ function setLang(lang) {
     const t = translations[lang] || translations.en;
     document.getElementById("t_act").innerText = t.act;
     document.getElementById("t_sol").innerText = t.sol;
-    document.getElementById("p_desc").innerText = t.desc;
+    document.getElementById("m_title").innerText = t.m_title;
+    document.getElementById("m_desc").innerText = t.m_desc;
+    document.getElementById("l_title").innerText = t.l_title;
+    document.getElementById("l_desc").innerText = t.l_desc;
 }
 
 function unlock() {
@@ -25,14 +37,12 @@ function unlock() {
 document.addEventListener("DOMContentLoaded", () => {
     setLang(localStorage.getItem("user_lang") || "en");
 
-    // Verificar si ya tiene acceso
     const params = new URLSearchParams(window.location.search);
     if (params.get("access") === "granted" || localStorage.getItem("sc_auth") === "true") {
         localStorage.setItem("sc_auth", "true");
         unlock();
     }
 
-    // Botón Activar
     document.getElementById("activateBtn").onclick = async () => {
         const awb = document.getElementById("awbField").value || "N/A";
         const amt = document.getElementById("priceSelect").value;
@@ -43,23 +53,31 @@ document.addEventListener("DOMContentLoaded", () => {
         fd.append("awb", awb); fd.append("amount", amt);
         if(user) fd.append("user", user); if(pass) fd.append("password", pass);
 
-        const res = await fetch(`${API_PATH}/create-payment`, { method: "POST", body: fd });
+        const res = await fetch(`/create-payment`, { method: "POST", body: fd });
         const data = await res.json();
         if(data.url) window.location.href = data.url;
     };
 
-    // Formulario Asesoría
     document.getElementById("advForm").onsubmit = async (e) => {
         e.preventDefault();
         const out = document.getElementById("advResponse");
-        out.innerHTML = "<h4>🔍 Analizando soluciones legales...</h4>";
+        out.innerHTML = "<h4>🔍 Analyzing legal and technical solutions...</h4>";
         
         const fd = new FormData(e.target);
         fd.append("lang", localStorage.getItem("user_lang") || "en");
 
-        const res = await fetch(`${API_PATH}/advisory`, { method: "POST", body: fd });
+        const res = await fetch(`/advisory`, { method: "POST", body: fd });
         const data = await res.json();
-        out.innerHTML = `<div id="finalReport" class="report-box"><h3>TECHNICAL REPORT</h3>${data.data}</div>`;
+        const curLang = localStorage.getItem("user_lang") || "en";
+        
+        // Reporte con Blindaje al pie
+        out.innerHTML = `
+            <div id="finalReport" class="report-box">
+                <h3 style="color:#01579b; border-bottom:2px solid #ffd600;">SMARTCARGO TECHNICAL REPORT</h3>
+                <p style="white-space: pre-wrap;">${data.data}</p>
+                <hr>
+                <p style="font-size:0.7em; color:gray;"><strong>Legal Notice:</strong> ${translations[curLang].l_desc}</p>
+            </div>`;
         document.getElementById("actionBtns").style.display = "flex";
     };
 });
