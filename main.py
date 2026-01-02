@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI()
 
-# Blindaje CORS
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,14 +17,14 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# --- VARIABLES DE ENTORNO ---
+# --- ENV ---
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 ADMIN_USER = os.getenv("ADMIN_USERNAME")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-# --- ARCHIVOS ---
+# --- FILE SERVER ---
 @app.get("/")
 async def home():
     return FileResponse("index.html")
@@ -40,34 +40,38 @@ async def serve_js(file_name: str):
         return FileResponse(path, media_type="application/javascript")
     return HTMLResponse("File not found", status_code=404)
 
-# --- MOTOR ASESOR ---
+# --- ADVISORY ENGINE ---
 @app.post("/advisory")
 async def advisory_engine(
     prompt: str = Form(...),
     lang: str = Form("en"),
     images: List[UploadFile] = File(None)
 ):
+
     instruction = (
-    f"You are SMARTCARGO CONSULTING, a private technical advisor. Answer in {lang}. "
-    "You are NOT a government authority, NOT IATA, NOT TSA, NOT DG certified. "
-    "You do NOT handle or approve cargo. This is advisory, not a legal verdict.\n\n"
+        f"You are SMARTCARGO CONSULTING, a private technical advisor. Answer in {lang}. "
+        "You are NOT a government authority, NOT IATA, NOT TSA, NOT DOT, NOT DG certified. "
+        "You do NOT touch, handle, approve, or transport cargo. This is advisory only.\n\n"
 
-    "PRIORITY:\n"
-    "- If photos are provided, analyze them FIRST and base conclusions on visual inspection.\n\n"
+        "VISION RULE:\n"
+        "When images are provided, they are the PRIMARY source of truth.\n"
+        "You MUST visually inspect them before considering any text.\n"
+        "Detect visible issues in packaging, labels, markings, AWB, delivery orders, or documents.\n\n"
 
-    "OUTPUT:\n"
-    "- Give a PRACTICAL ACTION PLAN.\n"
-    "- Use clear steps: Do this, Move this, Change packaging, Re-label.\n\n"
+        "OUTPUT RULES:\n"
+        "- Give a PRACTICAL ACTION PLAN.\n"
+        "- Use direct steps: Do this, Fix this, Replace this, Re-label this.\n"
+        "- No legal lectures.\n\n"
 
-    "ORDER:\n"
-    "1) Fastest & cheapest fix.\n"
-    "2) Intermediate solution.\n"
-    "3) Structural improvement.\n\n"
+        "ORDER:\n"
+        "1) Fastest & cheapest fix.\n"
+        "2) Intermediate solution.\n"
+        "3) Structural improvement.\n\n"
 
-    "Goal: cargo passes inspection on first attempt. Never mention AI."
-)
+        "Goal: cargo passes inspection on first attempt. Never mention AI."
+    )
 
-    # --- GEMINI (PRIORIDAD VISUAL) ---
+    # ---------- GEMINI (PRIMARY, VISUAL-FIRST) ----------
     if GEMINI_KEY:
         try:
             url = (
@@ -75,8 +79,9 @@ async def advisory_engine(
                 f"models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
             )
 
-            parts = [{"text": f"{instruction}\n\nClient Context:\n{prompt}"}]
+            parts = []
 
+            # 1️⃣ IMAGES FIRST (PRIMARY SOURCE)
             if images:
                 for img in images[:3]:
                     content = await img.read()
@@ -88,6 +93,17 @@ async def advisory_engine(
                             }
                         })
 
+            # 2️⃣ TEXT SECONDARY
+            parts.append({
+                "text": (
+                    instruction +
+                    "\n\nIMPORTANT:\n"
+                    "The images above are the PRIMARY source of truth.\n"
+                    "Inspect them carefully before using the text below.\n\n"
+                    f"Client description (secondary):\n{prompt}"
+                )
+            })
+
             async with httpx.AsyncClient() as client:
                 r = await client.post(
                     url,
@@ -98,10 +114,11 @@ async def advisory_engine(
             return {
                 "data": r.json()["candidates"][0]["content"]["parts"][0]["text"]
             }
+
         except:
             pass
 
-    # --- OPENAI BACKUP ---
+    # ---------- OPENAI BACKUP ----------
     if OPENAI_KEY:
         try:
             client = openai.OpenAI(api_key=OPENAI_KEY)
@@ -118,7 +135,7 @@ async def advisory_engine(
 
     return {"data": "System busy. Try again later."}
 
-# --- PAGOS ---
+# --- PAYMENTS ---
 @app.post("/create-payment")
 async def create_payment(
     amount: float = Form(...),
