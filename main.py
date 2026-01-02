@@ -76,7 +76,7 @@ async def advisory_engine(
                 r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=45.0)
                 return {"data": r.json()["candidates"][0]["content"]["parts"][0]["text"]}
         except:
-            pass
+            print(f"Error en Gemini: {e}")
 
     # --- 2. Respaldo OpenAI ---
     if OPENAI_KEY:
