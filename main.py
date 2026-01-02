@@ -75,8 +75,8 @@ async def advisory_engine(
             async with httpx.AsyncClient() as client:
                 r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=45.0)
                 return {"data": r.json()["candidates"][0]["content"]["parts"][0]["text"]}
-        except:
-            print(f"Error en Gemini: {e}")
+        except Exception as e:
+    print(f"Error en Gemini: {e}")  # Agrega esto para ver el error real
 
     # --- 2. Respaldo OpenAI ---
     if OPENAI_KEY:
