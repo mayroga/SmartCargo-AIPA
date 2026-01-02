@@ -1,60 +1,56 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMARTCARGO ADVISORY LLC | Expertos en Logística USA</title>
+    <title>SmartCargo Advisor 360°</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        :root { --blue: #002855; --gold: #ffd600; }
-        .hero { background: var(--blue); color: white; padding: 25px; text-align: center; border-radius: 0 0 20px 20px; }
-        .benefit-box { background: #f0f4f8; border-left: 5px solid var(--gold); padding: 10px; margin: 10px 0; font-size: 0.85em; }
-        .alert-red { border: 3px solid #d32f2f; background: #fff5f5; padding: 15px; border-radius: 10px; color: #b71c1c; }
-        .alert-green { border: 3px solid #2e7d32; background: #f1f8f1; padding: 15px; border-radius: 10px; color: #1b5e20; }
-        #mainApp { opacity: 0.1; pointer-events: none; transition: 0.5s; }
+        .lang-bar { background: #000; padding: 10px; display: flex; gap: 8px; justify-content: center; position: sticky; top: 0; z-index: 999; }
+        .lang-btn { cursor: pointer; border: 1px solid #ffd600; background: transparent; color: #ffd600; padding: 6px 12px; border-radius: 4px; font-weight: bold; }
+        .lang-btn:hover { background: #ffd600; color: #000; }
+        #mainApp { opacity: 0.1; pointer-events: none; transition: 0.5s; border-top: 2px solid #01579b; margin-top: 20px; }
+        .report-box { background: #fff; color: #000; padding: 20px; border: 2px solid #01579b; border-radius: 8px; margin-top: 15px; }
     </style>
 </head>
 <body>
-    <div class="hero">
-        <h1 style="color:var(--gold); margin:0;">SMARTCARGO ADVISORY LLC</h1>
-        <p>Soluciones Técnicas para Carga Aérea, Marítima y Terrestre</p>
+    <div class="lang-bar">
+        <button class="lang-btn" onclick="setLang('en')">EN 🇺🇸</button>
+        <button class="lang-btn" onclick="setLang('es')">ES 🇪🇸</button>
+        <button class="lang-btn" onclick="setLang('fr')">FR 🇫🇷</button>
+        <button class="lang-btn" onclick="setLang('pt')">PT 🇧🇷</button>
+        <button class="lang-btn" onclick="setLang('zh')">ZH 🇨🇳</button>
     </div>
 
-    <section id="benefits">
-        <h4 style="text-align:center;">¿Por qué asegurar tu carga con nosotros?</h4>
-        <div class="benefit-box">🚀 <strong>Ahorro Directo:</strong> Evita re-estibas costosas y cargos por "Hold" en Miami.</div>
-        <div class="benefit-box">🛡️ <strong>Blindaje Legal:</strong> Cumple con TSA, DOT e IMO antes de llegar al counter.</div>
-        <div class="benefit-box">⏱️ <strong>Agilidad:</strong> Reportes instantáneos para camioneros, forwarders y operadores.</div>
-    </section>
-
     <section id="accessSection">
-        <h3>1. Activa tu Consulta de Cumplimiento</h3>
-        <input type="text" id="awbField" placeholder="AWB, B/L o Referencia de Carga">
+        <h2 id="t_act">1. Service Activation</h2>
+        <input type="text" id="awbField" placeholder="AWB / Loading Reference">
         <select id="priceSelect">
-            <option value="5">Carga Micro (Envío pequeño) - $5.00</option>
-            <option value="15">Driver Check (Camioneros/Terrestre) - $15.00</option>
-            <option value="35">Revisión Profesional Estándar - $35.00</option>
-            <option value="95">Auditoría Premium Full Compliance - $95.00</option>
+            <option value="35">Basic Review - $35</option>
+            <option value="120">Premium Integral Advisory - $120</option>
         </select>
-        <button id="activateBtn" style="width:100%; background:var(--gold); color:black; font-weight:bold;">ACTIVAR ASESORÍA</button>
+        <button id="activateBtn" style="width:100%; background:#01579b; color:white; font-weight:bold;">ACTIVATE ADVISOR</button>
     </section>
 
     <section id="mainApp">
-        <h3>2. Centro de Soluciones Legales</h3>
+        <h2 id="t_sol">2. Solution Center</h2>
+        <p id="p_desc">Describe the technical issue or upload up to 3 photos for immediate analysis.</p>
         <form id="advForm">
-            <select name="cargo_type" id="cargoType">
-                <option value="air">Aéreo (TSA / IATA)</option>
-                <option value="land">Terrestre (USDOT / Florida)</option>
-                <option value="ocean">Marítimo (Port / IMO)</option>
-            </select>
-            <textarea name="prompt" id="promptArea" placeholder="Describa la situación técnica o dudas sobre la carga..." required></textarea>
-            <label>Suba fotos de la estiba/carga (Máx 3):</label>
+            <textarea name="prompt" id="promptArea" placeholder="How can we help you move your cargo safely?" required></textarea>
+            <label>Inspection Photos (Max 3):</label>
             <input type="file" name="images" id="imageFiles" accept="image/*" multiple>
-            <button type="submit" style="width:100%; background:#2e7d32; color:white; font-weight:bold;">GENERAR REPORTE TÉCNICO</button>
+            <button type="submit" style="width:100%; background:#2e7d32; color:white;">GENERATE ACTION PLAN</button>
         </form>
         <div id="advResponse"></div>
+        <div id="actionBtns" style="display:none; margin-top:20px; display:flex; gap:10px;">
+            <button onclick="downloadPDF()" style="flex:1;">📄 PDF</button>
+            <button onclick="shareWA()" style="flex:1; background:#25d366; color:white;">WhatsApp</button>
+        </div>
     </section>
 
     <script src="app.js"></script>
+    <script src="legal_warning.js"></script>
+    <script src="standards.js"></script>
 </body>
 </html>
