@@ -1,7 +1,9 @@
 fastapi
 uvicorn
-google-generativeai
+stripe
+httpx
 python-multipart
 python-dotenv
-stripe
+google-genai
 openai
+aiofiles
