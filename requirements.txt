@@ -4,6 +4,4 @@ stripe
 httpx
 python-multipart
 python-dotenv
-google-genai
 openai
-aiofiles
