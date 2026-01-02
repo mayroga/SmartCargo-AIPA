@@ -3,67 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo Advisor 360° | MAY ROGA LLC</title>
+    <title>SmartCargo Advisor 360°</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        :root { --blue: #01579b; --gold: #ffd600; }
-        .lang-bar { background: #000; padding: 10px; display: flex; gap: 8px; justify-content: center; position: sticky; top: 0; z-index: 999; }
-        .lang-btn { cursor: pointer; border: 1px solid var(--gold); background: transparent; color: var(--gold); padding: 6px 12px; border-radius: 4px; font-weight: bold; }
-        .mission-box { background: #e3f2fd; border-left: 5px solid var(--blue); padding: 15px; margin: 20px 0; color: #000; }
-        .shield-box { background: #fff3e0; border: 2px solid #e65100; padding: 15px; font-size: 0.85em; margin: 20px 0; }
-        #mainApp { opacity: 0.1; pointer-events: none; transition: 0.5s; border-top: 3px solid var(--blue); margin-top: 20px; }
-        .report-box { background: #fff; color: #000; padding: 25px; border: 2px solid var(--blue); border-radius: 8px; }
-        #timerBox { display: none; text-align: center; color: red; font-weight: bold; padding: 10px; border: 1px solid red; margin-bottom: 10px; }
+        .lang-bar {
+            background: #000;
+            padding: 10px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+        .lang-btn {
+            cursor: pointer;
+            border: 1px solid #ffd600;
+            background: transparent;
+            color: #ffd600;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .lang-btn:hover {
+            background: #ffd600;
+            color: #000;
+        }
+        #mainApp {
+            opacity: 0.1;
+            pointer-events: none;
+            transition: 0.5s;
+            border-top: 2px solid #01579b;
+            margin-top: 20px;
+        }
+        .report-box {
+            background: #fff;
+            color: #000;
+            padding: 20px;
+            border: 2px solid #01579b;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .disclaimer {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
+
     <div class="lang-bar">
         <button class="lang-btn" onclick="setLang('en')">EN 🇺🇸</button>
         <button class="lang-btn" onclick="setLang('es')">ES 🇪🇸</button>
-    </div>
-
-    <header style="text-align: center;">
-        <h1>SmartCargo ADVISORY</h1>
-        <p>Technical Consulting by <strong>MAY ROGA LLC</strong></p>
-    </header>
-
-    <div class="mission-box">
-        <h3 id="m_title">Why SmartCargo?</h3>
-        <p id="m_desc">We provide stability to the entire logistics chain. From Shippers and Forwarders to Drivers and Operators, our system ensures everyone can verify cargo status. <strong>We prevent fines, holds, and returns</strong> so the paying customer never loses money.</p>
-    </div>
-
-    <div class="shield-box">
-        <h4 id="l_title">⚠️ Legal Shield / Blindaje Legal</h4>
-        <p id="l_desc">We are PRIVATE ADVISORS. We are NOT IATA, TSA, DOT, or government regulators. We provide technical solutions to prevent delays; we do not certify dangerous goods and we do not touch or handle cargo.</p>
+        <button class="lang-btn" onclick="setLang('fr')">FR 🇫🇷</button>
+        <button class="lang-btn" onclick="setLang('pt')">PT 🇧🇷</button>
+        <button class="lang-btn" onclick="setLang('zh')">ZH 🇨🇳</button>
     </div>
 
     <section id="accessSection">
         <h2 id="t_act">1. Service Activation</h2>
         <input type="text" id="awbField" placeholder="AWB / Loading Reference">
         <select id="priceSelect">
-            <option value="35">Micro/Basic Load - $35</option>
-            <option value="120">Premium Integral Audit - $120</option>
+            <option value="35">Basic Review - $35</option>
+            <option value="120">Premium Integral Advisory - $120</option>
         </select>
-        <button id="activateBtn" style="width:100%; background:var(--blue); color:white; font-weight:bold;">ACTIVATE ADVISOR</button>
+        <button id="activateBtn" style="width:100%; background:#01579b; color:white; font-weight:bold;">
+            ACTIVATE ADVISOR
+        </button>
     </section>
 
     <section id="mainApp">
-        <div id="timerBox">🔒 PRIVACY: Info wipes in <span id="secs">300</span>s</div>
         <h2 id="t_sol">2. Solution Center</h2>
+
+        <p id="p_desc">
+            Describe the technical issue or upload up to 3 photos.
+            <strong>Photos are the main inspection engine.</strong>
+            You will receive a practical action plan, not a legal verdict.
+        </p>
+
         <form id="advForm">
-            <textarea name="prompt" id="promptArea" placeholder="Describe the issue or upload photos..." required></textarea>
+            <textarea
+                name="prompt"
+                id="promptArea"
+                placeholder="How can we help you move your cargo safely?"
+                required></textarea>
+
             <label>Inspection Photos (Max 3):</label>
             <input type="file" name="images" id="imageFiles" accept="image/*" multiple>
-            <button type="submit" style="width:100%; background:#2e7d32; color:white; font-weight:bold;">GENERATE ACTION PLAN</button>
+
+            <button type="submit" style="width:100%; background:#2e7d32; color:white;">
+                GENERATE ACTION PLAN
+            </button>
         </form>
+
+        <div class="disclaimer">
+            Private technical advisory. We are not IATA, TSA, DOT, DG, or any government authority.
+            We do not handle or approve cargo. This is guidance to avoid delays and losses.
+        </div>
+
         <div id="advResponse"></div>
-        <div id="actionBtns" style="display:none; margin-top:20px; gap:10px;">
-            <button onclick="downloadPDF()" style="flex:1;">📄 Download PDF</button>
-            <button onclick="shareWA()" style="flex:1; background:#25d366; color:white;">Share WhatsApp</button>
+
+        <div id="actionBtns" style="display:none; margin-top:20px; display:flex; gap:10px;">
+            <button onclick="downloadPDF()" style="flex:1;">📄 PDF</button>
+            <button onclick="shareWA()" style="flex:1; background:#25d366; color:white;">WhatsApp</button>
         </div>
     </section>
 
     <script src="app.js"></script>
+    <script src="legal_warning.js"></script>
+    <script src="standards.js"></script>
+
 </body>
 </html>
