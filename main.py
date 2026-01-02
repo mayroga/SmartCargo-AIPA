@@ -1,80 +1,105 @@
 import os
 import stripe
+import httpx
 import base64
 import openai
-import google.generativeai as genai  # <--- ESTA ES LA FORMA CORRECTA
 from fastapi import FastAPI, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from typing import Optional, List
 from dotenv import load_dotenv
 
 load_dotenv()
-
-# --- CONFIGURACIÓN DE GEMINI ---
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash') # Configuración estable
-
 app = FastAPI()
 
-# ... (resto de tu código de middleware y rutas)
+# Permitir todas las funciones desde el navegador
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
+# --- VARIABLES DE ENTORNO ---
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+ADMIN_USER = os.getenv("ADMIN_USERNAME")
+ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
+# --- RUTAS BÁSICAS ---
 @app.get("/")
 async def home():
-    return FileResponse("index.html")
+    return FileResponse("index.html")
 
+@app.get("/success")
+async def success():
+    return FileResponse("success.html")
+
+@app.get("/app.js")
+async def serve_js():
+    return FileResponse("app.js")
+
+# --- MOTOR DE ASESORAMIENTO (Gemini + OpenAI backup) ---
 @app.post("/advisory")
 async def advisory_engine(
-    prompt: str = Form(...),
-    lang: str = Form("en"),
-    files: List[UploadFile] = File(None) # Debe coincidir con el nombre en app.js
+    prompt: str = Form(...),
+    lang: str = Form("en"),
+    images: List[UploadFile] = File(None)
 ):
-    # Instrucciones de experto en inspección
-    instruction = (
-        f"Answer in {lang}. You are a Visual Inspection Expert for SMARTCARGO. "
-        "Analyze images in detail: read text, identify objects and cargo status. "
-        "If no images, ask the user to upload photos for a better plan. "
-        "Use 🔴 [ALERT] or 🟢 [COMPLIANCE] and give an 'Action Plan'."
-    )
+    instruction = (
+        f"You are the Senior Technical Advisor for SMARTCARGO by MAY ROGA LLC. Answer in {lang}. "
+        "MISSION: Be a practical solver. Provide 'Action Plans' (Haz esto, acomoda aquello) to pass inspections immediately. "
+        "LEGAL SHIELD: We are PRIVATE ADVISORS. Not IATA/TSA/DOT. Technical suggestions only, not a legal verdict. "
+        "1. FASTEST SOLUTION. 2. INTERMEDIATE. 3. STRUCTURAL. Provide stability and hope. "
+        "Identify risks with [ALERT] or [COMPLIANCE]. Never mention AI."
+    )
 
-    # Preparamos la lista de partes para enviar a Gemini
-    # Empezamos con el texto de instrucción y el problema del cliente
-    prompt_parts = [instruction, f"\n\nClient Issue: {prompt}"]
+    parts = [{"text": f"{instruction}\n\nClient Issue: {prompt}"}]
 
-    # 3. Procesamos las fotos de forma estable
-    if files:
-        for f in files:
-            content = await f.read()
-            if content:
-                # Convertimos la foto al formato que la librería estable entiende
-                prompt_parts.append({
-                    "mime_type": f.content_type,
-                    "data": content
-                })
+    # --- 1. Intentar con Gemini ---
+    # --- 1. Intentar con Gemini ---
+    if GEMINI_KEY:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+            if images:
+                for img in images[:3]:
+                    content = await img.read()
+                    if content:
+                        parts.append({
+                            "inline_data": {
+                                "mime_type": img.content_type,
+                                "data": base64.b64encode(content).decode("utf-8")
+                            }
+                        })
+            async with httpx.AsyncClient() as client:
+                r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=45.0)
+                return {"data": r.json()["candidates"][0]["content"]["parts"][0]["text"]}
+        except Exception as e:
+            print(f"Error en Gemini: {type(e).__name__}: {e}")
+            pass    
 
-    try:
-        # Generamos el contenido
-        response = model.generate_content(prompt_parts)
-        return {"data": response.text}
+    # --- 2. Respaldo OpenAI ---
+    if OPENAI_KEY:
+        try:
+            client = openai.OpenAI(api_key=OPENAI_KEY)
+            res = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}]
+            )
+            return {"data": res.choices[0].message.content}
+        except Exception as e:
+            return {"data": f"Error: {str(e)}"}
 
-    except Exception as e:
-        print(f"Error en Gemini: {e}")
-        return {"data": "Lo siento, hubo un problema al procesar la visión. Intenta con fotos más pequeñas o formato JPG."}
+    return {"data": "System busy. Try again later."}
 
-# --- RUTA DE PAGOS (Mantén la que ya tienes) ---
+# --- PAGOS ---
 @app.post("/create-payment")
-async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
-    if user == os.getenv("ADMIN_USERNAME") and password == os.getenv("ADMIN_PASSWORD"):
-        return {"url": f"/?access=granted&awb={awb}"}
-    
-    session = stripe.checkout.Session.create(
-        payment_method_types=["card"],
-        line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"AWB: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
-        mode="payment",
-        success_url=f"https://smartcargo-aipa.onrender.com/?access=granted&awb={awb}",
-        cancel_url=f"https://smartcargo-aipa.onrender.com/"
-    )
-    return {"url": session.url}
+async def create_payment(
+    amount: float = Form(...),
+    awb: str = Form(...),
+    user: Optional[str] = Form(None),
+    password: Optional[str] = Form(None)
+):
+    success
