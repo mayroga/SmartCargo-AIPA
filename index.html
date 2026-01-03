@@ -2,97 +2,99 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo AI - Auditoría Técnica</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SmartCargo AI | May Roga LLC</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
     <style>
-        body { background-color: #f4f7f6; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .container { max-width: 800px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .logo { font-weight: bold; color: #01579b; font-size: 2.4rem; margin-bottom: 20px; border-left: 5px solid #ffd600; padding-left: 15px; }
+        :root { --primary: #01579b; --accent: #ffd600; --success: #2e7d32; }
+        body { background-color: #eceff1; margin: 0; padding: 10px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .container { max-width: 500px; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
         
-        /* Roles Selector */
-        .role-selector { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .role-btn { flex: 1; border: 1px solid #ddd; background: #fff; cursor: pointer; transition: 0.3s; padding: 10px; font-size: 0.8em; text-transform: uppercase; }
-        .role-btn.active { background: #01579b; color: white; border-color: #01579b; font-weight: bold; }
+        /* Header & Lang */
+        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .logo-box h1 { font-size: 1.8rem; color: var(--primary); margin: 0; font-weight: 800; border-left: 5px solid var(--accent); padding-left: 10px; }
+        .lang-switcher button { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; background: white; font-weight: bold; }
+        .lang-active { background: var(--primary) !important; color: white; border-color: var(--primary); }
+
+        /* Role Buttons (Grandes para pulgares) */
+        .role-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
+        .role-btn { background: #f8f9fa; border: 2px solid #eee; padding: 15px 5px; text-align: center; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 0.9em; transition: 0.2s; }
+        .role-btn.active { background: #e3f2fd; border-color: var(--primary); color: var(--primary); transform: scale(0.98); }
+
+        /* Camera Input Section */
+        .camera-section { background: #f1f8e9; border: 2px dashed var(--success); padding: 20px; border-radius: 12px; text-align: center; margin: 15px 0; }
+        .camera-label { display: block; font-weight: bold; color: var(--success); cursor: pointer; }
+        #fileInput { display: none; } /* Oculto para usar el label como botón */
+        .btn-camera { background: var(--success); color: white; padding: 12px; border-radius: 8px; display: inline-block; margin-top: 10px; width: 80%; }
+
+        /* Report Box */
+        .report-box { background: white; border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin-top: 20px; border-top: 5px solid var(--accent); }
+        #loader { text-align: center; color: var(--primary); font-weight: bold; display: none; padding: 20px; }
         
-        /* Secciones */
-        #accessSection { background: #fffde7; padding: 20px; border-radius: 8px; border: 1px solid #fff59d; margin-bottom: 30px; }
-        #mainApp { transition: opacity 0.5s ease; }
-        
-        textarea { width: 100%; height: 120px; resize: none; }
-        .report-box { background: #fafafa; border: 1px solid #01579b; padding: 25px; border-radius: 8px; margin-top: 20px; line-height: 1.6; }
-        #loader { color: #01579b; font-weight: bold; display: none; margin: 15px 0; }
-        
-        .footer-info { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 0.9em; }
+        input, textarea, select { font-size: 16px !important; } /* Evita zoom automático en iPhone */
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="logo">SmartCargo AI</div>
-
-    <div id="accessSection">
-        <h5 id="t_act">1. Service Activation</h5>
-        <div class="row">
-            <div class="six columns">
-                <label>Master AWB / ID</label>
-                <input type="text" id="awbField" class="u-full-width" placeholder="Ej: 020-12345678">
-            </div>
-            <div class="six columns">
-                <label>Audit Level</label>
-                <select id="priceSelect" class="u-full-width">
-                    <option value="10">Technical Audit - $10</option>
-                    <option value="25">Full Cargo Shield - $25</option>
-                </select>
-            </div>
+    <div class="header-flex">
+        <div class="logo-box">
+            <h1>SmartCargo</h1>
+            <small>by May Roga LLC</small>
         </div>
-        <button id="activateBtn" class="button-primary u-full-width">Unlock Analysis Engine</button>
+        <div class="lang-switcher">
+            <button id="btnEn" onclick="setLang('en')">EN</button>
+            <button id="btnEs" onclick="setLang('es')">ES</button>
+        </div>
     </div>
 
-    <div id="mainApp" style="opacity: 0.2; pointer-events: none;">
-        <h5 id="t_sol">2. SmartCargo Solution Center</h5>
+    <div id="accessSection">
+        <h6 id="t_act">1. Service Activation</h6>
+        <input type="text" id="awbField" class="u-full-width" placeholder="AWB / Tracking ID">
+        <select id="priceSelect" class="u-full-width">
+            <option value="10">Advisory Audit - $10</option>
+            <option value="25">Shield Audit - $25</option>
+        </select>
+        <button id="activateBtn" class="button-primary u-full-width" style="height: 50px;">ACTIVATE ENGINE</button>
+    </div>
+
+    <div id="mainApp" style="opacity: 0.1; pointer-events: none;">
+        <h6 id="t_sol">2. Solution Center</h6>
         
-        <label>Select your profile:</label>
         <div class="role-selector">
-            <button type="button" class="role-btn active" data-role="shipper">Shipper</button>
-            <button type="button" class="role-btn" data-role="forwarder">Freight FWD</button>
-            <button type="button" class="role-btn" data-role="trucker">Trucker</button>
-            <button type="button" class="role-btn" data-role="counter">Counter/Whse</button>
+            <div class="role-btn active" data-role="shipper">📦 SHIPPER</div>
+            <div class="role-btn" data-role="forwarder">✈️ FORWARDER</div>
+            <div class="role-btn" data-role="trucker">🚛 TRUCKER</div>
+            <div class="role-btn" data-role="counter">🏢 COUNTER</div>
         </div>
 
         <form id="advForm">
             <input type="hidden" name="role" id="roleInput" value="shipper">
             
-            <label>Detailed Observations (Optional):</label>
-            <textarea name="prompt" id="promptArea" placeholder="Describe specific damages, missing labels, or cargo condition..."></textarea>
-            
-            <label>Upload Evidence (Photos):</label>
-            <input type="file" name="files" id="fileInput" accept="image/*" multiple>
-            <p style="font-size: 0.7em; color: gray;">* Up to 3 high-res images for Gemini 1.5 Vision analysis.</p>
+            <div class="camera-section">
+                <label for="fileInput" class="camera-label">
+                    📷 <span id="t_photo">TAP TO TAKE PHOTOS</span>
+                    <div class="btn-camera">OPEN CAMERA</div>
+                </label>
+                <input type="file" name="files" id="fileInput" accept="image/*" multiple capture="environment">
+                <div id="fileCount" style="font-size: 0.7em; margin-top: 5px; color: #558b2f;"></div>
+            </div>
 
-            <button type="submit" id="submitBtn" class="button-primary u-full-width" style="background: #2e7d32; border:none;">🚀 Run Technical Audit</button>
+            <textarea name="prompt" id="promptArea" placeholder="Additional notes..."></textarea>
+            
+            <button type="submit" id="submitBtn" class="button-primary u-full-width" style="background: var(--primary); border:none; height: 55px; font-size: 1.1rem;">RUN ANALYSIS</button>
         </form>
 
-        <div id="loader">🔍 SMARTCARGO AI: ANALYZING IMAGES & REGULATIONS...</div>
-        
+        <div id="loader">
+            <img src="https://i.gifer.com/ZKZg.gif" width="30"><br>
+            SECURELY ANALYZING CARGO...
+        </div>
+
         <div id="advResponse"></div>
 
         <div id="actionBtns" style="display:none; gap:10px; margin-top:15px;">
-            <button onclick="downloadPDF()" class="button">📄 Download Report</button>
-            <button onclick="shareWA()" class="button">🟢 Send to WhatsApp</button>
-        </div>
-
-        <div id="timerBox" style="display:none; color: #d32f2f; font-weight: bold; text-align: center; margin-top: 20px;">
-            ⏳ Privacy Alert: Session expires in <span id="secs">300</span>s.
-        </div>
-    </div>
-
-    <div class="footer-info">
-        <h6 id="m_title">Why SmartCargo?</h6>
-        <p id="m_desc" style="color: #666;"></p>
-        <div style="background: #f1f1f1; padding: 15px; border-radius: 5px;">
-            <strong id="l_title"></strong><br>
-            <small id="l_desc"></small>
+            <button onclick="downloadPDF()" style="flex:1">📄 PDF</button>
+            <button onclick="shareWA()" style="flex:1; background:#25d366; color:white; border:none;">🟢 WhatsApp</button>
         </div>
     </div>
 </div>
