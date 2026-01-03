@@ -16,37 +16,45 @@
         #previewContainer img { width: 60px; height: 60px; object-fit: cover; margin-right: 5px; border: 1px solid #001a35; }
         .btn-main { background: #001a35; color: white; width: 100%; height: 50px; font-weight: bold; border: none; cursor: pointer; text-transform: uppercase; }
         .legal { font-size: 9px; color: #777; margin-top: 25px; padding: 10px; border-top: 1px dotted #ccc; text-align: justify; }
+        
+        /* Time Control UI */
+        #sessionTimer { font-size: 12px; color: white; background: #d32f2f; padding: 8px; border-radius: 4px; text-align: center; margin-bottom: 15px; font-weight: bold; }
+        .report-box { border: 2px solid #001a35; padding: 15px; margin-top: 15px; background: #fff; position: relative; }
+        .whatsapp-btn { background: #25d366; color: white; width: 100%; border: none; padding: 12px; font-weight: bold; margin-top: 10px; cursor: pointer; text-transform: uppercase; border-radius: 4px; }
+        .clear-btn { background: #777; color: white; width: 100%; border: none; padding: 8px; font-size: 11px; margin-top: 5px; cursor: pointer; border-radius: 4px; }
     </style>
 </head>
 <body>
 
 <div class="app-card">
     <div style="text-align: right; margin-bottom: 10px;">
-        <button onclick="setLang('en')" style="font-size: 9px; padding: 0 5px;">EN</button>
-        <button onclick="setLang('es')" style="font-size: 9px; padding: 0 5px;">ES</button>
+        <button onclick="setLang('en')" style="font-size: 9px; padding: 0 5px; cursor:pointer;">EN</button>
+        <button onclick="setLang('es')" style="font-size: 9px; padding: 0 5px; cursor:pointer;">ES</button>
     </div>
 
     <h4 style="margin:0; color:#001a35; font-weight:bold;">SMARTCARGO</h4>
     <p style="font-size:10px; color:#d4af37; font-weight:bold; text-transform:uppercase;">Technical Advisory by May Roga LLC</p>
 
-    <div class="promo" id="promo">
-        <strong>Cargo Protection:</strong> We audit the entire logistics chain (Sea, Land, Air) to prevent fines, holds, and damages. From Shipper to Final Operator.
-    </div>
+    <div class="promo" id="promo"></div>
 
     <div id="accessSection">
-        <label style="font-weight:bold;">1. SERVICE ACTIVATION</label>
-        <input type="text" id="awbField" class="u-full-width" placeholder="AWB / BOL / Tracking ID">
+        <label style="font-weight:bold;" id="t_activation">1. SERVICE ACTIVATION</label>
+        <input type="text" id="awbField" class="u-full-width" placeholder="AWB / BOL / ID">
         <select id="priceSelect" class="u-full-width">
-            <option value="5">Light Cargo / Courier ($5)</option>
-            <option value="10">Standard Commercial ($10)</option>
-            <option value="45">Critical / HAZMAT ($45)</option>
-            <option value="95">Special Project / Oversize ($95)</option>
+            <option value="5">Express Audit (10 min) - $5</option>
+            <option value="10">Standard Audit (30 min) - $10</option>
+            <option value="45">Priority/HAZMAT (60 min) - $45</option>
+            <option value="95">Expert Project (120 min MAX) - $95</option>
         </select>
         <button id="activateBtn" class="btn-main">VALIDATE & ACCESS</button>
     </div>
 
     <div id="mainApp" style="opacity: 0.1; pointer-events: none;">
-        <label style="font-weight:bold;">2. CARGO SOLUTION CENTER</label>
+        <div id="sessionTimer" style="display:none;">
+            <span id="sessionMsg">Access Time Left:</span> <span id="sessionMins">0</span> min
+        </div>
+
+        <label style="font-weight:bold;" id="t_solutions">2. CARGO SOLUTION CENTER</label>
         <div class="role-grid">
             <div class="role-btn active" data-role="shipper">SHIPPER</div>
             <div class="role-btn" data-role="forwarder">FORWARDER</div>
@@ -58,25 +66,22 @@
             <input type="hidden" name="role" id="roleInput" value="shipper">
             <div class="scan-box" onclick="document.getElementById('fileInput').click()">
                 <strong id="t_scan">📷 SCAN CARGO / DOCUMENTS</strong>
-                <p style="font-size:9px; margin:0;">Audit for IATA, DOT, TSA & Maritime Compliance</p>
+                <p style="font-size:9px; margin:0;" id="t_compliance">Visual Audit | International Standards</p>
             </div>
             <input type="file" name="files" id="fileInput" accept="image/*" multiple capture="environment" style="display:none">
             
             <div id="previewContainer"></div>
-            <textarea name="prompt" id="promptArea" class="u-full-width" placeholder="Describe cargo issue..."></textarea>
-            <button type="submit" id="submitBtn" class="btn-main" style="background:#1b5e20;">GENERATE SOLUTION</button>
+            <textarea name="prompt" id="promptArea" class="u-full-width" placeholder="Describe technical issue..."></textarea>
+            <button type="submit" id="submitBtn" class="btn-main" style="background:#1b5e20;">EXECUTE ADVISORY</button>
         </form>
 
         <div id="loader" style="display:none; text-align:center;"><strong>ANALYZING...</strong></div>
         <div id="advResponse"></div>
     </div>
 
-    <div class="legal" id="legal">
-        <strong>LEGAL DISCLAIMER:</strong> SmartCargo by May Roga LLC is a PRIVATE advisory service. We are NOT government agents (TSA/CBP). We do NOT touch or certify cargo. Suggestions are based on international standards to mitigate financial risks.
-    </div>
+    <div class="legal" id="legal"></div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
