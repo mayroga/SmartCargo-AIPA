@@ -1,60 +1,33 @@
 const content = {
     en: {
-        promo: "<strong>Cargo Protection:</strong> Technical advisory to mitigate risks of fines and damages. 2-Hour Maximum Window.",
+        promo: "<strong>Cargo Protection:</strong> Technical advisory to mitigate risks. 2-Hour Maximum Window.",
         t_activation: "1. SERVICE ACTIVATION",
-        t_solutions: "2. CARGO SOLUTION CENTER",
+        t_solutions: "2. TECHNICAL ADVISORY CENTER",
         t_scan: "📷 SCAN CARGO / DOCUMENTS",
-        t_compliance: "Visual Audit | International Standards",
-        legal: "<strong>LEGAL NOTICE:</strong> Private advisory by May Roga LLC. Not a gov agency. Suggestions for risk mitigation only.",
+        t_compliance: "Technical Advisory | International Standards",
+        i_title: "INSPECTION PROTOCOL",
+        i_body: "For a precise advisory, upload at least 3 photos:<br><strong>1. Front View:</strong> Stability.<br><strong>2. Side View:</strong> Structure.<br><strong>3. Labels & Seals:</strong> ID and Compliance.",
+        legal: "<strong>LEGAL NOTICE:</strong> Private technical advisory by May Roga LLC. Not a government agency. Information for risk mitigation purposes only.",
         btn_wa: "🟢 SEND TO WHATSAPP",
         btn_clear: "🗑️ CLEAR & NEXT",
         session_msg: "Access Time Left:"
     },
     es: {
-        promo: "<strong>Protección de Carga:</strong> Asesoría técnica para mitigar riesgos de multas y daños. Ventana Máxima de 2 Horas.",
+        promo: "<strong>Protección de Carga:</strong> Asesoría técnica para mitigar riesgos. Ventana Máxima de 2 Horas.",
         t_activation: "1. ACTIVACIÓN DE SERVICIO",
-        t_solutions: "2. CENTRO DE SOLUCIONES",
+        t_solutions: "2. CENTRO DE ASESORÍA TÉCNICA",
         t_scan: "📷 ESCANEAR CARGA / PAPELES",
-        t_compliance: "Auditoría Visual | Normas Internacionales",
-        legal: "<strong>AVISO LEGAL:</strong> Asesoría privada de May Roga LLC. No somos agencia gubernamental. Solo sugerencias técnicas.",
+        t_compliance: "Asesoría Técnica | Normas Internacionales",
+        i_title: "PROTOCOLO DE INSPECCIÓN",
+        i_body: "Para una asesoría precisa, suba al menos 3 fotos:<br><strong>1. Frontal:</strong> Estabilidad.<br><strong>2. Lateral:</strong> Estructura.<br><strong>3. Etiquetas/Sellos:</strong> Identificación.",
+        legal: "<strong>AVISO LEGAL:</strong> Asesoría técnica privada de May Roga LLC. No somos agencia gubernamental. Información solo para mitigación de riesgos.",
         btn_wa: "🟢 ENVIAR POR WHATSAPP",
         btn_clear: "🗑️ LIMPIAR Y SEGUIR",
         session_msg: "Tiempo de Acceso Restante:"
     }
 };
 
-// --- CONFIGURACIÓN DE TIEMPO ESTRICTO ---
-const TIME_MAP = {
-    "5": 10,   // 10 min
-    "10": 30,  // 30 min
-    "45": 60,  // 1 hora
-    "95": 120  // 2 horas MÁXIMO
-};
-
-function checkSession() {
-    const authTime = localStorage.getItem("sc_auth_time");
-    const duration = localStorage.getItem("sc_auth_duration");
-    const isAuth = localStorage.getItem("sc_auth") === "true";
-
-    if (isAuth && authTime && duration) {
-        const now = new Date().getTime();
-        const limit = parseInt(duration) * 60 * 1000;
-        const elapsed = now - parseInt(authTime);
-
-        if (elapsed > limit) {
-            localStorage.clear();
-            alert("TIME EXPIRED. Please pay for a new session.");
-            location.reload();
-        } else {
-            unlockApp();
-            const remaining = Math.ceil((limit - elapsed) / 60000);
-            document.getElementById("sessionTimer").style.display = "block";
-            document.getElementById("sessionMins").innerText = remaining;
-            const lang = localStorage.getItem("user_lang") || "en";
-            document.getElementById("sessionMsg").innerText = content[lang].session_msg;
-        }
-    }
-}
+const TIME_MAP = { "5": 10, "10": 30, "45": 60, "95": 120 };
 
 async function processImage(file) {
     return new Promise((resolve) => {
@@ -85,6 +58,8 @@ function setLang(lang) {
     document.getElementById("t_solutions").innerText = t.t_solutions;
     document.getElementById("t_scan").innerText = t.t_scan;
     document.getElementById("t_compliance").innerText = t.t_compliance;
+    document.getElementById("i_title").innerText = t.i_title;
+    document.getElementById("i_body").innerHTML = t.i_body;
     document.getElementById("legal").innerHTML = t.legal;
 }
 
@@ -99,6 +74,28 @@ function unlockApp() {
     document.getElementById("mainApp").style.opacity = "1";
     document.getElementById("mainApp").style.pointerEvents = "all";
     document.getElementById("accessSection").style.display = "none";
+}
+
+function checkSession() {
+    const authTime = localStorage.getItem("sc_auth_time");
+    const duration = localStorage.getItem("sc_auth_duration");
+    const isAuth = localStorage.getItem("sc_auth") === "true";
+    if (isAuth && authTime && duration) {
+        const now = new Date().getTime();
+        const limit = parseInt(duration) * 60 * 1000;
+        const elapsed = now - parseInt(authTime);
+        if (elapsed > limit) {
+            localStorage.clear();
+            alert("TIME EXPIRED.");
+            location.reload();
+        } else {
+            unlockApp();
+            const remaining = Math.ceil((limit - elapsed) / 60000);
+            document.getElementById("sessionTimer").style.display = "block";
+            document.getElementById("sessionMins").innerText = remaining;
+            document.getElementById("sessionMsg").innerText = content[localStorage.getItem("user_lang") || "en"].session_msg;
+        }
+    }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -131,22 +128,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const amt = document.getElementById("priceSelect").value;
         const u = prompt("ADMIN USER:");
         const p = prompt("ADMIN PASS:");
-        
         localStorage.setItem("sc_pending_duration", TIME_MAP[amt]);
-
         const fd = new FormData();
         fd.append("awb", awb); fd.append("amount", amt);
         if(u) fd.append("user", u); if(p) fd.append("password", p);
         const res = await fetch(`/create-payment`, { method: "POST", body: fd });
         const data = await res.json();
-        if(data.url) {
-            if(u && p) { // Admin bypass
-                localStorage.setItem("sc_auth", "true");
-                localStorage.setItem("sc_auth_time", new Date().getTime().toString());
-                localStorage.setItem("sc_auth_duration", TIME_MAP[amt]);
-            }
-            window.location.href = data.url;
-        }
+        if(data.url) window.location.href = data.url;
     };
 
     document.getElementById("advForm").onsubmit = async (e) => {
@@ -155,20 +143,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const out = document.getElementById("advResponse");
         loader.style.display = "block";
         out.innerHTML = "";
-
         const fd = new FormData();
         const lang = localStorage.getItem("user_lang") || "en";
         const files = document.getElementById('fileInput').files;
-
         for (let i = 0; i < files.length; i++) {
             const blob = await processImage(files[i]);
             fd.append("files", blob, `cargo_${i}.jpg`);
         }
-
-        const masterPrompt = `Senior Technical Advisor (May Roga LLC). Private Advisory only. Role: ${document.getElementById('roleInput').value}. If images fail, ask technical questions. Be brief and professional.`;
-        fd.append("prompt", `${masterPrompt} | Cargo: ${document.getElementById('promptArea').value}`);
+        const masterPrompt = `Senior Technical Advisor (May Roga LLC). Private Advisory Service. Analyze all views.`;
+        fd.append("prompt", `${masterPrompt} | Cargo Details: ${document.getElementById('promptArea').value}`);
         fd.append("lang", lang);
-
         try {
             const res = await fetch(`/advisory`, { method: "POST", body: fd });
             const data = await res.json();
@@ -179,11 +163,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     <button class="whatsapp-btn" onclick="shareWA()">${content[lang].btn_wa}</button>
                     <button class="clear-btn" onclick="resetApp()">${content[lang].btn_clear}</button>
                 </div>`;
-        } catch (err) { out.innerHTML = "Connection Error."; }
+        } catch (err) { out.innerHTML = "Error."; }
         finally { loader.style.display = "none"; }
     };
 
-    // Al regresar de Stripe
     const params = new URLSearchParams(window.location.search);
     if (params.get("access") === "granted") {
         localStorage.setItem("sc_auth", "true");
@@ -191,12 +174,11 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem("sc_auth_duration", localStorage.getItem("sc_pending_duration") || 10);
         unlockApp();
     }
-
     checkSession();
-    setInterval(checkSession, 30000); // Revisar cada 30 seg
+    setInterval(checkSession, 30000);
 });
 
 function shareWA() {
     const text = document.getElementById("finalReport").innerText.split('🟢')[0];
-    window.open(`https://wa.me/?text=${encodeURIComponent("SmartCargo Technical Advisory:\n\n" + text)}`, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent("SmartCargo Advisory:\n\n" + text)}`, '_blank');
 }
