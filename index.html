@@ -8,16 +8,26 @@
     <style>
         body { background: #f0f2f5; padding: 15px; font-family: sans-serif; }
         .app-card { max-width: 500px; margin: auto; background: white; border-top: 8px solid #001a35; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border-radius: 8px; }
-        .marketing-banner { background: #fffde7; border: 1px solid #fbc02d; padding: 15px; border-radius: 5px; margin-bottom: 20px; font-size: 12px; }
+        .mkt-banner { background: #fffde7; border: 1px solid #fbc02d; padding: 12px; border-radius: 5px; margin-bottom: 15px; font-size: 11px; color: #444; }
         .header { text-align: center; margin-bottom: 20px; }
         .header h4 { margin: 0; color: #001a35; font-weight: bold; }
-        .header p { margin: 0; color: #d4af37; font-size: 11px; font-weight: bold; text-transform: uppercase; }
-        #previewContainer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; background: #fafafa; padding: 10px; border-radius: 5px; min-height: 80px; }
-        #previewContainer img { width: 100%; height: 90px; object-fit: cover; border: 2px solid #001a35; border-radius: 4px; }
-        .voice-btn { background: #d32f2f; color: white; border: none; padding: 12px; width: 100%; font-weight: bold; margin-bottom: 10px; cursor: pointer; border-radius: 4px; }
+        .header p { margin: 0; color: #d4af37; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+        
+        /* Contenedor de fotos siempre visible */
+        #previewContainer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; background: #f8f9fa; padding: 10px; border-radius: 5px; border: 1px solid #ddd; min-height: 80px; }
+        #previewContainer img { width: 100%; height: 90px; object-fit: cover; border-radius: 4px; border: 2px solid #001a35; }
+        
+        .scan-box { border: 2px dashed #001a35; padding: 20px; text-align: center; cursor: pointer; background: #fff; margin-bottom: 10px; }
+        .voice-btn { background: #d32f2f; color: white; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 4px; margin-bottom: 10px; }
         .btn-main { background: #001a35; color: white; width: 100%; height: 50px; font-weight: bold; border-radius: 5px; cursor: pointer; border: none; text-transform: uppercase; }
-        .delete-btn { background: #eeeeee; color: #777; border: none; padding: 8px; font-size: 10px; cursor: pointer; border-radius: 3px; margin-top: 15px; width: 100%; }
-        .report-box { border: 2px solid #001a35; padding: 15px; margin-top: 20px; background: #fff; white-space: pre-wrap; font-size: 14px; }
+        .btn-execute { background: #1b5e20; color: white; width: 100%; height: 55px; font-weight: bold; border-radius: 5px; cursor: pointer; border: none; font-size: 16px; margin-top: 10px; }
+        
+        /* Modal de Pago (Oculto inicialmente) */
+        #paymentModal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center; }
+        .modal-content { background:white; padding:30px; border-radius:8px; width:90%; max-width:400px; text-align:center; }
+        
+        .delete-btn { background: #eeeeee; color: #777; border: none; padding: 10px; font-size: 11px; cursor: pointer; width: 100%; margin-top: 20px; border-radius: 4px; }
+        .report-box { border: 2px solid #001a35; padding: 15px; margin-top: 20px; background: #fff; white-space: pre-wrap; font-size: 13px; }
         .legal { font-size: 9px; color: #666; margin-top: 25px; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
     </style>
 </head>
@@ -29,45 +39,49 @@
         <p>TECHNICAL ADVISORY BY MAY ROGA LLC</p>
     </div>
 
-    <div class="marketing-banner" id="mkt_banner"></div>
+    <div class="mkt-banner" id="mkt_banner"></div>
 
     <div style="text-align: right; margin-bottom: 15px;">
-        <button onclick="setLang('en')">EN</button>
-        <button onclick="setLang('es')">ES</button>
+        <button onclick="setLang('en')" style="font-size: 10px;">EN</button>
+        <button onclick="setLang('es')" style="font-size: 10px;">ES</button>
     </div>
 
-    <div id="accessSection">
-        <input type="text" id="awbField" class="u-full-width" placeholder="AWB / BOL ID">
-        <select id="priceSelect" class="u-full-width">
-            <option value="5">Advisory Express (10m) - $5</option>
-            <option value="10">Advisory Standard (30m) - $10</option>
-            <option value="45">Advisory Priority (1h) - $45</option>
-            <option value="95">Advisory Expert (2h) - $95</option>
-        </select>
-        <button id="activateBtn" class="btn-main">VALIDATE ACCESS</button>
-    </div>
-
-    <div id="mainApp" style="display:none;">
-        <div id="timerDisplay" style="text-align:center; color:red; font-weight:bold; font-size:12px;"></div>
-        <div style="border: 2px dashed #001a35; padding: 20px; text-align: center; cursor: pointer;" onclick="document.getElementById('fileInput').click()">
-            <strong id="t_scan">📷 UPLOAD PHOTOS</strong>
+    <div id="mainApp">
+        <div class="scan-box" onclick="document.getElementById('fileInput').click()">
+            <strong id="t_scan">📷 CARGAR EVIDENCIA VISUAL</strong>
+            <p style="font-size:10px; margin:0;">Frente • Lado • Etiquetas</p>
         </div>
         <input type="file" id="fileInput" accept="image/*" multiple capture="environment" style="display:none">
         
         <div id="previewContainer"></div>
 
-        <button id="voiceBtn" class="voice-btn">🎤 <span id="t_voice">DESCRIBE BY VOICE</span></button>
-        <textarea id="promptArea" class="u-full-width" style="height: 100px;"></textarea>
+        <button id="voiceBtn" class="voice-btn">🎤 <span id="t_voice">DESCRIBIR POR VOZ</span></button>
+        <textarea id="promptArea" class="u-full-width" style="height: 100px;" placeholder="Describe la carga..."></textarea>
         
-        <button id="submitBtn" class="btn-main" style="background:#1b5e20;">EXECUTE ADVISORY</button>
+        <button id="submitBtn" class="btn-execute">OBTENER ASESORÍA TÉCNICA</button>
         
-        <button class="delete-btn" onclick="resetAll()" id="t_reset">🗑️ DELETE ALL DATA</button>
+        <button class="delete-btn" onclick="resetApp()" id="t_reset">🗑️ BORRAR TODO</button>
 
-        <div id="loader" style="display:none; text-align:center; margin-top:15px;"><strong>ANALYZING...</strong></div>
+        <div id="loader" style="display:none; text-align:center; margin-top:15px;"><strong>ANALIZANDO PROTOCOLO...</strong></div>
         <div id="advResponse"></div>
     </div>
 
     <div class="legal" id="t_legal"></div>
+</div>
+
+<div id="paymentModal">
+    <div class="modal-content">
+        <h5 id="pay_title">Activación de Asesoría</h5>
+        <p style="font-size:12px;" id="pay_desc">Seleccione el nivel de cobertura técnica para este envío:</p>
+        <input type="text" id="awbField" class="u-full-width" placeholder="AWB / ID">
+        <select id="priceSelect" class="u-full-width">
+            <option value="5">Express (10m) - $5</option>
+            <option value="10">Standard (30m) - $10</option>
+            <option value="95">Expert (2h) - $95</option>
+        </select>
+        <button id="activateBtn" class="btn-main">PAGAR Y VER RESULTADO</button>
+        <button onclick="document.getElementById('paymentModal').style.display='none'" style="border:none; background:none; color:red; margin-top:10px; cursor:pointer;">Cancelar</button>
+    </div>
 </div>
 
 <script src="app.js"></script>
