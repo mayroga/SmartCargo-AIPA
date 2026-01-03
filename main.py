@@ -66,11 +66,20 @@ async def advisory_engine(
                             }
                         })
             
-            # MECÁNICA DE CASCADA: Intentamos múltiples rutas de Google
+            # MECÁNICA DE CASCADA REFORZADA (6 INTENTOS)
             gemini_urls = [
+                # 1. Flash v1beta (La que intentamos primero)
                 f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}",
+                # 2. Flash v1 estable
                 f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}",
-                f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_KEY}"
+                # 3. Flash Latest (Ruta de respaldo)
+                f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_KEY}",
+                # 4. Flash 8B (La versión optimizada, suele funcionar cuando las otras fallan)
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key={GEMINI_KEY}",
+                # 5. Gemini 1.5 PRO (El motor más potente, por si Flash está bloqueado)
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={GEMINI_KEY}",
+                # 6. Gemini 1.5 PRO Estable
+                f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key={GEMINI_KEY}"
             ]
             
             async with httpx.AsyncClient() as client:
