@@ -1,101 +1,104 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SmartCargo AI | May Roga LLC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>SmartCargo Advisory | May Roga LLC</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
     <style>
-        :root { --primary: #01579b; --accent: #ffd600; --success: #2e7d32; }
-        body { background-color: #eceff1; margin: 0; padding: 10px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        .container { max-width: 500px; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        :root { --navy: #001a35; --gold: #d4af37; --danger: #b71c1c; }
+        body { background: #f4f4f4; font-family: 'Helvetica', sans-serif; color: #1a1a1a; margin: 0; padding: 10px; }
+        .app-card { max-width: 600px; margin: auto; background: white; border-top: 12px solid var(--navy); box-shadow: 0 15px 35px rgba(0,0,0,0.2); padding: 25px; }
         
-        /* Header & Lang */
-        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .logo-box h1 { font-size: 1.8rem; color: var(--primary); margin: 0; font-weight: 800; border-left: 5px solid var(--accent); padding-left: 10px; }
-        .lang-switcher button { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; background: white; font-weight: bold; }
-        .lang-active { background: var(--primary) !important; color: white; border-color: var(--primary); }
+        .lang-switch { text-align: right; margin-bottom: 15px; }
+        .lang-switch span { cursor: pointer; font-size: 11px; font-weight: bold; padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .active-lang { background: var(--navy); color: white; border-color: var(--navy); }
 
-        /* Role Buttons (Grandes para pulgares) */
-        .role-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
-        .role-btn { background: #f8f9fa; border: 2px solid #eee; padding: 15px 5px; text-align: center; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 0.9em; transition: 0.2s; }
-        .role-btn.active { background: #e3f2fd; border-color: var(--primary); color: var(--primary); transform: scale(0.98); }
+        .header { text-align: center; margin-bottom: 25px; }
+        .header h2 { margin: 0; font-weight: 900; letter-spacing: -1px; color: var(--navy); }
+        .header p { margin: 0; font-size: 11px; color: var(--gold); font-weight: bold; text-transform: uppercase; }
 
-        /* Camera Input Section */
-        .camera-section { background: #f1f8e9; border: 2px dashed var(--success); padding: 20px; border-radius: 12px; text-align: center; margin: 15px 0; }
-        .camera-label { display: block; font-weight: bold; color: var(--success); cursor: pointer; }
-        #fileInput { display: none; } /* Oculto para usar el label como botón */
-        .btn-camera { background: var(--success); color: white; padding: 12px; border-radius: 8px; display: inline-block; margin-top: 10px; width: 80%; }
-
-        /* Report Box */
-        .report-box { background: white; border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin-top: 20px; border-top: 5px solid var(--accent); }
-        #loader { text-align: center; color: var(--primary); font-weight: bold; display: none; padding: 20px; }
+        .service-banner { background: #eef2f7; border-left: 4px solid var(--gold); padding: 15px; font-size: 13px; margin-bottom: 20px; line-height: 1.4; }
         
-        input, textarea, select { font-size: 16px !important; } /* Evita zoom automático en iPhone */
+        .audit-activation { background: #fffde7; padding: 20px; border: 1px solid #fbc02d; margin-bottom: 25px; }
+        
+        .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+        .profile-btn { border: 1.5px solid var(--navy); padding: 15px 5px; text-align: center; cursor: pointer; font-size: 10px; font-weight: bold; transition: 0.2s; }
+        .profile-btn.active { background: var(--navy); color: white; }
+
+        .capture-zone { border: 2px dashed var(--navy); padding: 30px; text-align: center; background: #fafafa; cursor: pointer; margin-bottom: 15px; }
+        #previewContainer { display: flex; gap: 10px; overflow-x: auto; padding: 5px 0; }
+        .thumb { width: 70px; height: 70px; object-fit: cover; border: 1px solid var(--navy); }
+
+        .btn-run { background: var(--navy); color: white; width: 100%; height: 60px; font-weight: bold; border: none; cursor: pointer; font-size: 16px; text-transform: uppercase; }
+        #loader { display: none; text-align: center; padding: 20px; font-weight: bold; color: var(--navy); }
+        
+        .legal-footer { font-size: 9px; color: #666; background: #f9f9f9; padding: 15px; border: 1px solid #ddd; margin-top: 30px; text-align: justify; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header-flex">
-        <div class="logo-box">
-            <h1>SmartCargo</h1>
-            <small>by May Roga LLC</small>
-        </div>
-        <div class="lang-switcher">
-            <button id="btnEn" onclick="setLang('en')">EN</button>
-            <button id="btnEs" onclick="setLang('es')">ES</button>
-        </div>
+<div class="app-card">
+    <div class="lang-switch">
+        <span id="btnEn" class="active-lang" onclick="setLang('en')">ENGLISH</span>
+        <span id="btnEs" onclick="setLang('es')">ESPAÑOL</span>
     </div>
 
+    <div class="header">
+        <h2>SMARTCARGO</h2>
+        <p>Technical Advisory | Miami - Florida</p>
+        <small style="font-size: 10px;">A Professional Service by <strong>May Roga LLC</strong></small>
+    </div>
+
+    <div class="service-banner" id="promoText"></div>
+
     <div id="accessSection">
-        <h6 id="t_act">1. Service Activation</h6>
-        <input type="text" id="awbField" class="u-full-width" placeholder="AWB / Tracking ID">
-        <select id="priceSelect" class="u-full-width">
-            <option value="10">Advisory Audit - $10</option>
-            <option value="25">Shield Audit - $25</option>
-        </select>
-        <button id="activateBtn" class="button-primary u-full-width" style="height: 50px;">ACTIVATE ENGINE</button>
+        <div class="audit-activation">
+            <label id="t_pago" style="font-weight: bold;">1. PROTOCOL ACTIVATION</label>
+            <input type="text" id="awbField" class="u-full-width" placeholder="Reference ID (AWB / BOL / Booking)">
+            <select id="priceSelect" class="u-full-width">
+                <option value="5">Courier & Passenger Cargo ($5)</option>
+                <option value="10">Standard LTL/Commercial Audit ($10)</option>
+                <option value="45">Critical & HAZMAT Protocol ($45)</option>
+                <option value="95">Special Project / Heavy Lift ($95)</option>
+            </select>
+        </div>
+        <button id="activateBtn" class="btn-run">Activate Technical Engine</button>
     </div>
 
     <div id="mainApp" style="opacity: 0.1; pointer-events: none;">
-        <h6 id="t_sol">2. Solution Center</h6>
+        <h6 id="t_sol" style="font-weight: bold; color: var(--navy);">2. TECHNICAL SOLUTION CENTER</h6>
         
-        <div class="role-selector">
-            <div class="role-btn active" data-role="shipper">📦 SHIPPER</div>
-            <div class="role-btn" data-role="forwarder">✈️ FORWARDER</div>
-            <div class="role-btn" data-role="trucker">🚛 TRUCKER</div>
-            <div class="role-btn" data-role="counter">🏢 COUNTER</div>
+        <div class="profile-grid">
+            <div class="profile-btn active" data-role="shipper">SHIPPER / EXPORTER</div>
+            <div class="profile-btn" data-role="forwarder">FREIGHT FORWARDER</div>
+            <div class="profile-btn" data-role="trucker">GROUND LOGISTICS</div>
+            <div class="profile-btn" data-role="counter">INSPECTION / WHSE</div>
         </div>
 
         <form id="advForm">
             <input type="hidden" name="role" id="roleInput" value="shipper">
             
-            <div class="camera-section">
-                <label for="fileInput" class="camera-label">
-                    📷 <span id="t_photo">TAP TO TAKE PHOTOS</span>
-                    <div class="btn-camera">OPEN CAMERA</div>
-                </label>
-                <input type="file" name="files" id="fileInput" accept="image/*" multiple capture="environment">
-                <div id="fileCount" style="font-size: 0.7em; margin-top: 5px; color: #558b2f;"></div>
+            <div class="capture-zone" onclick="document.getElementById('fileInput').click()">
+                <strong id="t_cam">📷 CAPTURE VISUAL EVIDENCE</strong>
+                <p style="font-size: 10px; margin: 0;">Automated Analysis for IATA/DOT/TSA Compliance</p>
             </div>
+            <input type="file" name="files" id="fileInput" accept="image/*" multiple capture="environment" style="display:none">
 
-            <textarea name="prompt" id="promptArea" placeholder="Additional notes..."></textarea>
+            <div id="previewContainer"></div>
+
+            <textarea name="prompt" id="promptArea" class="u-full-width" placeholder="Describe the load or your specific safety concern..."></textarea>
             
-            <button type="submit" id="submitBtn" class="button-primary u-full-width" style="background: var(--primary); border:none; height: 55px; font-size: 1.1rem;">RUN ANALYSIS</button>
+            <button type="submit" id="submitBtn" class="btn-run" style="background: #1b5e20;">Execute Technical Audit</button>
         </form>
 
-        <div id="loader">
-            <img src="https://i.gifer.com/ZKZg.gif" width="30"><br>
-            SECURELY ANALYZING CARGO...
-        </div>
-
+        <div id="loader">CONSULTING NORMATIVE DATABASE...</div>
         <div id="advResponse"></div>
+    </div>
 
-        <div id="actionBtns" style="display:none; gap:10px; margin-top:15px;">
-            <button onclick="downloadPDF()" style="flex:1">📄 PDF</button>
-            <button onclick="shareWA()" style="flex:1; background:#25d366; color:white; border:none;">🟢 WhatsApp</button>
-        </div>
+    <div class="legal-footer">
+        <strong id="l_title"></strong><br>
+        <span id="l_desc"></span>
     </div>
 </div>
 
