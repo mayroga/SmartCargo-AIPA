@@ -1,97 +1,103 @@
-const translations = {
-    en: {
-        act: "1. Service Activation",
-        sol: "2. Solution Center",
-        m_title: "Why SmartCargo?",
-        m_desc: "We provide stability to the entire logistics chain. We prevent fines and holds so the paying customer never loses money.",
-        l_title: "⚠️ Legal Shield",
-        l_desc: "We are PRIVATE ADVISORS. Not IATA/TSA/DOT. We provide technical solutions; we don't certify DG or handle cargo."
-    },
-    es: {
-        act: "1. Activación de Servicio",
-        sol: "2. Centro de Soluciones",
-        m_title: "¿Por qué SmartCargo?",
-        m_desc: "Damos estabilidad a toda la cadena logística. Evitamos multas y retenciones para que el cliente que paga nunca pierda dinero.",
-        l_title: "⚠️ Blindaje Legal",
-        l_desc: "Somos ASESORES PRIVADOS. No somos IATA/TSA/DOT. Damos soluciones técnicas; no certificamos carga peligrosa ni manipulamos carga."
-    }
-};
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCargo AI - Auditoría Técnica</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
+    <style>
+        body { background-color: #f4f7f6; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .container { max-width: 800px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .logo { font-weight: bold; color: #01579b; font-size: 2.4rem; margin-bottom: 20px; border-left: 5px solid #ffd600; padding-left: 15px; }
+        
+        /* Roles Selector */
+        .role-selector { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .role-btn { flex: 1; border: 1px solid #ddd; background: #fff; cursor: pointer; transition: 0.3s; padding: 10px; font-size: 0.8em; text-transform: uppercase; }
+        .role-btn.active { background: #01579b; color: white; border-color: #01579b; font-weight: bold; }
+        
+        /* Secciones */
+        #accessSection { background: #fffde7; padding: 20px; border-radius: 8px; border: 1px solid #fff59d; margin-bottom: 30px; }
+        #mainApp { transition: opacity 0.5s ease; }
+        
+        textarea { width: 100%; height: 120px; resize: none; }
+        .report-box { background: #fafafa; border: 1px solid #01579b; padding: 25px; border-radius: 8px; margin-top: 20px; line-height: 1.6; }
+        #loader { color: #01579b; font-weight: bold; display: none; margin: 15px 0; }
+        
+        .footer-info { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 0.9em; }
+    </style>
+</head>
+<body>
 
-let timer;
+<div class="container">
+    <div class="logo">SmartCargo AI</div>
 
-function setLang(lang) {
-    localStorage.setItem("user_lang", lang);
-    const t = translations[lang] || translations.en;
-    document.getElementById("t_act").innerText = t.act;
-    document.getElementById("t_sol").innerText = t.sol;
-    document.getElementById("m_title").innerText = t.m_title;
-    document.getElementById("m_desc").innerText = t.m_desc;
-    document.getElementById("l_title").innerText = t.l_title;
-    document.getElementById("l_desc").innerText = t.l_desc;
-}
+    <div id="accessSection">
+        <h5 id="t_act">1. Service Activation</h5>
+        <div class="row">
+            <div class="six columns">
+                <label>Master AWB / ID</label>
+                <input type="text" id="awbField" class="u-full-width" placeholder="Ej: 020-12345678">
+            </div>
+            <div class="six columns">
+                <label>Audit Level</label>
+                <select id="priceSelect" class="u-full-width">
+                    <option value="10">Technical Audit - $10</option>
+                    <option value="25">Full Cargo Shield - $25</option>
+                </select>
+            </div>
+        </div>
+        <button id="activateBtn" class="button-primary u-full-width">Unlock Analysis Engine</button>
+    </div>
 
-function unlock() {
-    document.getElementById("mainApp").style.opacity = "1";
-    document.getElementById("mainApp").style.pointerEvents = "all";
-    document.getElementById("accessSection").style.display = "none";
-}
+    <div id="mainApp" style="opacity: 0.2; pointer-events: none;">
+        <h5 id="t_sol">2. SmartCargo Solution Center</h5>
+        
+        <label>Select your profile:</label>
+        <div class="role-selector">
+            <button type="button" class="role-btn active" data-role="shipper">Shipper</button>
+            <button type="button" class="role-btn" data-role="forwarder">Freight FWD</button>
+            <button type="button" class="role-btn" data-role="trucker">Trucker</button>
+            <button type="button" class="role-btn" data-role="counter">Counter/Whse</button>
+        </div>
 
-document.addEventListener("DOMContentLoaded", () => {
-    setLang(localStorage.getItem("user_lang") || "en");
+        <form id="advForm">
+            <input type="hidden" name="role" id="roleInput" value="shipper">
+            
+            <label>Detailed Observations (Optional):</label>
+            <textarea name="prompt" id="promptArea" placeholder="Describe specific damages, missing labels, or cargo condition..."></textarea>
+            
+            <label>Upload Evidence (Photos):</label>
+            <input type="file" name="files" id="fileInput" accept="image/*" multiple>
+            <p style="font-size: 0.7em; color: gray;">* Up to 3 high-res images for Gemini 1.5 Vision analysis.</p>
 
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("access") === "granted" || localStorage.getItem("sc_auth") === "true") {
-        localStorage.setItem("sc_auth", "true");
-        unlock();
-    }
+            <button type="submit" id="submitBtn" class="button-primary u-full-width" style="background: #2e7d32; border:none;">🚀 Run Technical Audit</button>
+        </form>
 
-    document.getElementById("activateBtn").onclick = async () => {
-        const awb = document.getElementById("awbField").value || "N/A";
-        const amt = document.getElementById("priceSelect").value;
-        const user = prompt("ADMIN USER:");
-        const pass = prompt("ADMIN PASS:");
+        <div id="loader">🔍 SMARTCARGO AI: ANALYZING IMAGES & REGULATIONS...</div>
+        
+        <div id="advResponse"></div>
 
-        const fd = new FormData();
-        fd.append("awb", awb); fd.append("amount", amt);
-        if(user) fd.append("user", user); if(pass) fd.append("password", pass);
+        <div id="actionBtns" style="display:none; gap:10px; margin-top:15px;">
+            <button onclick="downloadPDF()" class="button">📄 Download Report</button>
+            <button onclick="shareWA()" class="button">🟢 Send to WhatsApp</button>
+        </div>
 
-        const res = await fetch(`/create-payment`, { method: "POST", body: fd });
-        const data = await res.json();
-        if(data.url) window.location.href = data.url;
-    };
+        <div id="timerBox" style="display:none; color: #d32f2f; font-weight: bold; text-align: center; margin-top: 20px;">
+            ⏳ Privacy Alert: Session expires in <span id="secs">300</span>s.
+        </div>
+    </div>
 
-    document.getElementById("advForm").onsubmit = async (e) => {
-        e.preventDefault();
-        const out = document.getElementById("advResponse");
-        out.innerHTML = "<h4>🔍 Analyzing technical solutions...</h4>";
-       
-        const fd = new FormData(e.target);
-        fd.append("lang", localStorage.getItem("user_lang") || "en");
+    <div class="footer-info">
+        <h6 id="m_title">Why SmartCargo?</h6>
+        <p id="m_desc" style="color: #666;"></p>
+        <div style="background: #f1f1f1; padding: 15px; border-radius: 5px;">
+            <strong id="l_title"></strong><br>
+            <small id="l_desc"></small>
+        </div>
+    </div>
+</div>
 
-        const res = await fetch(`/advisory`, { method: "POST", body: fd });
-        const data = await res.json();
-        const curLang = localStorage.getItem("user_lang") || "en";
-       
-        out.innerHTML = `
-            <div id="finalReport" class="report-box">
-                <h3 style="color:#01579b; border-bottom:2px solid #ffd600;">TACTICAL ACTION PLAN</h3>
-                <p style="white-space: pre-wrap;">${data.data}</p>
-                <hr>
-                <p style="font-size:0.7em; color:gray;"><strong>Legal Notice:</strong> ${translations[curLang].l_desc}</p>
-            </div>`;
-        document.getElementById("actionBtns").style.display = "flex";
-
-        // Iniciar cronómetro de privacidad
-        document.getElementById("timerBox").style.display = "block";
-        let timeLeft = 300;
-        clearInterval(timer);
-        timer = setInterval(() => {
-            timeLeft--;
-            document.getElementById("secs").innerText = timeLeft;
-            if(timeLeft <= 0) location.reload();
-        }, 1000);
-    };
-});
-
-function downloadPDF() { html2pdf().from(document.getElementById("finalReport")).save("SmartCargo_Report.pdf"); }
-function shareWA() { window.open(`https://wa.me/?text=${encodeURIComponent(document.getElementById("finalReport").innerText)}`, '_blank'); }
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
