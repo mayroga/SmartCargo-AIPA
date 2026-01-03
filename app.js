@@ -1,46 +1,28 @@
 const content = {
     en: {
-        promo: "<strong>Total Asset Protection.</strong> We ensure the <strong>Shipper's</strong> cargo reaches its destination safely, help <strong>Forwarders</strong> comply with TSA/Aeronautics, assist <strong>Truckers</strong> with DOT weight distribution, and eliminate 'Holds' at <strong>Warehouse</strong> entry for both commercial and passenger cargo.",
-        t_pago: "1. PROTOCOL ACTIVATION",
-        t_sol: "2. TECHNICAL SOLUTION CENTER",
-        t_cam: "📷 CAPTURE VISUAL EVIDENCE",
-        l_title: "⚠️ LEGAL DISCLAIMER - MAY ROGA LLC",
-        l_desc: "Private advisory only. We are not a government agency (TSA/CBP). We do not certify Dangerous Goods. This analysis is based on international IATA/DOT/FMC standards to mitigate operational risk. Sessions are purged immediately after use."
+        promo: "<strong>Cargo Protection:</strong> We audit the entire logistics chain (Sea, Land, Air) to prevent fines, holds, and damages. From Shipper to Final Operator.",
+        t_scan: "📷 SCAN CARGO / DOCUMENTS",
+        legal: "<strong>LEGAL DISCLAIMER:</strong> SmartCargo by May Roga LLC is a PRIVATE advisory service. We are NOT government agents (TSA/CBP). We do NOT touch or certify cargo. Suggestions are based on international standards to mitigate financial risks."
     },
     es: {
-        promo: "<strong>Protección Total.</strong> Aseguramos que la carga del <strong>Shipper</strong> llegue segura, ayudamos al <strong>Forwarder</strong> a cumplir con TSA/Aeronáutica, asistimos al <strong>Transportista</strong> con normas DOT de Florida y eliminamos 'Holds' en <strong>Bodega</strong> tanto para carga comercial como de pasajeros.",
-        t_pago: "1. ACTIVACIÓN DE PROTOCOLO",
-        t_sol: "2. CENTRO DE SOLUCIONES TÉCNICAS",
-        t_cam: "📷 CARGAR EVIDENCIA VISUAL",
-        l_title: "⚠️ AVISO LEGAL - MAY ROGA LLC",
-        l_desc: "Asesoría privada únicamente. No somos agencia gubernamental (TSA/CBP). No certificamos Carga Peligrosa. Este análisis se basa en normas internacionales IATA/DOT/FMC para mitigar riesgos operativos. Las sesiones se purgan tras su uso."
+        promo: "<strong>Protección de Carga:</strong> Auditamos toda la cadena (Mar, Tierra, Aire) para evitar multas y daños. Del Shipper al Operador Final.",
+        t_scan: "📷 ESCANEAR CARGA / PAPELES",
+        legal: "<strong>AVISO LEGAL:</strong> SmartCargo de May Roga LLC es asesoría PRIVADA. NO somos agentes del gobierno. NO tocamos ni certificamos carga. Sugerencias basadas en normas internacionales."
     }
-};
-
-const technicalRoles = {
-    shipper: "Export/Passenger Cargo Quality Audit.",
-    forwarder: "TSA/Aeronautics Compliance & Documentation.",
-    trucker: "DOT Federal/Florida Safety & Load Distribution.",
-    counter: "Receiving & Warehouse Acceptance Criteria."
 };
 
 function setLang(lang) {
     localStorage.setItem("user_lang", lang);
     const t = content[lang];
-    document.getElementById("promoText").innerHTML = t.promo;
-    document.getElementById("t_pago").innerText = t.t_pago;
-    document.getElementById("t_sol").innerText = t.t_sol;
-    document.getElementById("t_cam").innerText = t.t_cam;
-    document.getElementById("l_title").innerText = t.l_title;
-    document.getElementById("l_desc").innerText = t.l_desc;
-
-    document.getElementById("btnEn").className = lang === 'en' ? 'active-lang' : '';
-    document.getElementById("btnEs").className = lang === 'es' ? 'active-lang' : '';
+    document.getElementById("promo").innerHTML = t.promo;
+    document.getElementById("t_scan").innerText = t.t_scan;
+    document.getElementById("legal").innerHTML = t.legal;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
     setLang(localStorage.getItem("user_lang") || "en");
 
+    // Manejo de Fotos
     document.getElementById('fileInput').onchange = function() {
         const container = document.getElementById('previewContainer');
         container.innerHTML = "";
@@ -48,23 +30,25 @@ document.addEventListener("DOMContentLoaded", () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = document.createElement('img');
-                img.src = e.target.result; img.className = 'thumb';
+                img.src = e.target.result;
                 container.appendChild(img);
             };
             reader.readAsDataURL(file);
         });
     };
 
-    document.querySelectorAll('.profile-btn').forEach(btn => {
+    // Selección de Roles
+    document.querySelectorAll('.role-btn').forEach(btn => {
         btn.onclick = function() {
-            document.querySelectorAll('.profile-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             document.getElementById('roleInput').value = this.dataset.role;
         };
     });
 
+    // ACTIVACIÓN (ADMIN INCLUIDO)
     document.getElementById("activateBtn").onclick = async () => {
-        const awb = document.getElementById("awbField").value || "GUEST-AUDIT";
+        const awb = document.getElementById("awbField").value || "INTERNAL-AUDIT";
         const amt = document.getElementById("priceSelect").value;
         const u = prompt("ADMIN USER:");
         const p = prompt("ADMIN PASS:");
@@ -78,42 +62,45 @@ document.addEventListener("DOMContentLoaded", () => {
         if(data.url) window.location.href = data.url;
     };
 
+    // GENERAR SOLUCIÓN
     document.getElementById("advForm").onsubmit = async (e) => {
         e.preventDefault();
         const loader = document.getElementById("loader");
         const out = document.getElementById("advResponse");
         loader.style.display = "block";
         out.innerHTML = "";
-        
+
         const fd = new FormData(e.target);
         const role = document.getElementById('roleInput').value;
 
-        // INSTRUCCIÓN TÉCNICA MAESTRA (Audit Logic)
-        const masterPrompt = `You are the Senior Technical Auditor at SmartCargo (May Roga LLC), located in Miami, Florida. 
-        MANDATORY KNOWLEDGE: IATA, DOT (Federal/Florida), TSA, FAA, and Maritime regulations. 
-        SCOPE: Commercial Freight & Passenger Cargo.
-        PROTOCOL:
-        1. ANALYZE visual evidence.
-        2. IF images are unclear or missing, IMMEDIATELY initiate a technical interview. Ask 3 specific questions (e.g., Weight distribution, HAZMAT presence, Pallet integrity) to guide the client to a solution.
-        3. DO NOT act as a chatbot. Act as a Technical Advisor.
-        4. DELIVER immediate solutions based on Miami/Florida transport laws.
-        ROLE CONTEXT: ${technicalRoles[role]}.
-        PURGE POLICY: Do not store or mention sensitive data. No AI mentions.`;
+        // INSTRUCCIÓN MAESTRA TÉCNICA
+        const masterPrompt = `Senior Advisor at SmartCargo (May Roga LLC). 
+        CONTEXT: Audit cargo in the logistics chain (Air, Sea, Land). 
+        LAWS: IATA, DOT, TSA, Maritime. 
+        MISION: Prevent fines and holds. If photos are not clear, ASK technical questions (weight, HAZMAT, pallet type). 
+        ROLE: ${role}. Provide IMMEDIATE SOLUTIONS. No AI mentions. Private Advisory Only.`;
 
-        fd.set("prompt", `${masterPrompt} | Client Input: ${document.getElementById('promptArea').value}`);
+        fd.set("prompt", `${masterPrompt} | Cargo Details: ${document.getElementById('promptArea').value}`);
         fd.append("lang", localStorage.getItem("user_lang") || "en");
 
         try {
             const res = await fetch(`/advisory`, { method: "POST", body: fd });
             const data = await res.json();
-            out.innerHTML = `<div id="finalReport" style="border:2px solid var(--navy); padding:20px; margin-top:20px; background:#fff;">
-                <h6 style="color:var(--navy); border-bottom:1px solid var(--gold); padding-bottom:5px;">OFFICIAL TECHNICAL ACTION PLAN</h6>
-                <p style="white-space: pre-wrap; font-size:13px; color:#1a1a1a;">${data.data}</p>
-                <hr>
-                <button onclick="window.location.reload()" style="font-size:10px;">PURGE & NEW AUDIT</button>
+            out.innerHTML = `<div style="border:2px solid #001a35; padding:15px; margin-top:15px;">
+                <h6 style="color:#001a35; border-bottom:1px solid #d4af37;">TECHNICAL ACTION PLAN</h6>
+                <p style="white-space: pre-wrap; font-size:13px;">${data.data}</p>
+                <button onclick="window.location.reload()" style="font-size:9px;">CLEAR SESSION</button>
             </div>`;
-            document.getElementById('promptArea').value = ""; // Clear for privacy
-        } catch (e) { out.innerHTML = "System Busy. Backup engaged."; }
+        } catch (e) { out.innerHTML = "System Error. Check connection."; }
         finally { loader.style.display = "none"; }
     };
+
+    // Verificar si ya tiene acceso
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("access") === "granted" || localStorage.getItem("sc_auth") === "true") {
+        localStorage.setItem("sc_auth", "true");
+        document.getElementById("mainApp").style.opacity = "1";
+        document.getElementById("mainApp").style.pointerEvents = "all";
+        document.getElementById("accessSection").style.display = "none";
+    }
 });
