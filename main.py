@@ -2,6 +2,7 @@ import os
 import stripe
 import httpx
 import base64
+import openai
 from fastapi import FastAPI, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -11,12 +12,6 @@ from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI()
 
-# Configuración de llaves y Admin
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-ADMIN_USER = os.getenv("ADMIN_USERNAME")
-ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,69 +19,65 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+ADMIN_USER = os.getenv("ADMIN_USERNAME")
+ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
+
 @app.get("/")
 async def home(): return FileResponse("index.html")
 
 @app.get("/app.js")
-async def serve_js(): return FileResponse("app.js")
+async def js(): return FileResponse("app.js")
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
-    # Base URL de tu App en Render
     base_url = "https://smartcargo-aipa.onrender.com" 
-    success_url = f"{base_url}/?access=granted&awb={awb}&amt={amount}"
-
-    # BYPASS PARA MAY ROGA (GRATIS)
-    if user == ADMIN_USER and password == ADMIN_PASS:
-        return {"url": success_url}
-
-    # COBRO POR STRIPE PARA CLIENTES
-    try:
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {"name": f"SmartCargo Advisory Ref: {awb}"},
-                    "unit_amount": int(amount * 100)
-                },
-                "quantity": 1
-            }],
-            mode="payment",
-            success_url=success_url,
-            cancel_url=base_url,
-        )
-        return {"url": session.url}
-    except Exception as e:
-        return {"error": str(e)}
+    success_url = f"{base_url}/?access=granted&awb={awb}"
+    if user == ADMIN_USER and password == ADMIN_PASS: return {"url": success_url}
+    
+    session = stripe.checkout.Session.create(
+        payment_method_types=["card"],
+        line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Advisory AWB: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
+        mode="payment", success_url=success_url, cancel_url=base_url
+    )
+    return {"url": session.url}
 
 @app.post("/advisory")
 async def advisory_engine(prompt: str = Form(""), lang: str = Form("en"), files: List[UploadFile] = File(None)):
-    # Instrucción Maestra: Escuchar al cliente y usar fotos como apoyo
-    system_instruction = (
-        "You are the Technical Advisory Engine of SmartCargo by May Roga LLC. "
-        "Your priority is the CUSTOMER'S DESCRIPTION (provided via voice or text). "
-        "Analyze the photos to mitigate risks (IATA, DOT, TSA). "
-        "If photos are unclear, ask the user to describe specifics (pallet status, leaning, label text). "
-        "Be professional, technical, and brief. "
-        f"Respond in: {lang}."
+    instruction = (
+        "You are the Technical Advisor of SmartCargo by May Roga LLC. "
+        "Acknowledge the photos. If unclear, use the customer's text/voice to guide them. "
+        "Goal: Mitigate DOT/IATA risks. Be professional and brief. "
+        f"Language: {lang}."
     )
 
-    parts = [{"text": f"{system_instruction}\n\nClient Input: {prompt}"}]
-    if files:
-        for img in files[:3]:
-            content = await img.read()
-            parts.append({"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(content).decode("utf-8")}})
+    # Intento 1: Gemini (Multimodal)
+    if GEMINI_KEY:
+        try:
+            parts = [{"text": f"{instruction}\n\nClient Input: {prompt}"}]
+            if files:
+                for img in files[:3]:
+                    content = await img.read()
+                    parts.append({"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(content).decode("utf-8")}})
 
-    async with httpx.AsyncClient() as client:
-        # Cascada de modelos
-        for model in ["gemini-1.5-flash", "gemini-1.5-pro"]:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_KEY}"
-            try:
-                r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=40.0)
-                res_data = r.json()
-                if "candidates" in res_data:
-                    return {"data": res_data["candidates"][0]["content"]["parts"][0]["text"]}
-            except: continue
-    
-    return {"data": "System temporarily busy. Please ensure your cargo description is detailed for manual-style advisory."}
+            async with httpx.AsyncClient() as client:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+                r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=45.0)
+                res = r.json()
+                return {"data": res["candidates"][0]["content"]["parts"][0]["text"]}
+        except: pass
+
+    # Intento 2: OpenAI (Respaldo)
+    if OPENAI_KEY:
+        try:
+            client_oa = openai.OpenAI(api_key=OPENAI_KEY)
+            res = client_oa.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}]
+            )
+            return {"data": res.choices[0].message.content}
+        except: pass
+
+    return {"data": "System busy. Please provide more details."}
