@@ -1,23 +1,17 @@
 const content = {
     en: {
-        banner: "<strong>Benefit:</strong> Avoid fines and cargo damage. Our advisory ensures international compliance.",
-        t_scan: "📷 UPLOAD CARGO PHOTOS",
-        t_voice: "DESCRIBE BY VOICE",
-        t_legal: "Private advisory by May Roga LLC. Not a gov agency.",
-        t_reset: "🗑️ DELETE HISTORY & PHOTOS",
-        session_msg: "Remaining: "
+        banner: "<strong>May Roga LLC:</strong> We prevent DOT fines and cargo damages. Use our scanner and voice advisory to protect your freight.",
+        t_scan: "📷 UPLOAD CARGO PHOTOS", t_voice: "DESCRIBE BY VOICE",
+        t_legal: "Private Advisory by May Roga LLC. Not a government agency.",
+        t_reset: "🗑️ DELETE HISTORY", btn_main: "EXECUTE ADVISORY"
     },
     es: {
-        banner: "<strong>Beneficio:</strong> Evite multas y daños a la carga. Nuestra asesoría asegura el cumplimiento internacional.",
-        t_scan: "📷 CARGAR FOTOS DE CARGA",
-        t_voice: "DESCRIBIR POR VOZ",
-        t_legal: "Asesoría privada de May Roga LLC. No somos agencia gubernamental.",
-        t_reset: "🗑️ BORRAR HISTORIAL Y FOTOS",
-        session_msg: "Restante: "
+        banner: "<strong>May Roga LLC:</strong> Prevenimos multas del DOT y daños. Use nuestro escáner y asesoría de voz para proteger su carga.",
+        t_scan: "📷 CARGAR FOTOS", t_voice: "DESCRIBIR POR VOZ",
+        t_legal: "Asesoría Privada de May Roga LLC. No somos agencia gubernamental.",
+        t_reset: "🗑️ BORRAR TODO", btn_main: "EJECUTAR ASESORÍA"
     }
 };
-
-const TIME_MAP = { "5": 10, "10": 30, "45": 60, "95": 120 };
 
 function setLang(lang) {
     localStorage.setItem("user_lang", lang);
@@ -27,16 +21,11 @@ function setLang(lang) {
     document.getElementById("t_voice").innerText = t.t_voice;
     document.getElementById("t_legal").innerText = t.t_legal;
     document.getElementById("t_reset").innerText = t.t_reset;
+    document.getElementById("submitBtn").innerText = t.btn_main;
 }
 
-function resetAll() {
-    if(confirm("Delete all? / ¿Borrar todo?")) {
-        document.getElementById("advResponse").innerHTML = "";
-        document.getElementById("previewContainer").innerHTML = "";
-        document.getElementById("promptArea").value = "";
-        document.getElementById("fileInput").value = "";
-        alert("Cleared / Borrado");
-    }
+function resetApp() {
+    if(confirm("¿Borrar todo?")) { localStorage.clear(); location.reload(); }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -50,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
         voiceBtn.onclick = () => { recog.lang = localStorage.getItem("user_lang") === "es" ? "es-ES" : "en-US"; recog.start(); };
     }
 
-    // Mostrar Fotos
+    // Visualización de Fotos para generar curiosidad
     document.getElementById('fileInput').onchange = function() {
         const container = document.getElementById('previewContainer');
         container.innerHTML = "";
@@ -65,12 +54,24 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     };
 
-    // Pago / Activación
+    // BOTÓN PRINCIPAL
+    document.getElementById("submitBtn").onclick = async () => {
+        const isAuth = localStorage.getItem("sc_auth") === "true";
+        
+        // Si no ha pagado, mostramos el modal de pago
+        if (!isAuth) {
+            document.getElementById("paymentModal").style.display = "flex";
+            return;
+        }
+
+        // Si ya pagó, ejecutamos la asesoría
+        executeAdvisory();
+    };
+
+    // Lógica del Botón dentro del Modal (Stripe / Admin)
     document.getElementById("activateBtn").onclick = async () => {
         const awb = document.getElementById("awbField").value || "GUEST";
         const amt = document.getElementById("priceSelect").value;
-        localStorage.setItem("pending_time", TIME_MAP[amt]);
-        
         const u = prompt("ADMIN USER:");
         const p = prompt("ADMIN PASS:");
 
@@ -83,34 +84,25 @@ document.addEventListener("DOMContentLoaded", () => {
         if(data.url) window.location.href = data.url;
     };
 
-    // Retorno de Pago y Tiempo
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("access") === "granted") {
-        document.getElementById("accessSection").style.display = "none";
-        document.getElementById("mainApp").style.display = "block";
-        
-        const duration = localStorage.getItem("pending_time") || 10;
-        const endTime = new Date().getTime() + (duration * 60000);
-        
-        setInterval(() => {
-            const now = new Date().getTime();
-            const left = Math.ceil((endTime - now) / 60000);
-            if (left <= 0) location.reload();
-            document.getElementById("timerDisplay").innerText = "Time: " + left + "m";
-        }, 30000);
+    // Al volver de Stripe
+    if (new URLSearchParams(window.location.search).get("access") === "granted") {
+        localStorage.setItem("sc_auth", "true");
+        // Limpiar URL
+        window.history.replaceState({}, document.title, "/");
     }
-
-    document.getElementById("submitBtn").onclick = async () => {
-        document.getElementById("loader").style.display = "block";
-        const fd = new FormData();
-        const files = document.getElementById('fileInput').files;
-        Array.from(files).forEach(f => fd.append("files", f));
-        fd.append("prompt", document.getElementById("promptArea").value);
-        fd.append("lang", localStorage.getItem("user_lang") || "en");
-
-        const res = await fetch(`/advisory`, { method: "POST", body: fd });
-        const data = await res.json();
-        document.getElementById("advResponse").innerHTML = `<div class="report-box">${data.data}</div>`;
-        document.getElementById("loader").style.display = "none";
-    };
 });
+
+async function executeAdvisory() {
+    const loader = document.getElementById("loader");
+    loader.style.display = "block";
+    const fd = new FormData();
+    const files = document.getElementById('fileInput').files;
+    Array.from(files).forEach(f => fd.append("files", f));
+    fd.append("prompt", document.getElementById("promptArea").value);
+    fd.append("lang", localStorage.getItem("user_lang") || "en");
+
+    const res = await fetch(`/advisory`, { method: "POST", body: fd });
+    const data = await res.json();
+    document.getElementById("advResponse").innerHTML = `<div class="report-box">${data.data}</div>`;
+    loader.style.display = "none";
+}
