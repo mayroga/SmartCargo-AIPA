@@ -20,6 +20,7 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+# Variables de Entorno
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 ADMIN_USER = os.getenv("ADMIN_USERNAME")
@@ -40,9 +41,9 @@ async def serve_js():
 async def advisory_engine(
     prompt: str = Form(...),
     lang: str = Form("en"),
-    files: List[UploadFile] = File(None) # Nombre debe coincidir con el 'name' del HTML
+    files: List[UploadFile] = File(None)
 ):
-    # Instrucción Maestra para que la IA no sea genérica
+    # Instrucción Maestra para el Auditor Técnico
     system_instruction = (
         "Eres un auditor de carga internacional de SmartCargo. Tu lenguaje es técnico, directo y preventivo. "
         "Tu objetivo es encontrar fallos que cuesten dinero o generen devoluciones. "
@@ -61,50 +62,70 @@ async def advisory_engine(
                     if content:
                         parts.append({
                             "inline_data": {
-                                "mime_type": img.content_type,
+                                "mime_type": "image/jpeg",  # Forzamos JPEG por la conversión del frontend
                                 "data": base64.b64encode(content).decode("utf-8")
                             }
                         })
             
-            # Llamada a Gemini 1.5 Flash (Especialista en Visión)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+            # CAMBIO CRÍTICO: Usamos la versión v1 estable para evitar el error 404
+            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+            
             async with httpx.AsyncClient() as client:
-                r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=45.0)
+                # Timeout extendido a 60 segundos para procesar imágenes de alta resolución
+                r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=60.0)
                 res_data = r.json()
                 
                 if "candidates" in res_data:
                     return {"data": res_data["candidates"][0]["content"]["parts"][0]["text"]}
                 else:
-                    print(f"Error de API: {res_data}")
+                    print(f"Error detallado de Google API: {res_data}")
         except Exception as e:
-            print(f"Error en el proceso de imagen: {e}")
+            print(f"Error en el proceso de imagen Gemini: {e}")
 
-    # Respaldo en caso de que Gemini falle (Solo texto)
+    # RESPALDO: Si Gemini falla o no hay fotos, actúa OpenAI (GPT-4o)
     if OPENAI_KEY:
         try:
             client_oa = openai.OpenAI(api_key=OPENAI_KEY)
             res = client_oa.chat.completions.create(
                 model="gpt-4o",
-                messages=[{"role": "system", "content": system_instruction}, {"role": "user", "content": prompt}]
+                messages=[
+                    {"role": "system", "content": system_instruction}, 
+                    {"role": "user", "content": prompt}
+                ]
             )
             return {"data": res.choices[0].message.content}
-        except: pass
+        except Exception as e:
+            print(f"Error en OpenAI Backup: {e}")
 
     return {"data": "Sistema ocupado. Por favor, intenta de nuevo en un momento."}
 
 @app.post("/create-payment")
-async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
+async def create_payment(
+    amount: float = Form(...), 
+    awb: str = Form(...), 
+    user: Optional[str] = Form(None), 
+    password: Optional[str] = Form(None)
+):
     # URL de tu app en Render
     base_url = "https://smartcargo-aipa.onrender.com" 
     success_url = f"{base_url}/?access=granted&awb={awb}"
 
+    # MECÁNICA ADMIN: Acceso directo sin Stripe
     if user == ADMIN_USER and password == ADMIN_PASS:
         return {"url": success_url}
 
+    # MECÁNICA STRIPE: Cobro según nivel seleccionado
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Auditoría AWB: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {"name": f"SmartCargo Audit - Ref: {awb}"},
+                    "unit_amount": int(amount * 100)
+                },
+                "quantity": 1
+            }],
             mode="payment",
             success_url=success_url,
             cancel_url=base_url,
