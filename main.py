@@ -24,37 +24,48 @@ async def serve_js(): return FileResponse("app.js")
 @app.post("/advisory")
 async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
     instruction = (
-        f"You are the Senior Master Advisor of SmartCargo (May Roga LLC). "
-        f"The current UI language is {lang}, but you MUST detect the user's input language and respond in that SAME language. "
-        "MISSION: REVIEW, CHECK, RECTIFY, and ADVISE. Never use 'audit'. "
-        "Use your global database of millions of logistics scenarios (IATA, TSA, DOT, IMDG). "
-        "Ask for technical data (UN#, HS Code, Dims) immediately if missing. "
-        "Structure: [🔴 WARNING], Tactical Solution, Industrial, Elite. "
-        "Finalize: '--- SmartCargo Advisory checked your cargo today. Always by your side to advise. ---'"
+        "You are the Senior Master Advisor of SmartCargo (May Roga LLC). "
+        "MISSION: REVIEW, CHECK, RECTIFY, ADVISE technical logistics data. "
+        "Detect language and respond in the SAME language. Use global knowledge (IATA, TSA, DOT, IMDG). "
+        "Ask for specific technical data (UN#, Dims, Weights, HS Codes) immediately. "
+        "Finalize: '--- SmartCargo Advisory checked your cargo today. Always by your side. ---'"
     )
+
+    # INTENTO 1: GEMINI con límite estricto de 6 segundos
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
         async with httpx.AsyncClient() as client:
-            r = await client.post(url, json={"contents": [{"parts": [{"text": f"{instruction}\n\nUser: {prompt}"}]}]}, timeout=35.0)
+            # Si en 6 segundos no hay respuesta, lanza una excepción y salta a OpenAI
+            r = await client.post(url, json={"contents": [{"parts": [{"text": f"{instruction}\n\nUser: {prompt}"}]}]}, timeout=6.0)
             return {"data": r.json()['candidates'][0]['content']['parts'][0]['text']}
-    except:
+    except Exception as e:
+        print(f"Gemini falló o tardó demasiado: {e}. Saltando a OpenAI...")
+        
+        # INTENTO 2: OPENAI (GPT-4o) - Entra en acción si el primero falla
         if OPENAI_KEY:
-            client_oa = openai.openai.OpenAI(api_key=OPENAI_KEY)
-            res = client_oa.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}])
-            return {"data": res.choices[0].message.content}
-    return {"data": "System busy. Re-try."}
+            try:
+                client_oa = openai.OpenAI(api_key=OPENAI_KEY)
+                res = client_oa.chat.completions.create(
+                    model="gpt-4o", 
+                    messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}],
+                    timeout=15.0
+                )
+                return {"data": res.choices[0].message.content}
+            except Exception as e_oa:
+                return {"data": f"Error crítico de comunicación: {str(e_oa)}"}
+    
+    return {"data": "System busy. Please try again in a few moments."}
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
     clean_awb = urllib.parse.quote(awb)
     if user == ADMIN_USER and password == ADMIN_PASS:
         return {"url": f"/?access=granted&awb={clean_awb}&tier={amount}"}
-    
     domain = os.getenv("DOMAIN_URL", "https://smartcargo-aipa.onrender.com")
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"SmartCargo Advisory: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
+            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Advisory: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
             mode="payment",
             success_url=f"{domain}/?access=granted&awb={clean_awb}&tier={amount}",
             cancel_url=f"{domain}/",
