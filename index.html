@@ -2,59 +2,66 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <title>SmartCargo Advisory | May Roga LLC</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCargo | Technical Advisor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        body { background: #f0f2f5; padding: 15px; font-family: sans-serif; }
-        .app-card { max-width: 500px; margin: auto; background: white; border-top: 8px solid #001a35; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border-radius: 8px; }
-        .mkt-banner { background: #fffde7; border: 1px solid #fbc02d; padding: 12px; border-radius: 5px; margin-bottom: 15px; font-size: 11px; font-weight: bold; }
-        #previewContainer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; background: #f8f9fa; padding: 10px; border-radius: 5px; }
-        #previewContainer img { width: 100%; height: 90px; object-fit: cover; border: 2px solid #001a35; border-radius: 4px; }
-        .voice-btn { background: #d32f2f; color: white; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 4px; }
-        .btn-execute { background: #1b5e20; color: white; width: 100%; height: 55px; font-weight: bold; border-radius: 5px; cursor: pointer; border: none; font-size: 16px; margin-top: 10px; }
-        #paymentModal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center; }
-        .modal-content { background:white; padding:30px; border-radius:8px; width:90%; max-width:400px; text-align:center; }
-        .report-box { border: 2px solid #001a35; padding: 15px; margin-top: 20px; background: #fff; white-space: pre-wrap; font-size: 14px; font-weight: bold; color: #1b5e20; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 600px; margin: auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        h2 { color: #01579b; border-left: 5px solid #ffd600; padding-left: 10px; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.3s; }
+        .btn-primary { background: #01579b; color: white; }
+        .btn-primary:hover { background: #01437a; }
+        #mainApp { opacity: 0.2; pointer-events: none; transition: 0.5s; margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
+        .report-box { background: #e3f2fd; border-radius: 8px; padding: 20px; margin-top: 20px; border: 1px solid #bbdefb; }
+        input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        #timerBox { display: none; color: #d32f2f; font-weight: bold; text-align: center; margin: 15px 0; }
     </style>
 </head>
 <body>
-<div class="app-card">
-    <div style="text-align:center;">
-        <h4 style="margin:0; color:#001a35; font-weight:bold;">SMARTCARGO</h4>
-        <p style="margin:0; color:#d4af37; font-size:10px; font-weight:bold;">TECHNICAL ADVISORY BY MAY ROGA LLC</p>
+
+<div class="container">
+    <div style="text-align: right; margin-bottom: 20px;">
+        <button onclick="setLang('es')" style="cursor:pointer">ES 🇪🇸</button>
+        <button onclick="setLang('en')" style="cursor:pointer">EN 🇺🇸</button>
     </div>
-    <div class="mkt-banner" id="mkt_banner"></div>
-    <div style="text-align: right; margin-bottom: 10px;">
-        <button onclick="setLang('en')" style="font-size:10px;">EN</button>
-        <button onclick="setLang('es')" style="font-size:10px;">ES</button>
+
+    <div id="accessSection">
+        <h2 id="t_act">1. Service Activation</h2>
+        <input type="text" id="awbField" placeholder="AWB / Job Number">
+        <select id="priceSelect">
+            <option value="50">Basic Technical Advisory - $50.00</option>
+            <option value="150">Complex DG/Hazmat Analysis - $150.00</option>
+        </select>
+        <button id="activateBtn" class="btn btn-primary">Proceed to Payment</button>
     </div>
-    <div style="border: 2px dashed #001a35; padding: 20px; text-align: center; cursor: pointer;" onclick="document.getElementById('fileInput').click()">
-        <strong id="t_scan">📷 CARGAR EVIDENCIA</strong>
+
+    <div id="mainApp">
+        <h2 id="t_sol">2. Solution Center</h2>
+        <h3 id="m_title"></h3>
+        <p id="m_desc"></p>
+        
+        <form id="advForm">
+            <textarea name="prompt" rows="4" placeholder="Describe your technical issue..."></textarea>
+            <label style="font-size: 0.8em; color: #666;">Attach photos (Max 3):</label>
+            <input type="file" name="files" multiple accept="image/*">
+            <button type="submit" class="btn btn-primary" style="background: #2e7d32;">Get Tactical Plan</button>
+        </form>
+
+        <div id="advResponse"></div>
+        <div id="timerBox">🔒 Privacy Lock: <span id="secs">300</span>s</div>
+        
+        <div id="actionBtns" style="display:none; gap:10px;">
+            <button onclick="downloadPDF()" class="btn" style="background:#555; color:white;">Save as PDF</button>
+            <button onclick="shareWA()" class="btn" style="background:#25d366; color:white;">Share on WhatsApp</button>
+        </div>
     </div>
-    <input type="file" id="fileInput" accept="image/*" multiple capture="environment" style="display:none">
-    <div id="previewContainer"></div>
-    <button id="voiceBtn" class="voice-btn">🎤 <span id="t_voice">DESCRIBIR POR VOZ</span></button>
-    <textarea id="promptArea" class="u-full-width" style="height: 80px; margin-top:10px;"></textarea>
-    <button id="submitBtn" class="btn-execute">OBTENER SOLUCIÓN AHORA</button>
-    <button class="u-full-width" onclick="location.reload()" style="font-size: 10px; margin-top:15px; border:none; background:none; color:#777;">🗑️ BORRAR TODO</button>
-    <div id="loader" style="display:none; text-align:center; margin-top:15px;"><strong>GENERANDO SOLUCIÓN TÉCNICA...</strong></div>
-    <div id="advResponse"></div>
+
+    <hr style="margin-top:40px;">
+    <h4 id="l_title"></h4>
+    <p id="l_desc" style="font-size: 0.75em; color: #888; line-height: 1.4;"></p>
 </div>
 
-<div id="paymentModal">
-    <div class="modal-content">
-        <h5>Activar Asesoría Técnica</h5>
-        <input type="text" id="awbField" class="u-full-width" placeholder="AWB / ID">
-        <select id="priceSelect" class="u-full-width">
-            <option value="5">Express ($5)</option>
-            <option value="10">Standard ($10)</option>
-            <option value="95">Expert ($95)</option>
-        </select>
-        <button id="activateBtn" class="u-full-width" style="background:#001a35; color:white; height:45px; border:none; font-weight:bold;">PAGAR Y ACTIVAR</button>
-        <button onclick="document.getElementById('paymentModal').style.display='none'" style="border:none; background:none; color:red; margin-top:10px;">Cerrar</button>
-    </div>
-</div>
 <script src="app.js"></script>
 </body>
 </html>
