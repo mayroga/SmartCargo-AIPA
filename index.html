@@ -6,16 +6,20 @@
     <title>SmartCargo | May Roga LLC</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
     <style>
-        body { background: #000b1a; color: #333; font-family: sans-serif; padding: 10px; }
+        body { background: #000b1a; color: #333; font-family: sans-serif; padding: 10px; margin: 0; }
         .card { max-width: 500px; margin: auto; background: white; border-radius: 20px; padding: 25px; border-top: 10px solid #d4af37; box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
-        .lang-container { display: flex; justify-content: center; gap: 5px; margin-bottom: 20px; }
+        .banner { background: #001d3d; color: white; padding: 15px; border-radius: 12px; text-align: center; border: 1px solid #d4af37; margin-bottom: 10px; }
+        .lang-container { display: flex; justify-content: center; gap: 5px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         .lang-btn { font-size: 10px; padding: 5px 12px; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 5px; font-weight: bold; }
         .lang-btn.active { background: #d4af37; color: #000; border-color: #000; }
-        .btn-opt { border: 2px solid #001d3d; padding: 10px; border-radius: 10px; text-align: center; cursor: pointer; font-size: 11px; font-weight: bold; margin-bottom: 8px; background: #f8f9fa; }
+        .legal-box { font-size: 9px; color: #666; background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: justify; border: 1px solid #eee; }
+        .btn-opt { border: 2px solid #001d3d; padding: 10px; border-radius: 10px; text-align: center; cursor: pointer; font-size: 11px; font-weight: bold; margin-bottom: 8px; background: #f8f9fa; transition: 0.2s; }
         .selected { background: #001d3d !important; color: white !important; }
         .btn-main { background: #001d3d; color: white; width: 100%; height: 50px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; text-transform: uppercase; }
+        .timer { background: #d4af37; color: black; text-align: center; font-weight: bold; padding: 8px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; }
         #mainApp { display: none; margin-top: 20px; }
         .report { background: #f1f3f5; border-left: 6px solid #001d3d; padding: 18px; border-radius: 10px; white-space: pre-wrap; font-size: 14px; }
+        #previewContainer { display: none; width: 100%; margin-bottom: 15px; border-radius: 10px; overflow: hidden; border: 1px solid #001d3d; }
     </style>
 </head>
 <body onclick="resetIdle()">
@@ -25,13 +29,24 @@
         <button id="btnEs" class="lang-btn" onclick="setLang('es', this)">ESPAÑOL</button>
     </div>
 
+    <div class="banner">
+        <h3 style="margin:0; font-weight:900; color:#d4af37;">SMARTCARGO</h3>
+        <p style="font-size:10px; margin:0; font-weight:bold;">TECHNICAL ADVISORY • MAY ROGA LLC</p>
+    </div>
+
     <div id="accessSection">
+        <div id="legalTxt" class="legal-box">
+            <strong>LEGAL NOTICE:</strong> Private technical advisory. We are NOT government agents, TSA, IATA, or Customs. We do not handle cargo. By accessing, you agree that our advice is for review and technical rectification of your logistics.
+        </div>
+
         <label id="lblRole" style="font-size:11px; font-weight:bold;">1. USER ROLE:</label>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div class="btn-opt role-btn" onclick="selRole('Shipper', this)">SHIPPER / OWNER</div>
-            <div class="btn-opt role-btn" onclick="selRole('Forwarder', this)">FORWARDER</div>
-            <div class="btn-opt role-btn" onclick="selRole('Trucker', this)">TRUCKER</div>
-            <div class="btn-opt role-btn" onclick="selRole('Operator', this)">OPERATOR</div>
+        <div class="row">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div class="btn-opt role-btn" onclick="selRole('Shipper', this)">SHIPPER / OWNER</div>
+                <div class="btn-opt role-btn" onclick="selRole('Forwarder', this)">FORWARDER</div>
+                <div class="btn-opt role-btn" onclick="selRole('Trucker', this)">TRUCKER</div>
+                <div class="btn-opt role-btn" onclick="selRole('Operator', this)">OPERATOR</div>
+            </div>
         </div>
         
         <label id="lblTier" style="font-size:11px; font-weight:bold; margin-top:10px;">2. SERVICE TIER:</label>
@@ -42,14 +57,25 @@
             <div class="btn-opt tier-btn" onclick="selTier(95, this)">PROJECT ($95)</div>
         </div>
 
-        <input type="text" id="awbField" class="u-full-width" placeholder="Reference / AWB / BOL">
+        <input type="text" id="awbField" class="u-full-width" placeholder="Reference / AWB / BOL" style="margin-top:10px;">
         <button id="activateBtn" class="btn-main">VALIDATE AND ACCESS</button>
     </div>
 
     <div id="mainApp">
-        <div id="timerDisp" style="background:#d4af37; text-align:center; font-weight:bold; padding:8px; border-radius:8px; margin-bottom:15px;"></div>
+        <div id="timerDisp" class="timer"></div>
+
+        <div id="dropZone" style="border:2px dashed #d4af37; padding:15px; text-align:center; border-radius:12px; background:#f9fbff; cursor:pointer; margin-bottom:15px;" onclick="document.getElementById('fileInput').click()">
+            <span id="txtScan" style="font-weight:bold; color:#001d3d; font-size:12px;">📸 SCAN / UPLOAD PHOTO (OPTIONAL)</span>
+            <input type="file" id="fileInput" style="display:none" accept="image/*" onchange="showPreview()">
+        </div>
+
+        <div id="previewContainer">
+            <img id="mainPreview" src="#" style="width:100%; display:block; object-fit:contain; max-height:300px;">
+            <div style="background:#001d3d; color:white; font-size:10px; padding:5px; text-align:center;">REFERENCE VIEW</div>
+        </div>
+
         <form id="advForm">
-            <textarea id="promptArea" class="u-full-width" style="height:120px; border-radius:10px;" placeholder="Describe what you want to check..."></textarea>
+            <textarea id="promptArea" class="u-full-width" style="height:120px; border-radius:10px; border:1px solid #001d3d;" placeholder="Describe what you want to check..."></textarea>
             <button id="btnSolve" type="submit" class="btn-main" style="background:#1b5e20;">GET SOLUTION</button>
         </form>
         <div id="advResponse"></div>
