@@ -1,111 +1,95 @@
-let selectedAmount = 0;
+let selectedTier = 0;
 let timeLeft = 0;
-let timerInterval;
+let timerInt;
 
 const langData = {
-    es: { greet: "Hola. ¿Qué desea auditar hoy? ¿Shipper, Transportista o Papeles? Dígame su miedo para resolverlo.", timeMsg: "Tiempo Restante: " },
-    en: { greet: "Hello. What are we auditing? Shipper, Trucker or Docs? Tell me your fear to solve it.", timeMsg: "Time Left: " }
+    en: { greet: "Hello. What part of the chain are we auditing? Shipper, Trucker or Docs? Tell me your fear.", timeMsg: "Session: " },
+    es: { greet: "Hola. ¿Qué parte de la cadena vamos a auditar? ¿Shipper, Transportista o Papeles? Dígame su miedo.", timeMsg: "Sesión: " },
+    fr: { greet: "Bonjour. Quelle partie de la chaîne auditons-nous ? Shipper, Transporteur ou Docs ?", timeMsg: "Session: " },
+    pt: { greet: "Olá. Que parte da cadeia estamos auditando? Shipper, Motorista ou Docs?", timeMsg: "Sessão: " }
 };
 
-function selectTier(amt, el) {
-    selectedAmount = amt;
-    document.querySelectorAll('.tier-btn').forEach(b => b.classList.remove('selected'));
-    el.classList.add('selected');
+function setLang(l) {
+    localStorage.setItem("sc_lang", l);
+    const lang = langData[l] || langData.en;
+    if(document.getElementById("greeting")) document.getElementById("greeting").innerText = lang.greet;
 }
 
-function startTimer(minutes) {
-    timeLeft = minutes * 60;
-    const display = document.getElementById("timerDisplay");
-    display.style.display = "block";
+function selTier(val, el) {
+    selectedTier = val;
+    document.querySelectorAll('.tier-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+}
 
-    timerInterval = setInterval(() => {
-        let mins = Math.floor(timeLeft / 60);
-        let secs = timeLeft % 60;
-        display.innerHTML = `${langData[localStorage.getItem("sc_lang") || "es"].timeMsg} ${mins}:${secs < 10 ? '0' : ''}${secs}`;
-        
-        if (timeLeft === 60) {
-            display.classList.add("warning-flash");
-            alert("AVISO: Le queda 1 minuto de asesoría.");
-        }
+function previewFiles() {
+    const container = document.getElementById("previewContainer");
+    container.innerHTML = "";
+    Array.from(document.getElementById("fileInput").files).forEach(f => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = document.createElement("img"); img.src = e.target.result;
+            img.style.width = "65px"; img.style.height = "65px"; img.style.objectFit="cover"; img.style.margin = "5px"; container.appendChild(img);
+        };
+        reader.readAsDataURL(f);
+    });
+}
 
-        if (timeLeft <= 0) {
-            clearInterval(timerInterval);
-            alert("Sesión finalizada. Reiniciando sistema...");
-            localStorage.removeItem("sc_auth");
-            window.location.href = "/";
-        }
+function startTimer(mins) {
+    timeLeft = mins * 60;
+    const disp = document.getElementById("timerDisp");
+    disp.style.display = "block";
+    timerInt = setInterval(() => {
         timeLeft--;
+        let m = Math.floor(timeLeft / 60);
+        let s = timeLeft % 60;
+        const l = localStorage.getItem("sc_lang") || "en";
+        disp.innerText = `${langData[l].timeMsg} ${m}:${s<10?'0':''}${s}`;
+        if(timeLeft === 60) { disp.classList.add("warning-flash"); alert("1 MINUTE LEFT!"); }
+        if(timeLeft <= 0) { clearInterval(timerInt); alert("Session Expired."); location.reload(); }
     }, 1000);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    const params = new URLSearchParams(window.location.search);
-    const tier = params.get("tier");
-    const lang = localStorage.getItem("sc_lang") || "es";
+    const lang = localStorage.getItem("sc_lang") || "en";
+    setLang(lang);
     
-    document.getElementById("greeting").innerText = langData[lang].greet;
-
+    const params = new URLSearchParams(window.location.search);
     if (params.get("access") === "granted") {
-        localStorage.setItem("sc_auth", "true");
         document.getElementById("mainApp").style.display = "block";
         document.getElementById("accessSection").style.display = "none";
-        
-        let duration = (tier == "45") ? 20 : (tier == "95" ? 45 : 8);
-        startTimer(duration);
+        const tier = params.get("tier");
+        startTimer(tier == "45" ? 20 : (tier == "95" ? 45 : 8));
     }
 
     // VOZ
-    const voiceBtn = document.getElementById("voiceBtn");
     const SpeechSDK = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechSDK) {
         const recognition = new SpeechSDK();
-        recognition.lang = lang === "es" ? "es-US" : "en-US";
-        voiceBtn.onclick = () => { recognition.start(); voiceBtn.innerText = "Escuchando..."; };
-        recognition.onresult = (e) => { 
-            document.getElementById("promptArea").value = e.results[0][0].transcript;
-            voiceBtn.innerText = "🎤 HABLAR PROBLEMA";
-        };
+        document.getElementById("voiceBtn").onclick = () => { recognition.start(); };
+        recognition.onresult = (e) => { document.getElementById("promptArea").value = e.results[0][0].transcript; };
     }
 
-    // FOTOS
-    document.getElementById('fileInput').onchange = function() {
-        const container = document.getElementById('previewContainer');
-        container.innerHTML = "";
-        Array.from(this.files).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = document.createElement('img'); img.src = e.target.result;
-                img.className = "preview-img"; container.appendChild(img);
-            };
-            reader.readAsDataURL(file);
-        });
-    };
-
-    // BOTÓN ACTIVAR
     document.getElementById("activateBtn").onclick = async () => {
-        if(selectedAmount === 0) { alert("Por favor, seleccione un nivel de precio."); return; }
+        if(selectedTier === 0) return alert("Select a Tier!");
+        const u = prompt("ADMIN USER:");
         const fd = new FormData();
-        fd.append("amount", selectedAmount);
-        fd.append("awb", document.getElementById("awbField").value || "AUDIT");
-        const u = prompt("ADMIN USER (Opcional):");
+        fd.append("amount", selectedTier);
+        fd.append("awb", document.getElementById("awbField").value || "ID");
         if(u) { fd.append("user", u); fd.append("password", prompt("ADMIN PASS:")); }
-
-        const res = await fetch(`/create-payment`, { method: "POST", body: fd });
+        const res = await fetch("/create-payment", { method: "POST", body: fd });
         const data = await res.json();
         if(data.url) window.location.href = data.url;
     };
 
-    // SOLUCIÓN
     document.getElementById("advForm").onsubmit = async (e) => {
         e.preventDefault();
         const out = document.getElementById("advResponse");
-        out.innerHTML = "<strong>⚙️ GENERANDO PLAN DE ACCIÓN...</strong>";
-        const fd = new FormData();
-        Array.from(document.getElementById('fileInput').files).forEach(f => fd.append("files", f));
+        out.innerHTML = "<strong>ANALYZING STEP-BY-STEP...</strong>";
+        const fd = new FormData(e.target);
         fd.append("prompt", document.getElementById("promptArea").value);
-        fd.append("lang", lang);
-
-        const res = await fetch(`/advisory`, { method: "POST", body: fd });
+        fd.append("lang", localStorage.getItem("sc_lang") || "en");
+        
+        const res = await fetch("/advisory", { method: "POST", body: fd });
         const data = await res.json();
         out.innerHTML = `<div class="report">${data.data}</div>`;
     };
