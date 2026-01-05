@@ -9,6 +9,7 @@ load_dotenv()
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# --- LLAVES Y CREDENCIALES ---
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 ADMIN_USER = os.getenv("ADMIN_USERNAME")
@@ -25,31 +26,25 @@ async def serve_js(): return FileResponse("app.js")
 async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
     instruction = (
         "You are the Senior Master Advisor of SmartCargo (May Roga LLC). "
-        "MISSION: REVIEW, CHECK, RECTIFY, ADVISE technical logistics data. "
+        "MISSION: REVIEW, CHECK, RECTIFY, ADVISE. No 'audits'. "
         "Detect language and respond in the SAME language. Use global knowledge (IATA, TSA, DOT, IMDG). "
-        "Ask for specific technical data (UN#, Dims, Weights, HS Codes) immediately. "
+        "Ask for specific technical data (UN#, Dimensions, Weights, HS Codes) immediately. "
         "Finalize: '--- SmartCargo Advisory checked your cargo today. Always by your side. ---'"
     )
 
-    # --- INTENTO 1: GEMINI (Límite 6s) ---
+    # INTENTO 1: GEMINI (Filtro de 6 segundos)
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
         async with httpx.AsyncClient() as client:
             r = await client.post(url, json={"contents": [{"parts": [{"text": f"{instruction}\n\nUser: {prompt}"}]}]}, timeout=6.0)
             res_data = r.json()
-            # Validación de respuesta para evitar el KeyError: 'candidates'
             if 'candidates' in res_data and res_data['candidates']:
                 return {"data": res_data['candidates'][0]['content']['parts'][0]['text']}
-            else:
-                raise Exception("Gemini response invalid format")
-    
-    except Exception as e:
-        print(f"Fallback activado. Motivo: {e}")
-        
-        # --- INTENTO 2: OPENAI (Corregido) ---
+            else: raise Exception("Invalid Format")
+    except:
+        # INTENTO 2: OPENAI (Respaldo si Gemini falla o tarda)
         if OPENAI_KEY:
             try:
-                # CORRECCIÓN AQUÍ: Se usa openai.OpenAI correctamente
                 client_oa = openai.OpenAI(api_key=OPENAI_KEY)
                 res = client_oa.chat.completions.create(
                     model="gpt-4o", 
@@ -57,17 +52,20 @@ async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
                     timeout=12.0
                 )
                 return {"data": res.choices[0].message.content}
-            except Exception as e_oa:
-                return {"data": f"Error en ambos motores. Intente de nuevo. (Detalle: {str(e_oa)})"}
+            except: return {"data": "Cerebro técnico saturado. Reintente."}
     
-    return {"data": "System busy. Please try again."}
+    return {"data": "System busy. Try again."}
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
     clean_awb = urllib.parse.quote(awb)
-    if user == ADMIN_USER and password == ADMIN_PASS:
-        return {"url": f"/?access=granted&awb={clean_awb}&tier={amount}"}
     
+    # --- ACCESO PARA TI (ADMIN BYPASS) ---
+    if user and password:
+        if user == ADMIN_USER and password == ADMIN_PASS:
+            return {"url": f"/?access=granted&awb={clean_awb}&tier={amount}"}
+    
+    # --- COBRO STRIPE ---
     domain = os.getenv("DOMAIN_URL", "https://smartcargo-aipa.onrender.com")
     try:
         session = stripe.checkout.Session.create(
