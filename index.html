@@ -10,13 +10,13 @@
         .card { max-width: 500px; margin: auto; background: white; border-radius: 20px; padding: 25px; border-top: 10px solid #d4af37; box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
         .lang-btn { font-size: 10px; padding: 5px 12px; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 5px; font-weight: bold; }
         .lang-btn.active { background: #d4af37; color: #000; }
-        .btn-opt { border: 2px solid #001d3d; padding: 10px; border-radius: 10px; text-align: center; cursor: pointer; font-size: 11px; font-weight: bold; margin-bottom: 8px; background: #f8f9fa; }
+        .btn-opt { border: 2px solid #001d3d; padding: 10px; border-radius: 10px; text-align: center; cursor: pointer; font-size: 10px; font-weight: bold; margin-bottom: 8px; background: #f8f9fa; text-transform: uppercase; }
         .selected { background: #001d3d !important; color: white !important; }
         .btn-main { background: #001d3d; color: white; width: 100%; height: 50px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; text-transform: uppercase; }
         #mainApp { display: none; margin-top: 15px; }
         .photo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-        .photo-box { width: 100%; height: 110px; background: #000; border: 2px solid #001d3d; border-radius: 8px; object-fit: contain; display: none; }
-        .report { background: #f1f3f5; border-left: 6px solid #1b5e20; padding: 15px; border-radius: 10px; font-size: 14px; margin-top: 15px; }
+        .photo-box { width:100%; height:110px; background:#000; border:2px solid #001d3d; border-radius:8px; object-fit:contain; display:block; cursor: pointer; }
+        .report { background: #f1f3f5; border-left: 6px solid #1b5e20; padding: 15px; border-radius: 10px; font-size: 14px; margin-top: 15px; white-space: pre-wrap; }
     </style>
 </head>
 <body onclick="resetIdle()">
@@ -27,31 +27,38 @@
     </div>
 
     <div id="accessSection">
-        <h6 style="text-align:center; font-weight:bold; font-size:12px;">SMARTCARGO ADVISORY</h6>
-        <div class="btn-opt role-btn" onclick="selRole('Shipper', this)">SHIPPER / OWNER</div>
-        <div class="btn-opt role-btn" onclick="selRole('Operator', this)">OPERATOR</div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
-            <div class="btn-opt tier-btn" onclick="selTier(5, this)">COURIER ($5)</div>
-            <div class="btn-opt tier-btn" onclick="selTier(95, this)">PROJECT ($95)</div>
+        <label style="font-size:11px; font-weight:bold;">1. ROLE:</label>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:15px;">
+            <div class="btn-opt role-btn" onclick="selRole('Shipper', this)">Shipper / Owner</div>
+            <div class="btn-opt role-btn" onclick="selRole('Forwarder', this)">Forwarder / Agent</div>
+            <div class="btn-opt role-btn" onclick="selRole('Trucker', this)">Trucker / Carrier</div>
+            <div class="btn-opt role-btn" onclick="selRole('Operator', this)">Warehouse / Operator</div>
         </div>
-        <input type="text" id="awbField" class="u-full-width" placeholder="AWB / BOL / REFERENCE">
+        <label style="font-size:11px; font-weight:bold;">2. TIER (EXCELLENCE LEVEL):</label>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:15px;">
+            <div class="btn-opt tier-btn" onclick="selTier(5, this)">Courier ($5)</div>
+            <div class="btn-opt tier-btn" onclick="selTier(15, this)">Standard ($15)</div>
+            <div class="btn-opt tier-btn" onclick="selTier(35, this)">Critical ($35)</div>
+            <div class="btn-opt tier-btn" onclick="selTier(95, this)">Project ($95)</div>
+        </div>
+        <input type="text" id="awbField" class="u-full-width" placeholder="AWB / REF / BOL">
         <button id="activateBtn" class="btn-main">VALIDATE & ACCESS</button>
     </div>
 
     <div id="mainApp">
-        <div id="timerDisp" style="background:#d4af37; text-align:center; font-weight:bold; padding:5px; margin-bottom:10px; border-radius:5px; font-size:11px;"></div>
-        <div class="photo-grid"><img id="p1" class="photo-box"><img id="p2" class="photo-box"><img id="p3" class="photo-box"></div>
-        <button class="btn-main" style="height:35px; font-size:10px; margin-bottom:10px; background:#444;" onclick="document.getElementById('fileInput').click()">📸 ADD PHOTOS (MAX 3)</button>
-        <input type="file" id="fileInput" style="display:none" accept="image/*" multiple onchange="loadPhotos()">
-        
-        <div style="position:relative;">
-            <textarea id="promptArea" class="u-full-width" style="height:100px; padding-right:40px;" placeholder="Describe issue or use voice..."></textarea>
-            <button onclick="startVoice()" style="position:absolute; right:10px; top:10px; border:none; background:none; cursor:pointer; font-size:18px;">🎤</button>
+        <div id="timerDisp" style="background:#d4af37; text-align:center; font-weight:bold; padding:8px; margin-bottom:10px; border-radius:5px; font-size:11px;"></div>
+        <div class="photo-grid">
+            <div onclick="document.getElementById('f1').click()"><img id="p1" class="photo-box"><input type="file" id="f1" style="display:none" accept="image/*" onchange="loadPhoto(1)"></div>
+            <div onclick="document.getElementById('f2').click()"><img id="p2" class="photo-box"><input type="file" id="f2" style="display:none" accept="image/*" onchange="loadPhoto(2)"></div>
+            <div onclick="document.getElementById('f3').click()"><img id="p3" class="photo-box"><input type="file" id="f3" style="display:none" accept="image/*" onchange="loadPhoto(3)"></div>
         </div>
-
+        <div style="position:relative; margin-top:10px;">
+            <textarea id="promptArea" class="u-full-width" style="height:110px; padding-right:45px;" placeholder="Voice or Text..."></textarea>
+            <button onclick="startVoice()" style="position:absolute; right:10px; top:10px; border:none; background:none; cursor:pointer; font-size:22px;">🎤</button>
+        </div>
         <button id="btnSolve" class="btn-main" style="background:#1b5e20;" onclick="getSolution()">GET SOLUTION</button>
         <div id="advResponse"></div>
-        <button id="btnWs" class="btn-main" style="background:#25D366; margin-top:10px; display:none;" onclick="sendWS()">📩 SHARE SOLUTION TO WHATSAPP</button>
+        <button id="btnWs" class="btn-main" style="background:#25D366; margin-top:10px; display:none;" onclick="sendWS()">📩 WHATSAPP SOLUTION</button>
         <button class="btn-main" style="background:#666; margin-top:5px; height:35px;" onclick="location.reload()">NEW CASE / RESET</button>
     </div>
 </div>
