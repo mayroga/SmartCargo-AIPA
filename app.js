@@ -1,75 +1,92 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SmartCargo | May Roga LLC</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
-    <style>
-        body { background: #000b1a; color: #333; font-family: sans-serif; padding: 10px; margin:0; }
-        .card { max-width: 500px; margin: auto; background: white; border-radius: 20px; padding: 25px; border-top: 10px solid #d4af37; box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
-        .lang-container { display: flex; justify-content: center; gap: 5px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .lang-btn { font-size: 10px; padding: 5px 12px; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 5px; font-weight: bold; }
-        .lang-btn.active { background: #d4af37; color: #000; border-color: #000; }
-        .btn-opt { border: 2px solid #001d3d; padding: 10px; border-radius: 10px; text-align: center; cursor: pointer; font-size: 11px; font-weight: bold; margin-bottom: 8px; background: #f8f9fa; }
-        .selected { background: #001d3d !important; color: white !important; }
-        .btn-main { background: #001d3d; color: white; width: 100%; height: 50px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; text-transform: uppercase; }
-        .timer { background: #d4af37; color: black; text-align: center; font-weight: bold; padding: 8px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; }
-        #mainApp { display: none; margin-top: 20px; }
-        #previewContainer { display: none; width: 100%; border-radius: 12px; overflow: hidden; border: 3px solid #001d3d; margin-bottom: 15px; background: #000; }
-        #mainPreview { width: 100%; height: auto; display: block; max-height: 400px; object-fit: contain; }
-        .report { background: #f1f3f5; border-left: 6px solid #001d3d; padding: 18px; border-radius: 10px; white-space: pre-wrap; font-size: 14px; margin-top: 15px; border-top: 1px solid #ddd; }
-    </style>
-</head>
-<body onclick="resetIdle()">
-<div class="card">
-    <div class="lang-container">
-        <button id="btnEn" class="lang-btn active" onclick="setLang('en', this)">ENGLISH</button>
-        <button id="btnEs" class="lang-btn" onclick="setLang('es', this)">ESPAÑOL</button>
-    </div>
+let selectedRole = "";
+let selectedAmount = 0;
+let currentLang = "en";
+let timeLeft = 0;
+let idleTime = 0;
 
-    <div class="banner" style="background:#001d3d; color:white; padding:15px; border-radius:12px; text-align:center; border:1px solid #d4af37; margin-bottom:15px;">
-        <h3 style="margin:0; font-weight:900; color:#d4af37;">SMARTCARGO</h3>
-        <p style="font-size:10px; margin:0; font-weight:bold;">TECHNICAL ADVISORY • MAY ROGA LLC</p>
-    </div>
+const ui = {
+    en: { role: "1. USER ROLE:", tier: "2. SERVICE TIER:", ref: "Reference / AWB / BOL", btn: "VALIDATE AND ACCESS", scan: "📸 SCAN / UPLOAD PHOTO (OPTIONAL)", solve: "GET SOLUTION", prompt: "Describe what you want to check...", wait: "⚙️ ANALYZING SCENARIOS...", alert: "⚠️ TOUCH SCREEN to keep session active.", reset: "RESET / NEW CHECK" },
+    es: { role: "1. ROL DEL USUARIO:", tier: "2. NIVEL DE SERVICIO:", ref: "Referencia / AWB / BOL", btn: "VALIDAR Y ACCEDER", scan: "📸 ESCANEAR / SUBIR FOTO (OPCIONAL)", solve: "OBTENER SOLUCIÓN", prompt: "Describe lo que quieres chequear...", wait: "⚙️ CHEQUEANDO ESCENARIOS...", alert: "⚠️ TOQUE LA PANTALLA para mantener la sesión activa.", reset: "REINICIAR / NUEVA CONSULTA" }
+};
 
-    <div id="accessSection">
-        <label id="lblRole" style="font-size:11px; font-weight:bold;">1. USER ROLE:</label>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
-            <div class="btn-opt role-btn" onclick="selRole('Shipper', this)">SHIPPER / OWNER</div>
-            <div class="btn-opt role-btn" onclick="selRole('Forwarder', this)">FORWARDER</div>
-            <div class="btn-opt role-btn" onclick="selRole('Trucker', this)">TRUCKER</div>
-            <div class="btn-opt role-btn" onclick="selRole('Operator', this)">OPERATOR</div>
-        </div>
-        <label id="lblTier" style="font-size:11px; font-weight:bold;">2. SERVICE TIER:</label>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
-            <div class="btn-opt tier-btn" onclick="selTier(5, this)">COURIER ($5)</div>
-            <div class="btn-opt tier-btn" onclick="selTier(10, this)">STANDARD ($10)</div>
-            <div class="btn-opt tier-btn" onclick="selTier(45, this)">CRITICAL ($45)</div>
-            <div class="btn-opt tier-btn" onclick="selTier(95, this)">PROJECT ($95)</div>
-        </div>
-        <input type="text" id="awbField" class="u-full-width" placeholder="Reference / AWB / BOL">
-        <button id="activateBtn" class="btn-main">VALIDATE AND ACCESS</button>
-    </div>
+function setLang(lang, el) {
+    currentLang = lang;
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById("lblRole").innerText = ui[lang].role;
+    document.getElementById("lblTier").innerText = ui[lang].tier;
+    document.getElementById("awbField").placeholder = ui[lang].ref;
+    document.getElementById("activateBtn").innerText = ui[lang].btn;
+    document.getElementById("txtScan").innerText = ui[lang].scan;
+    document.getElementById("promptArea").placeholder = ui[lang].prompt;
+    document.getElementById("btnSolve").innerText = ui[lang].solve;
+    document.getElementById("btnReset").innerText = ui[lang].reset;
+}
 
-    <div id="mainApp">
-        <div id="timerDisp" class="timer"></div>
-        <div id="previewContainer">
-            <img id="mainPreview" src="">
-            <div style="background:#001d3d; color:white; font-size:10px; padding:5px; text-align:center; font-weight:bold;">PHOTO REFERENCE VIEW</div>
-        </div>
-        <form id="advForm">
-            <div id="dropZone" style="border:2px dashed #d4af37; padding:15px; text-align:center; border-radius:12px; background:#f9fbff; cursor:pointer; margin-bottom:15px;" onclick="document.getElementById('fileInput').click()">
-                <span id="txtScan" style="font-weight:bold; color:#001d3d; font-size:11px;">📸 SCAN / UPLOAD PHOTO (OPTIONAL)</span>
-                <input type="file" id="fileInput" style="display:none" accept="image/*" onchange="showPreview()">
-            </div>
-            <textarea id="promptArea" class="u-full-width" style="height:120px; border-radius:10px; border:1px solid #001d3d;" placeholder="Describe what you want to check..."></textarea>
-            <button id="btnSolve" type="submit" class="btn-main" style="background:#1b5e20;">GET SOLUTION</button>
-            <button id="btnReset" type="button" class="btn-main" style="background:#666; margin-top:10px; height:40px; font-size:12px;" onclick="clearAll()">RESET / NEW CHECK</button>
-        </form>
-        <div id="advResponse"></div>
-    </div>
-</div>
-<script src="app.js"></script>
-</body>
-</html>
+function showPreview() {
+    const file = document.getElementById("fileInput").files[0];
+    const preview = document.getElementById("mainPreview");
+    const container = document.getElementById("previewContainer");
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            preview.src = e.target.result;
+            container.style.display = "block";
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function clearAll() {
+    document.getElementById("promptArea").value = "";
+    document.getElementById("advResponse").innerHTML = "";
+    document.getElementById("previewContainer").style.display = "none";
+    document.getElementById("mainPreview").src = "";
+    document.getElementById("fileInput").value = "";
+    document.getElementById("txtScan").innerText = ui[currentLang].scan;
+}
+
+function resetIdle() { idleTime = 0; }
+function selRole(val, el) { selectedRole = val; document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected')); el.classList.add('selected'); }
+function selTier(val, el) { selectedAmount = val; document.querySelectorAll('.tier-btn').forEach(b => b.classList.remove('selected')); el.classList.add('selected'); }
+
+document.addEventListener("DOMContentLoaded", () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("access") === "granted") {
+        document.getElementById("mainApp").style.display = "block";
+        document.getElementById("accessSection").style.display = "none";
+        let tier = params.get("tier");
+        let mins = (tier == "45") ? 20 : (tier == "95" ? 45 : 8);
+        if (tier == "5" || tier == "10") mins = 4;
+        timeLeft = mins * 60;
+        setInterval(() => {
+            timeLeft--; idleTime++;
+            if(idleTime === 59) { alert(ui[currentLang].alert); resetIdle(); }
+            let m = Math.floor(timeLeft/60), s = timeLeft%60;
+            document.getElementById("timerDisp").innerText = `ACTIVE SESSION: ${m}:${s<10?'0':''}${s}`;
+            if(timeLeft <= 0) location.href="/";
+        }, 1000);
+    }
+
+    document.getElementById("activateBtn").onclick = async () => {
+        if(!selectedRole || selectedAmount === 0) return alert("Select Role and Tier");
+        const fd = new FormData();
+        fd.append("amount", selectedAmount);
+        fd.append("awb", document.getElementById("awbField").value || "CHECK");
+        const res = await fetch("/create-payment", { method: "POST", body: fd });
+        const data = await res.json();
+        if(data.url) window.location.href = data.url;
+    };
+
+    document.getElementById("advForm").onsubmit = async (e) => {
+        e.preventDefault();
+        const out = document.getElementById("advResponse");
+        out.innerHTML = `<strong>${ui[currentLang].wait}</strong>`;
+        const fd = new FormData();
+        fd.append("prompt", `Role: ${selectedRole}. Issue: ${document.getElementById("promptArea").value}`);
+        fd.append("lang", currentLang);
+        const res = await fetch("/advisory", { method: "POST", body: fd });
+        const data = await res.json();
+        out.innerHTML = `<div class="report">${data.data}</div>`;
+    };
+});
