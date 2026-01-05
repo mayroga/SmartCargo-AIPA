@@ -1,4 +1,4 @@
-import os, stripe, httpx, base64
+import os, stripe, httpx, base64, io
 from fastapi import FastAPI, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -24,12 +24,15 @@ async def serve_js(): return FileResponse("app.js")
 async def advisory_engine(prompt: str = Form(...), lang: str = Form("en"), files: List[UploadFile] = File(None)):
     instruction = (
         f"Identify as 'SmartCargo Advisory by May Roga LLC'. Respond in {lang}. "
-        "You are a Private Technical Advisor for the Global Logistics Chain. "
-        "AUDIT: Greet the client. Ask: 'What part of the chain are we auditing? Shipper, Trucker or Docs?'. "
-        "If you see a risk of HOLD, FINE or REJECTION, use: '[🔴 RED LIGHT WARNING]'. "
-        "Give 3 levels of solutions: Economic, Standard, and Pro. "
-        "Direct solutions only. Stay within the law."
+        "IDENTITY: You are the BRAIN of the logistics chain. Private Technical Advisor. "
+        "MISSION: Kill the problem. Save the money. Avoid holds/fines/returns. "
+        "UNIVERSAL LOGIC: Apply expert knowledge to ANY logistics scenario (Air, Sea, Land, Docs, Cargo). "
+        "METHOD: Analyze step-by-step from top to bottom. If a risk is detected, use: '[🔴 RED LIGHT WARNING]'. "
+        "3-LEVEL SOLUTIONS: 1. Economic (Tactical/Fast), 2. Standard (Industry), 3. Pro (Certified). "
+        "No trash talk. Be direct. You provide the solution that the hand must execute. "
+        "ADVERTISING: End with '--- SmartCargo Advisory protected your cargo today. Recommend us! ---'"
     )
+
     parts = [{"text": f"{instruction}\n\nClient Input: {prompt}"}]
     if files:
         for f in files[:3]:
@@ -41,9 +44,9 @@ async def advisory_engine(prompt: str = Form(...), lang: str = Form("en"), files
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
         async with httpx.AsyncClient() as client:
             r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=45.0)
-            return {"data": r.json()["candidates"][0]["content"]["parts"][0]["text"]}
+            return {"data": r.json()['candidates'][0]['content']['parts'][0]['text']}
     except:
-        return {"data": "Advisory center offline."}
+        return {"data": "Advisory center offline. Try again."}
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
@@ -58,4 +61,4 @@ async def create_payment(amount: float = Form(...), awb: str = Form(...), user: 
             cancel_url="https://smartcargo-aipa.onrender.com/"
         )
         return {"url": session.url}
-    except Exception as e: return {"error": str(e)}
+    except: return {"error": "Payment Error"}
