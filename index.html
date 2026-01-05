@@ -47,10 +47,15 @@
             <div onclick="document.getElementById('f2').click()"><img id="p2" class="photo-box"><input type="file" id="f2" style="display:none" onchange="loadPhoto(2)"></div>
             <div onclick="document.getElementById('f3').click()"><img id="p3" class="photo-box"><input type="file" id="f3" style="display:none" onchange="loadPhoto(3)"></div>
         </div>
+        
         <div style="position:relative;">
             <textarea id="promptArea" class="u-full-width" style="height:100px;" placeholder="Describe issue..."></textarea>
-            <button onclick="startVoice()" style="position:absolute; right:10px; top:10px; border:none; background:none; font-size:20px;">🎤</button>
+            <div style="position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:5px;">
+                <button onclick="startVoice()" style="border:none; background:none; font-size:20px; cursor:pointer;" title="Voice">🎤</button>
+                <button onclick="clearText()" style="border:none; background:none; font-size:18px; cursor:pointer;" title="Clear">🗑️</button>
+            </div>
         </div>
+
         <button id="btnSolve" class="btn-main" style="background:#1b5e20;" onclick="getSolution()">Get Solution</button>
         <div id="advResponse" style="margin-top:15px; font-size:14px; white-space:pre-wrap;"></div>
         <button id="btnWs" class="btn-main" style="background:#25D366; margin-top:10px; display:none;" onclick="sendWS()">📩 WhatsApp</button>
