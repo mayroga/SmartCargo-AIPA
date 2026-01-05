@@ -1,5 +1,5 @@
 import os, stripe, httpx, openai, urllib.parse
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from typing import Optional
@@ -17,31 +17,44 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 @app.get("/")
 async def home(): return FileResponse("index.html")
+
 @app.get("/app.js")
 async def serve_js(): return FileResponse("app.js")
 
 @app.post("/advisory")
 async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
-    # INSTRUCCIÓN DE ÉLITE: PROHIBIDO USAR "AUDIT" / "AUDITORÍA"
     instruction = (
-        "You are the Senior Master Advisor of SmartCargo (MAY ROGA LLC). "
-        "Identity: PRIVATE TECHNICAL ADVISORS. Not IATA/TSA/DOT. "
-        "Purpose: Prevent fines and holds so the paying customer never loses money. "
-        "IMPORTANT: Never use the words 'audit', 'auditor', or 'auditing'. Use 'Technical Review', 'Strategic Analysis' or 'Verification'. "
-        "NARRATIVA: Soluciones técnicas directas al pecho. No menciones IA. "
+        "You are the Senior Master Advisor of SmartCargo (MAY ROGA LLC). PRIVATE TECHNICAL ADVISORS. "
+        "Purpose: Prevent fines and holds so customers never lose money. No 'audit' words. "
         "EXCELENCIA ESCALADA: Tier $5 (Courier), $15 (Standard), $35 (Critical Shield), $95 (Project Master). "
-        "Finalize: '--- SmartCargo Advisory by MAY ROGA LLC. ---'"
+        "Direct solutions. Finalize: '--- SmartCargo Advisory by MAY ROGA LLC. ---'"
     )
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
         async with httpx.AsyncClient() as client:
-            r = await client.post(url, json={"contents": [{"parts": [{"text": f"{instruction}\n\nClient Input: {prompt}"}]}]}, timeout=7.0)
+            r = await client.post(url, json={"contents": [{"parts": [{"text": f"{instruction}\n\nInput: {prompt}"}]}]}, timeout=10.0)
             res = r.json()
-            if 'candidates' in res: return {"data": res['candidates'][0]['content']['parts'][0]['text']}
-            raise Exception()
+            return {"data": res['candidates'][0]['content']['parts'][0]['text']}
     except:
         if OPENAI_KEY:
             client_oa = openai.OpenAI(api_key=OPENAI_KEY)
-            res = client_oa.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}], timeout=12.0)
+            res = client_oa.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}])
             return {"data": res.choices[0].message.content}
-    return {"data": "System busy. Retry."}
+    return {"data": "System error. Contact Admin."}
+
+@app.post("/create-payment")
+async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
+    if user == ADMIN_USER and password == ADMIN_PASS:
+        return {"url": f"/?access=granted&awb={urllib.parse.quote(awb)}&tier={amount}"}
+    
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Advisory {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
+            mode="payment",
+            success_url=f"{os.getenv('DOMAIN_URL')}/?access=granted&awb={urllib.parse.quote(awb)}&tier={amount}",
+            cancel_url=f"{os.getenv('DOMAIN_URL')}/",
+        )
+        return {"url": session.url}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
