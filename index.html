@@ -3,63 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo | Technical Advisor</title>
+    <title>SmartCargo | Tactical Advisor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 600px; margin: auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        h2 { color: #01579b; border-left: 5px solid #ffd600; padding-left: 10px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f9; margin: 0; padding: 20px; }
+        .card { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 6px solid #01579b; }
+        h2 { color: #01579b; margin-top: 0; font-size: 20px; text-transform: uppercase; }
         .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.3s; }
-        .btn-primary { background: #01579b; color: white; }
-        .btn-primary:hover { background: #01437a; }
-        #mainApp { opacity: 0.2; pointer-events: none; transition: 0.5s; margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
-        .report-box { background: #e3f2fd; border-radius: 8px; padding: 20px; margin-top: 20px; border: 1px solid #bbdefb; }
-        input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        #timerBox { display: none; color: #d32f2f; font-weight: bold; text-align: center; margin: 15px 0; }
+        .btn-pay { background: #01579b; color: white; }
+        .btn-solve { background: #2e7d32; color: white; }
+        .btn-clear { background: #b0bec5; color: #333; }
+        #mainApp { display: none; margin-top: 25px; border-top: 2px solid #eee; padding-top: 20px; }
+        .report-box { background: #fffde7; padding: 20px; border-radius: 8px; margin-top: 20px; border: 2px solid #01579b; font-size: 14px; }
+        #previewContainer { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+        .preview-img { width: 70px; height: 70px; object-fit: cover; border-radius: 5px; border: 1px solid #ddd; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        #timerBox { display: none; color: #d32f2f; font-weight: bold; text-align: center; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div style="text-align: right; margin-bottom: 20px;">
-        <button onclick="setLang('es')" style="cursor:pointer">ES 🇪🇸</button>
-        <button onclick="setLang('en')" style="cursor:pointer">EN 🇺🇸</button>
+<div class="card">
+    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <span style="font-weight:bold; color:#01579b;">SMARTCARGO</span>
+        <div>
+            <button onclick="setLang('es')" style="cursor:pointer; border:none; background:none;">ES</button> | 
+            <button onclick="setLang('en')" style="cursor:pointer; border:none; background:none;">EN</button>
+        </div>
     </div>
 
     <div id="accessSection">
-        <h2 id="t_act">1. Service Activation</h2>
+        <h2 id="t_act">1. Activation</h2>
         <input type="text" id="awbField" placeholder="AWB / Job Number">
         <select id="priceSelect">
-            <option value="50">Basic Technical Advisory - $50.00</option>
-            <option value="150">Complex DG/Hazmat Analysis - $150.00</option>
+            <option value="50">Technical Audit - $50.00</option>
+            <option value="150">Hazmat/Special Audit - $150.00</option>
         </select>
-        <button id="activateBtn" class="btn btn-primary">Proceed to Payment</button>
+        <button id="activateBtn" class="btn btn-pay">Proceed to Payment</button>
     </div>
 
     <div id="mainApp">
         <h2 id="t_sol">2. Solution Center</h2>
-        <h3 id="m_title"></h3>
-        <p id="m_desc"></p>
-       
         <form id="advForm">
-            <textarea name="prompt" rows="4" placeholder="Describe your technical issue..."></textarea>
-            <label style="font-size: 0.8em; color: #666;">Attach photos (Max 3):</label>
-            <input type="file" name="files" multiple accept="image/*">
-            <button type="submit" class="btn btn-primary" style="background: #2e7d32;">Get Tactical Plan</button>
+            <textarea name="prompt" id="promptField" rows="4" placeholder="Describe the physical or documentary issue..."></textarea>
+            <label style="font-size: 0.8em; font-weight: bold;">ATTACH EVIDENCE (MAX 3):</label>
+            <input type="file" name="files" id="fileInput" multiple accept="image/*" onchange="previewImages()">
+            <div id="previewContainer"></div>
+            <button type="submit" class="btn btn-solve">Execute Audit & Solution</button>
+            <button type="button" class="btn btn-clear" onclick="clearForm()">New Query (Reset)</button>
         </form>
-
         <div id="advResponse"></div>
-        <div id="timerBox">🔒 Privacy Lock: <span id="secs">300</span>s</div>
-       
+        <div id="timerBox">🔒 Private Session: <span id="secs">300</span>s</div>
         <div id="actionBtns" style="display:none; gap:10px;">
-            <button onclick="downloadPDF()" class="btn" style="background:#555; color:white;">Save as PDF</button>
-            <button onclick="shareWA()" class="btn" style="background:#25d366; color:white;">Share on WhatsApp</button>
+            <button onclick="downloadPDF()" class="btn" style="background:#444; color:white;">Download PDF</button>
+            <button onclick="shareWA()" class="btn" style="background:#25d366; color:white;">WhatsApp</button>
         </div>
     </div>
-
-    <hr style="margin-top:40px;">
-    <h4 id="l_title"></h4>
-    <p id="l_desc" style="font-size: 0.75em; color: #888; line-height: 1.4;"></p>
 </div>
 
 <script src="app.js"></script>
