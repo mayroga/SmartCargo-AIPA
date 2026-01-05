@@ -3,48 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo | AI Technical Advisor</title>
+    <title>SmartCargo | Technical Advisor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f8f9fa; padding: 15px; margin: 0; }
-        .card { max-width: 500px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .logo { color: #01579b; font-weight: bold; font-size: 24px; text-align: center; margin-bottom: 20px; }
-        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn-pay { background: #01579b; color: white; }
-        .btn-advise { background: #2e7d32; color: white; }
-        #mainApp { display: none; margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px; }
-        .response-box { background: #fffde7; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #fff9c4; font-size: 0.9em; line-height: 1.5; }
-        input, select, textarea { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 600px; margin: auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        h2 { color: #01579b; border-left: 5px solid #ffd600; padding-left: 10px; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.3s; }
+        .btn-primary { background: #01579b; color: white; }
+        .btn-primary:hover { background: #01437a; }
+        #mainApp { opacity: 0.2; pointer-events: none; transition: 0.5s; margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
+        .report-box { background: #e3f2fd; border-radius: 8px; padding: 20px; margin-top: 20px; border: 1px solid #bbdefb; }
+        input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        #timerBox { display: none; color: #d32f2f; font-weight: bold; text-align: center; margin: 15px 0; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <div class="logo">SMARTCARGO</div>
-    
+<div class="container">
+    <div style="text-align: right; margin-bottom: 20px;">
+        <button onclick="setLang('es')" style="cursor:pointer">ES 🇪🇸</button>
+        <button onclick="setLang('en')" style="cursor:pointer">EN 🇺🇸</button>
+    </div>
+
     <div id="accessSection">
-        <h3 id="t_act">1. Activate Advisory</h3>
-        <input type="text" id="awbField" placeholder="AWB Number / Job ID">
+        <h2 id="t_act">1. Service Activation</h2>
+        <input type="text" id="awbField" placeholder="AWB / Job Number">
         <select id="priceSelect">
-            <option value="50">Basic Analysis - $50.00</option>
-            <option value="150">DG / Hazmat Analysis - $150.00</option>
+            <option value="50">Basic Technical Advisory - $50.00</option>
+            <option value="150">Complex DG/Hazmat Analysis - $150.00</option>
         </select>
-        <button id="activateBtn" class="btn btn-pay">Pay & Start</button>
+        <button id="activateBtn" class="btn btn-primary">Proceed to Payment</button>
     </div>
 
     <div id="mainApp">
-        <h3 id="t_sol">2. Solution Center</h3>
+        <h2 id="t_sol">2. Solution Center</h2>
+        <h3 id="m_title"></h3>
+        <p id="m_desc"></p>
+       
         <form id="advForm">
-            <textarea name="prompt" rows="3" placeholder="Explain the problem or inspection point..."></textarea>
+            <textarea name="prompt" rows="4" placeholder="Describe your technical issue..."></textarea>
+            <label style="font-size: 0.8em; color: #666;">Attach photos (Max 3):</label>
             <input type="file" name="files" multiple accept="image/*">
-            <button type="submit" class="btn btn-advise">Generate Action Plan</button>
+            <button type="submit" class="btn btn-primary" style="background: #2e7d32;">Get Tactical Plan</button>
         </form>
+
         <div id="advResponse"></div>
-        <div id="actionBtns" style="display:none; gap:10px; margin-top:15px;">
-            <button onclick="downloadPDF()" class="btn" style="background:#546e7a; color:white;">PDF</button>
-            <button onclick="shareWA()" class="btn" style="background:#25d366; color:white;">WhatsApp</button>
+        <div id="timerBox">🔒 Privacy Lock: <span id="secs">300</span>s</div>
+       
+        <div id="actionBtns" style="display:none; gap:10px;">
+            <button onclick="downloadPDF()" class="btn" style="background:#555; color:white;">Save as PDF</button>
+            <button onclick="shareWA()" class="btn" style="background:#25d366; color:white;">Share on WhatsApp</button>
         </div>
     </div>
+
+    <hr style="margin-top:40px;">
+    <h4 id="l_title"></h4>
+    <p id="l_desc" style="font-size: 0.75em; color: #888; line-height: 1.4;"></p>
 </div>
 
 <script src="app.js"></script>
