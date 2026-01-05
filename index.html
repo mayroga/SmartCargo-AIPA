@@ -1,98 +1,67 @@
-const translations = {
-    en: {
-        act: "1. Service Activation",
-        sol: "2. Solution Center",
-        m_title: "Why SmartCargo?",
-        m_desc: "We provide stability to the entire logistics chain. We prevent fines and holds so the paying customer never loses money.",
-        l_title: "⚠️ Legal Shield",
-        l_desc: "We are PRIVATE ADVISORS. Not IATA/TSA/DOT. We provide technical solutions; we don't certify DG or handle cargo."
-    },
-    es: {
-        act: "1. Activación de Servicio",
-        sol: "2. Centro de Soluciones",
-        m_title: "¿Por qué SmartCargo?",
-        m_desc: "Damos estabilidad a toda la cadena logística. Evitamos multas y retenciones para que el cliente que paga nunca pierda dinero.",
-        l_title: "⚠️ Blindaje Legal",
-        l_desc: "Somos ASESORES PRIVADOS. No somos IATA/TSA/DOT. Damos soluciones técnicas; no certificamos carga peligrosa ni manipulamos carga."
-    }
-};
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCargo | Technical Advisor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 600px; margin: auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        h2 { color: #01579b; border-left: 5px solid #ffd600; padding-left: 10px; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.3s; }
+        .btn-primary { background: #01579b; color: white; }
+        .btn-primary:hover { background: #01437a; }
+        #mainApp { opacity: 0.2; pointer-events: none; transition: 0.5s; margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
+        .report-box { background: #e3f2fd; border-radius: 8px; padding: 20px; margin-top: 20px; border: 1px solid #bbdefb; }
+        input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        #timerBox { display: none; color: #d32f2f; font-weight: bold; text-align: center; margin: 15px 0; }
+    </style>
+</head>
+<body>
 
-let timer;
+<div class="container">
+    <div style="text-align: right; margin-bottom: 20px;">
+        <button onclick="setLang('es')" style="cursor:pointer">ES 🇪🇸</button>
+        <button onclick="setLang('en')" style="cursor:pointer">EN 🇺🇸</button>
+    </div>
 
-function setLang(lang) {
-    localStorage.setItem("user_lang", lang);
-    const t = translations[lang] || translations.en;
-    document.getElementById("t_act").innerText = t.act;
-    document.getElementById("t_sol").innerText = t.sol;
-    document.getElementById("m_title").innerText = t.m_title;
-    document.getElementById("m_desc").innerText = t.m_desc;
-    document.getElementById("l_title").innerText = t.l_title;
-    document.getElementById("l_desc").innerText = t.l_desc;
-}
+    <div id="accessSection">
+        <h2 id="t_act">1. Service Activation</h2>
+        <input type="text" id="awbField" placeholder="AWB / Job Number">
+        <select id="priceSelect">
+            <option value="50">Basic Technical Advisory - $50.00</option>
+            <option value="150">Complex DG/Hazmat Analysis - $150.00</option>
+        </select>
+        <button id="activateBtn" class="btn btn-primary">Proceed to Payment</button>
+    </div>
 
-function unlock() {
-    document.getElementById("mainApp").style.opacity = "1";
-    document.getElementById("mainApp").style.pointerEvents = "all";
-    document.getElementById("accessSection").style.display = "none";
-}
+    <div id="mainApp">
+        <h2 id="t_sol">2. Solution Center</h2>
+        <h3 id="m_title"></h3>
+        <p id="m_desc"></p>
+        
+        <form id="advForm">
+            <textarea name="prompt" rows="4" placeholder="Describe your technical issue..."></textarea>
+            <label style="font-size: 0.8em; color: #666;">Attach photos (Max 3):</label>
+            <input type="file" name="files" multiple accept="image/*">
+            <button type="submit" class="btn btn-primary" style="background: #2e7d32;">Get Tactical Plan</button>
+        </form>
 
-document.addEventListener("DOMContentLoaded", () => {
-    setLang(localStorage.getItem("user_lang") || "en");
+        <div id="advResponse"></div>
+        <div id="timerBox">🔒 Privacy Lock: <span id="secs">300</span>s</div>
+        
+        <div id="actionBtns" style="display:none; gap:10px;">
+            <button onclick="downloadPDF()" class="btn" style="background:#555; color:white;">Save as PDF</button>
+            <button onclick="shareWA()" class="btn" style="background:#25d366; color:white;">Share on WhatsApp</button>
+        </div>
+    </div>
 
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("access") === "granted" || localStorage.getItem("sc_auth") === "true") {
-        localStorage.setItem("sc_auth", "true");
-        unlock();
-    }
+    <hr style="margin-top:40px;">
+    <h4 id="l_title"></h4>
+    <p id="l_desc" style="font-size: 0.75em; color: #888; line-height: 1.4;"></p>
+</div>
 
-    document.getElementById("activateBtn").onclick = async () => {
-        const awb = document.getElementById("awbField").value || "N/A";
-        const amt = document.getElementById("priceSelect").value;
-        const user = prompt("ADMIN USER:");
-        const pass = prompt("ADMIN PASS:");
-
-        const fd = new FormData();
-        fd.append("awb", awb); fd.append("amount", amt);
-        if(user) fd.append("user", user); if(pass) fd.append("password", pass);
-
-        const res = await fetch(`/create-payment`, { method: "POST", body: fd });
-        const data = await res.json();
-        if(data.url) window.location.href = data.url;
-    };
-
-    document.getElementById("advForm").onsubmit = async (e) => {
-        e.preventDefault();
-        const out = document.getElementById("advResponse");
-        out.innerHTML = "<h4>🔍 Analyzing technical solutions...</h4>";
-       
-        const fd = new FormData(e.target);
-        fd.append("lang", localStorage.getItem("user_lang") || "en");
-
-        const res = await fetch(`/advisory`, { method: "POST", body: fd });
-        const data = await res.json();
-        const curLang = localStorage.getItem("user_lang") || "en";
-       
-        out.innerHTML = `
-            <div id="finalReport" class="report-box">
-                <h3 style="color:#01579b; border-bottom:2px solid #ffd600;">TACTICAL ACTION PLAN</h3>
-                <p style="white-space: pre-wrap;">${data.data}</p>
-                <hr>
-                <p style="font-size:0.7em; color:gray;"><strong>Legal Notice:</strong> ${translations[curLang].l_desc}</p>
-            </div>`;
-        document.getElementById("actionBtns").style.display = "flex";
-
-        // Iniciar cronómetro de privacidad
-        document.getElementById("timerBox").style.display = "block";
-        let timeLeft = 300;
-        clearInterval(timer);
-        timer = setInterval(() => {
-            timeLeft--;
-            document.getElementById("secs").innerText = timeLeft;
-            if(timeLeft <= 0) location.reload();
-        }, 1000);
-    };
-});
-
-function downloadPDF() { html2pdf().from(document.getElementById("finalReport")).save("SmartCargo_Report.pdf"); }
-function shareWA() { window.open(`https://wa.me/?text=${encodeURIComponent(document.getElementById("finalReport").innerText)}`, '_blank'); }
-
+<script src="app.js"></script>
+</body>
+</html>
