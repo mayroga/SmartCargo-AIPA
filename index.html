@@ -1,66 +1,69 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo | Tactical Advisor</title>
+    <title>SmartCargo Advisor 360° | MAY ROGA LLC</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f9; margin: 0; padding: 20px; }
-        .card { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 6px solid #01579b; }
-        h2 { color: #01579b; margin-top: 0; font-size: 20px; text-transform: uppercase; }
-        .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.3s; }
-        .btn-pay { background: #01579b; color: white; }
-        .btn-solve { background: #2e7d32; color: white; }
-        .btn-clear { background: #b0bec5; color: #333; }
-        #mainApp { display: none; margin-top: 25px; border-top: 2px solid #eee; padding-top: 20px; }
-        .report-box { background: #fffde7; padding: 20px; border-radius: 8px; margin-top: 20px; border: 2px solid #01579b; font-size: 14px; }
-        #previewContainer { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
-        .preview-img { width: 70px; height: 70px; object-fit: cover; border-radius: 5px; border: 1px solid #ddd; }
-        input, select, textarea { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        #timerBox { display: none; color: #d32f2f; font-weight: bold; text-align: center; margin-top: 10px; }
+        :root { --blue: #01579b; --gold: #ffd600; }
+        .lang-bar { background: #000; padding: 10px; display: flex; gap: 8px; justify-content: center; position: sticky; top: 0; z-index: 999; }
+        .lang-btn { cursor: pointer; border: 1px solid var(--gold); background: transparent; color: var(--gold); padding: 6px 12px; border-radius: 4px; font-weight: bold; }
+        .mission-box { background: #e3f2fd; border-left: 5px solid var(--blue); padding: 15px; margin: 20px 0; color: #000; }
+        .shield-box { background: #fff3e0; border: 2px solid #e65100; padding: 15px; font-size: 0.85em; margin: 20px 0; }
+        #mainApp { opacity: 0.1; pointer-events: none; transition: 0.5s; border-top: 3px solid var(--blue); margin-top: 20px; }
+        .report-box { background: #fff; color: #000; padding: 25px; border: 2px solid var(--blue); border-radius: 8px; }
+        #timerBox { display: none; text-align: center; color: red; font-weight: bold; padding: 10px; border: 1px solid red; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-
-<div class="card">
-    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <span style="font-weight:bold; color:#01579b;">SMARTCARGO</span>
-        <div>
-            <button onclick="setLang('es')" style="cursor:pointer; border:none; background:none;">ES</button> | 
-            <button onclick="setLang('en')" style="cursor:pointer; border:none; background:none;">EN</button>
-        </div>
+    <div class="lang-bar">
+        <button class="lang-btn" onclick="setLang('en')">EN 🇺🇸</button>
+        <button class="lang-btn" onclick="setLang('es')">ES 🇪🇸</button>
     </div>
 
-    <div id="accessSection">
-        <h2 id="t_act">1. Activation</h2>
-        <input type="text" id="awbField" placeholder="AWB / Job Number">
+    <header style="text-align: center;">
+        <h1>SmartCargo ADVISORY</h1>
+        <p>Technical Consulting by <strong>MAY ROGA LLC</strong></p>
+    </header>
+
+    <div class="mission-box">
+        <h3 id="m_title">Why SmartCargo?</h3>
+        <p id="m_desc">We provide stability to the entire logistics chain. From Shippers and Forwarders to Drivers and Operators, our system ensures everyone can verify cargo status. <strong>We prevent fines, holds, and returns</strong> so the paying customer never loses money.</p>
+    </div>
+
+    <div class="shield-box">
+        <h4 id="l_title">⚠️ Legal Shield / Blindaje Legal</h4>
+        <p id="l_desc">We are PRIVATE ADVISORS. We are NOT IATA, TSA, DOT, or government regulators. We provide technical solutions to prevent delays; we do not certify dangerous goods and we do not touch or handle cargo.</p>
+    </div>
+
+    <section id="accessSection">
+        <h2 id="t_act">1. Service Activation</h2>
+        <input type="text" id="awbField" placeholder="AWB / Loading Reference">
         <select id="priceSelect">
-            <option value="50">Technical Audit - $50.00</option>
-            <option value="150">Hazmat/Special Audit - $150.00</option>
+            <option value="35">Micro/Basic Load - $35</option>
+            <option value="120">Premium Integral Audit - $120</option>
         </select>
-        <button id="activateBtn" class="btn btn-pay">Proceed to Payment</button>
-    </div>
+        <button id="activateBtn" style="width:100%; background:var(--blue); color:white; font-weight:bold;">ACTIVATE ADVISOR</button>
+    </section>
 
-    <div id="mainApp">
+    <section id="mainApp">
+        <div id="timerBox">🔒 PRIVACY: Info wipes in <span id="secs">300</span>s</div>
         <h2 id="t_sol">2. Solution Center</h2>
         <form id="advForm">
-            <textarea name="prompt" id="promptField" rows="4" placeholder="Describe the physical or documentary issue..."></textarea>
-            <label style="font-size: 0.8em; font-weight: bold;">ATTACH EVIDENCE (MAX 3):</label>
-            <input type="file" name="files" id="fileInput" multiple accept="image/*" onchange="previewImages()">
-            <div id="previewContainer"></div>
-            <button type="submit" class="btn btn-solve">Execute Audit & Solution</button>
-            <button type="button" class="btn btn-clear" onclick="clearForm()">New Query (Reset)</button>
+            <textarea name="prompt" id="promptArea" placeholder="Describe the issue or upload photos..." required></textarea>
+            <label>Inspection Photos (Max 3):</label>
+            <input type="file" name="images" id="imageFiles" accept="image/*" multiple>
+            <button type="submit" style="width:100%; background:#2e7d32; color:white; font-weight:bold;">GENERATE ACTION PLAN</button>
         </form>
         <div id="advResponse"></div>
-        <div id="timerBox">🔒 Private Session: <span id="secs">300</span>s</div>
-        <div id="actionBtns" style="display:none; gap:10px;">
-            <button onclick="downloadPDF()" class="btn" style="background:#444; color:white;">Download PDF</button>
-            <button onclick="shareWA()" class="btn" style="background:#25d366; color:white;">WhatsApp</button>
+        <div id="actionBtns" style="display:none; margin-top:20px; gap:10px;">
+            <button onclick="downloadPDF()" style="flex:1;">📄 Download PDF</button>
+            <button onclick="shareWA()" style="flex:1; background:#25d366; color:white;">Share WhatsApp</button>
         </div>
-    </div>
-</div>
+    </section>
 
-<script src="app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
