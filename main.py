@@ -5,13 +5,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 from typing import Optional, List
 from dotenv import load_dotenv
-# ===== SMARTCARGO IMAGE VISUAL ADVISOR — HARDENED VERSION =====
+# ===== SMARTCARGO IMAGE VISUAL ADVISOR — FINAL FIX =====
 import os, base64, io, re
 from fastapi import HTTPException
 from google import genai
+from google.genai import types
 from PIL import Image, ImageOps
 
-# --- API KEY (oculta) ---
 _API_KEY = os.getenv("GEMINI_API_KEY")
 if not _API_KEY:
     raise RuntimeError("Server configuration error")
@@ -23,64 +23,49 @@ def describe_image(image_b64: str) -> str:
         if not image_b64 or not isinstance(image_b64, str):
             raise Exception("Invalid input")
 
-        # --- LIMPIEZA AGRESIVA BASE64 ---
+        # --- LIMPIEZA BASE64 ---
         image_b64 = re.sub(r"\s+", "", image_b64)
-
         if "," in image_b64:
             image_b64 = image_b64.split(",", 1)[1]
 
-        # Decodificación tolerante (validate=False evita falsos negativos)
         raw = base64.b64decode(image_b64, validate=False)
 
-        # --- DECODIFICACIÓN REAL DE IMAGEN ---
+        # --- NORMALIZACIÓN MÓVIL ---
         img = Image.open(io.BytesIO(raw))
-        img.load()  # fuerza lectura completa
-
-        # --- NORMALIZACIÓN MÓVIL TOTAL ---
+        img.load()
         img = ImageOps.exif_transpose(img)
+        img = img.convert("RGB")
 
-        if img.mode not in ("RGB",):
-            img = img.convert("RGB")
+        if max(img.size) > 1600:
+            img.thumbnail((1600, 1600))
 
-        # Control de tamaño (Gemini-safe)
-        max_size = 1600
-        if img.width > max_size or img.height > max_size:
-            img.thumbnail((max_size, max_size))
-
-        # Re-encode TOTAL (elimina basura interna)
-        buffer = io.BytesIO()
-        img.save(buffer, format="JPEG", quality=82, optimize=True)
-        img_bytes = buffer.getvalue()
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=82, optimize=True)
+        img_bytes = buf.getvalue()
 
         if len(img_bytes) < 1500:
-            raise Exception("Image too small")
+            raise Exception("Invalid image")
 
-        # --- PROMPT SMARTCARGO (SOLUCIONES REALES) ---
+        # --- PROMPT SMARTCARGO ---
         prompt = (
-            "Analiza esta imagen como un asesor visual experto en logística. "
-            "Identifica problemas reales relacionados con carga, embalaje, "
-            "estiba, documentación o manipulación. "
-            "Da instrucciones claras, directas y accionables para corregirlos: "
-            "mover cajas, redistribuir peso, asegurar mercancía, colocar o corregir etiquetas, "
-            "verificar documentos visibles o prevenir daños y rechazos. "
-            "La información es asesoría preventiva y debe aplicarse según normativas vigentes."
+            "Analiza esta imagen como un asesor visual profesional de logística. "
+            "Detecta problemas reales en carga, estiba, embalaje, etiquetado, "
+            "documentación visible o manipulación. "
+            "Da soluciones claras y accionables para corregirlos y prevenir rechazos, "
+            "daños o incumplimientos. "
+            "La información es únicamente asesoría preventiva."
         )
 
-        # --- ENVÍO CORRECTO A GEMINI ---
+        # 🔴 ESTA ES LA DIFERENCIA CRÍTICA 🔴
         response = _client.models.generate_content(
             model="gemini-1.5-flash",
-            contents=[{
-                "role": "user",
-                "parts": [
-                    {"text": prompt},
-                    {
-                        "inline_data": {
-                            "mime_type": "image/jpeg",
-                            "data": img_bytes
-                        }
-                    }
-                ]
-            }]
+            contents=[
+                types.Part.from_text(prompt),
+                types.Part.from_bytes(
+                    data=img_bytes,
+                    mime_type="image/jpeg"
+                )
+            ]
         )
 
         if not response or not response.text:
@@ -91,10 +76,11 @@ def describe_image(image_b64: str) -> str:
     except Exception:
         raise HTTPException(
             status_code=500,
-            detail="No se pudo generar la asesoría visual de la imagen"
+            detail="No se pudo generar la asesoría visual"
         )
 
-# ============================================================
+# ======================================================
+
 
 load_dotenv()
 app = FastAPI()
