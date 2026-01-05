@@ -1,7 +1,9 @@
 fastapi
-uvicorn
+uvicorn[standard]
+python-multipart
 stripe
 httpx
-python-multipart
-python-dotenv
 openai
+python-dotenv
+google-genai
+Pillow
