@@ -1,74 +1,70 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SmartCargo Advisory | May Roga LLC</title>
+    <title>SmartCargo | May Roga LLC</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
     <style>
-        body { background: #000b1a; color: #333; font-family: 'Helvetica Neue', sans-serif; margin: 0; padding: 15px; }
-        .card { max-width: 500px; margin: auto; background: #fff; border-radius: 20px; padding: 25px; border-top: 10px solid #d4af37; box-shadow: 0 15px 40px rgba(0,0,0,0.4); }
-        .header-box { text-align: center; margin-bottom: 15px; }
-        .promo-banner { background: #001d3d; color: #fff; padding: 12px; border-radius: 10px; font-size: 13px; text-align: center; margin-bottom: 20px; border: 1px solid #d4af37; }
-        
-        /* Botones de Precio Estilo Tarjeta */
+        body { background: #000814; color: #333; font-family: sans-serif; padding: 10px; margin:0; }
+        .card { max-width: 500px; margin: auto; background: white; border-radius: 15px; padding: 25px; border-top: 10px solid #d4af37; box-shadow: 0 15px 35px rgba(0,0,0,0.4); }
+        .hero { background: #001a35; color: white; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px; border: 1px solid #d4af37; }
+        .hero b { color: #d4af37; display: block; font-size: 16px; text-transform: uppercase; }
+        .lang-bar { display: flex; justify-content: center; gap: 5px; margin-bottom: 15px; }
+        .lang-bar button { font-size: 9px; padding: 0 5px; height: 22px; line-height: 22px; }
         .tier-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .tier-btn { border: 2px solid #001d3d; padding: 15px; border-radius: 12px; text-align: center; cursor: pointer; transition: 0.3s; background: #f8f9fa; }
-        .tier-btn.selected { background: #001d3d; color: #fff; border-color: #d4af37; }
-        .tier-btn b { display: block; font-size: 18px; }
-        .tier-btn span { font-size: 10px; display: block; margin-top: 5px; text-transform: uppercase; }
-
-        .timer-bar { background: #d4af37; color: #000; text-align: center; font-weight: bold; padding: 8px; border-radius: 8px; margin-bottom: 15px; display: none; }
-        .btn-main { background: #001d3d; color: white; width: 100%; height: 55px; border: none; font-weight: bold; border-radius: 10px; font-size: 16px; cursor: pointer; }
-        .btn-voice { background: #c62828; color: white; border-radius: 50px; width: 100%; margin: 15px 0; border: none; height: 45px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        
-        #mainApp { display: none; }
-        .report { background: #f1f3f5; border-left: 6px solid #001d3d; padding: 18px; border-radius: 8px; font-size: 15px; white-space: pre-wrap; margin-top: 20px; color: #1a1a1a; }
+        .tier-btn { border: 2px solid #001a35; padding: 12px; text-align: center; cursor: pointer; border-radius: 8px; background: #f8f9fa; font-weight: bold; font-size: 12px; transition: 0.3s; }
+        .tier-btn.active { background: #001a35; color: white; border-color: #d4af37; }
+        .btn-main { background: #001a35; color: white; width: 100%; height: 50px; font-weight: bold; border: none; cursor: pointer; border-radius: 8px; text-transform: uppercase; }
+        #mainApp { display: none; margin-top: 20px; }
+        .timer { background: #d4af37; color: #000; text-align: center; font-weight: bold; padding: 8px; border-radius: 5px; margin-bottom: 10px; font-size: 14px; }
+        .report { background: #f1f3f5; padding: 15px; border-left: 6px solid #001a35; margin-top: 20px; border-radius: 8px; font-size: 14px; white-space: pre-wrap; }
         .warning-flash { animation: blink 0.8s infinite; color: #ff0000; }
         @keyframes blink { 50% { opacity: 0.4; } }
-        .preview-img { width: 65px; height: 65px; object-fit: cover; border-radius: 8px; margin: 5px; border: 1px solid #001d3d; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div class="header-box">
-        <h2 style="margin:0; color:#001d3d; font-weight:900; letter-spacing:-1px;">SMARTCARGO</h2>
-        <p style="font-size:11px; color:#d4af37; font-weight:bold; margin:0; text-transform:uppercase;">Technical Advisory • May Roga LLC</p>
+    <div class="lang-bar">
+        <button onclick="setLang('en')">EN</button>
+        <button onclick="setLang('es')">ES</button>
+        <button onclick="setLang('fr')">FR</button>
+        <button onclick="setLang('pt')">PT</button>
     </div>
 
-    <div id="timerDisplay" class="timer-bar"></div>
-
-    <div class="promo-banner" id="promo">
-        <strong>EVITE MULTAS Y RETENCIONES:</strong> Soluciones inmediatas para Aire, Mar y Tierra. Proteja su dinero ahora.
+    <div class="hero">
+        <b>Profit Protection</b>
+        <p style="font-size:11px; margin:0;">Technical solutions for Sea, Air & Land. We prevent rejections. We are the brain of your logistics chain.</p>
     </div>
 
     <div id="accessSection">
-        <label style="font-size:11px; font-weight:bold; color:#001d3d;">1. SELECCIONE NIVEL DE CARGA:</label>
+        <label style="font-weight:bold; font-size:12px;">1. SELECT SERVICE TIER:</label>
         <div class="tier-grid">
-            <div class="tier-btn" onclick="selectTier(5, this)"><b>$5</b><span>Courier / 8 Min</span></div>
-            <div class="tier-btn" onclick="selectTier(10, this)"><b>$10</b><span>Standard / 8 Min</span></div>
-            <div class="tier-btn" onclick="selectTier(45, this)"><b>$45</b><span>Critical / 20 Min</span></div>
-            <div class="tier-btn" onclick="selectTier(95, this)"><b>$95</b><span>Project / 45 Min</span></div>
+            <div class="tier-btn" onclick="selTier(5, this)">COURIER ($5)</div>
+            <div class="tier-btn" onclick="selTier(10, this)">STANDARD ($10)</div>
+            <div class="tier-btn" onclick="selTier(45, this)">HAZMAT ($45)</div>
+            <div class="tier-btn" onclick="selTier(95, this)">PROJECT ($95)</div>
         </div>
         <input type="text" id="awbField" class="u-full-width" placeholder="AWB / BOL / Tracking ID">
-        <button id="activateBtn" class="btn-main">VALIDAR Y ACTIVAR</button>
+        <button id="activateBtn" class="btn-main">Unlock Advisory</button>
     </div>
 
     <div id="mainApp">
-        <div id="greeting" style="font-size:14px; color:#001d3d; margin-bottom:15px; font-weight:bold; background: #eef2f7; padding:10px; border-radius:8px;"></div>
+        <div id="timerDisp" class="timer"></div>
+        <div id="greeting" style="font-size:13px; font-weight:bold; color:#001a35; margin-bottom:15px; background:#eef2f7; padding:10px; border-radius:8px;"></div>
         <form id="advForm">
-            <div style="border:2px dashed #001d3d; padding:20px; text-align:center; background:#f9fbff; cursor:pointer; border-radius:12px;" onclick="document.getElementById('fileInput').click()">
-                <strong style="font-size:13px; color:#001d3d;">📸 ESCANEAR CARGA / DOCUMENTOS</strong>
+            <div style="border:2px dashed #001a35; padding:20px; text-align:center; cursor:pointer; background:#fafafa; border-radius:10px;" onclick="document.getElementById('fileInput').click()">
+                <strong>📸 SCAN EVIDENCE / DOCUMENTS</strong>
             </div>
-            <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+            <input type="file" id="fileInput" multiple style="display:none" onchange="previewFiles()">
             <div id="previewContainer" style="display:flex; flex-wrap:wrap; margin-top:10px;"></div>
-
-            <button type="button" id="voiceBtn" class="btn-voice">🎤 HABLAR PROBLEMA</button>
-            <textarea id="promptArea" class="u-full-width" style="height:110px; border-radius:10px;" placeholder="¿Cuál es su duda o miedo con esta carga?"></textarea>
             
-            <button type="submit" class="btn-main" style="background:#1b5e20;">GENERAR SOLUCIÓN</button>
-            <button type="button" class="btn-main" style="background:#6c757d; font-size:11px; height:35px; margin-top:15px;" onclick="window.location.reload()">NUEVA CONSULTA</button>
+            <button type="button" id="voiceBtn" class="btn-main" style="background:#c62828; height:40px; margin: 10px 0;">🎤 SPEAK PROBLEM</button>
+            <textarea id="promptArea" class="u-full-width" style="height:100px;" placeholder="What is your doubt or fear?"></textarea>
+            
+            <button type="submit" class="btn-main" style="background:#1b5e20;">Get Solution</button>
+            <button type="button" class="btn-main" style="background:#666; height:30px; font-size:10px; margin-top:10px;" onclick="window.location.reload()">Clear / New Query</button>
         </form>
         <div id="advResponse"></div>
     </div>
