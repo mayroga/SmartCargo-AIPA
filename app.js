@@ -1,27 +1,21 @@
 let selectedRole = "", selectedAmount = 0, currentLang = "en", timeLeft = 0, idleTime = 0;
-const ui = {
-    en: { wait: "⚙️ ANALYZING SCENARIO...", alert: "TOUCH TO REMAIN ACTIVE!" },
-    es: { wait: "⚙️ ANALIZANDO ESCENARIO...", alert: "¡TOQUE PARA SEGUIR ACTIVO!" }
-};
+const ui = { en: { wait: "⚙️ ANALYZING...", alert: "TOUCH TO STAY ACTIVE!" }, es: { wait: "⚙️ ANALIZANDO...", alert: "¡TOQUE PARA SEGUIR ACTIVO!" } };
 
 function setLang(l, el) { currentLang = l; document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); }
 
-function loadPhotos() {
-    const files = document.getElementById('fileInput').files;
-    for(let i=0; i<3; i++) {
-        const img = document.getElementById(`p${i+1}`);
-        if(files[i]) {
-            const r = new FileReader();
-            r.onload = (e) => { img.src = e.target.result; img.style.display = "block"; };
-            r.readAsDataURL(files[i]);
-        }
+function loadPhoto(i) {
+    const file = document.getElementById(`f${i}`).files[0];
+    if (file) {
+        const r = new FileReader();
+        r.onload = (e) => { const img = document.getElementById(`p${i}`); img.src = e.target.result; img.style.border = "3px solid #1b5e20"; };
+        r.readAsDataURL(file);
     }
 }
 
 function startVoice() {
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = currentLang === 'es' ? 'es-ES' : 'en-US';
-    recognition.onresult = (e) => { document.getElementById("promptArea").value = e.results[0][0].transcript; };
+    recognition.onresult = (e) => { document.getElementById("promptArea").value += e.results[0][0].transcript; };
     recognition.start();
 }
 
@@ -29,7 +23,7 @@ async function getSolution() {
     const out = document.getElementById("advResponse");
     out.innerHTML = `<strong>${ui[currentLang].wait}</strong>`;
     const fd = new FormData();
-    fd.append("prompt", `Role: ${selectedRole}. Technical Issue: ${document.getElementById("promptArea").value}`);
+    fd.append("prompt", `Role: ${selectedRole}. Tier: ${selectedAmount}. Detail: ${document.getElementById("promptArea").value}`);
     fd.append("lang", currentLang);
     const res = await fetch("/advisory", { method: "POST", body: fd });
     const data = await res.json();
@@ -39,7 +33,7 @@ async function getSolution() {
 
 function sendWS() {
     const text = document.getElementById("advResponse").innerText;
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent("SmartCargo Advisory (May Roga LLC):\n\n" + text)}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent("SmartCargo Advisory Result:\n\n" + text)}`, '_blank');
 }
 
 function resetIdle() { idleTime = 0; }
@@ -51,11 +45,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if(p.get("access") === "granted") {
         document.getElementById("mainApp").style.display = "block";
         document.getElementById("accessSection").style.display = "none";
-        timeLeft = (p.get("tier") == "95" ? 45 : 4) * 60;
+        const tier = p.get("tier");
+        let mins = tier == "95" ? 45 : (tier == "35" ? 20 : (tier == "15" ? 10 : 4));
+        timeLeft = mins * 60;
         setInterval(() => {
             timeLeft--; idleTime++;
             if(idleTime === 59) { alert(ui[currentLang].alert); resetIdle(); }
-            document.getElementById("timerDisp").innerText = `SESSION ACTIVE: ${Math.floor(timeLeft/60)}:${(timeLeft%60).toString().padStart(2,'0')}`;
+            document.getElementById("timerDisp").innerHTML = `<div style="font-size:9px;">LEVEL: ${tier == 95 ? 'PROJECT' : (tier == 35 ? 'CRITICAL' : 'STANDARD')}</div> SESSION ACTIVE: ${Math.floor(timeLeft/60)}:${(timeLeft%60).toString().padStart(2,'0')}`;
             if(timeLeft <= 0) location.href="/";
         }, 1000);
     }
