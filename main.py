@@ -1,11 +1,14 @@
-from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 import os
+import io
 import base64
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from PIL import Image, ImageOps
+from google import genai
 
 # =====================================================
-# CONFIGURACIÓN APP
+# CONFIG
 # =====================================================
 app = FastAPI()
 
@@ -16,62 +19,74 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# =====================================================
-# CONFIGURACIÓN GEMINI (VISIÓN)
-# =====================================================
-from google import genai
-from google.genai import types
+API_KEY = os.getenv("GEMINI_API_KEY")
+if not API_KEY:
+    raise RuntimeError("Missing API key")
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=GEMINI_API_KEY)
-
-VISION_MODEL = "gemini-1.5-flash"
+client = genai.Client(api_key=API_KEY)
 
 # =====================================================
-# FUNCIÓN VISUAL (NUNCA FALLA)
+# ROOT HEALTH
+# =====================================================
+@app.get("/")
+def root():
+    return {"status": "SMARTCARGO ONLINE"}
+
+# =====================================================
+# IMAGE NORMALIZER (MOBILE SAFE)
+# =====================================================
+def normalize_image(raw: bytes) -> bytes:
+    img = Image.open(io.BytesIO(raw))
+    img = ImageOps.exif_transpose(img)
+    img = img.convert("RGB")
+    img.thumbnail((1600, 1600))
+
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=85, optimize=True)
+    return buf.getvalue()
+
+# =====================================================
+# GEMINI VISUAL ADVISORY
 # =====================================================
 def visual_advisory(image_bytes: bytes) -> str:
-    try:
-        encoded = base64.b64encode(image_bytes).decode("utf-8")
-
-        response = client.models.generate_content(
-            model=VISION_MODEL,
-            contents=[
+    response = client.models.generate_content(
+        model="gemini-1.5-flash",
+        contents=[{
+            "role": "user",
+            "parts": [
                 {
-                    "role": "user",
-                    "parts": [
-                        {
-                            "inline_data": {
-                                "mime_type": "image/jpeg",
-                                "data": encoded
-                            }
-                        },
-                        {
-                            "text": (
-                                "You are SMARTCARGO by May Roga LLC. "
-                                "Provide a DIRECT, TECHNICAL, ACTIONABLE visual advisory. "
-                                "Focus on cargo condition, positioning, weight distribution, "
-                                "packaging integrity, labeling, safety, and transport compliance. "
-                                "Give solutions, not warnings."
-                            )
-                        }
-                    ]
+                    "text": (
+                        "You are SMARTCARGO by May Roga LLC, a PROFESSIONAL VISUAL TECHNICAL ADVISOR.\n"
+                        "Assume this cargo is about to be presented at an airport counter.\n\n"
+                        "RULES:\n"
+                        "- Analyze the image as REAL cargo.\n"
+                        "- Decide if it is ACCEPTABLE or AT RISK.\n"
+                        "- Give DIRECT physical actions.\n"
+                        "- Do NOT give generic advice.\n"
+                        "- Do NOT tell the user to ask others.\n\n"
+                        "FORMAT:\n"
+                        "1. VISUAL STATUS\n"
+                        "2. WHY\n"
+                        "3. WHAT TO DO NOW\n"
+                        "4. FINAL COUNTER READINESS\n"
+                    )
+                },
+                {
+                    "inline_data": {
+                        "data": image_bytes,
+                        "mime_type": "image/jpeg"
+                    }
                 }
             ]
-        )
+        }]
+    )
 
-        return response.text.strip()
-
-    except Exception:
-        # FALLBACK ABSOLUTO → NUNCA DEVUELVE NONE
-        return (
-            "Visual evidence received. Unable to generate full visual advisory. "
-            "Verify cargo stability, weight distribution, package integrity, "
-            "and required labels before transport."
-        )
+    return response.text.strip() if response and response.text else (
+        "Visual data received but no actionable advisory could be generated."
+    )
 
 # =====================================================
-# ENDPOINT PRINCIPAL
+# MAIN ADVISORY ENDPOINT
 # =====================================================
 @app.post("/advisory")
 async def advisory(
@@ -81,37 +96,27 @@ async def advisory(
 ):
     reports = []
 
-    # ---- PROCESAR IMÁGENES ----
     if files:
         for f in files[:3]:
+            raw = await f.read()
             try:
-                img_bytes = await f.read()
-                report = visual_advisory(img_bytes)
-                reports.append(report)
+                img_bytes = normalize_image(raw)
+                reports.append(visual_advisory(img_bytes))
             except Exception:
                 reports.append(
-                    "Image received. Manual inspection recommended for cargo positioning and safety."
+                    "Image received but could not be safely analyzed. "
+                    "Ensure the box is clearly visible, well-lit, and fully framed."
                 )
 
-    # ---- CONTEXTO USUARIO ----
+    final_report = "\n\n".join(reports)
+
     if prompt.strip():
-        reports.append(f"User context: {prompt.strip()}")
+        final_report += f"\n\nUser context:\n{prompt}"
 
-    # ---- RESPUESTA FINAL (NUNCA VACÍA) ----
-    final_report = "\n\n".join(reports).strip()
-
-    if not final_report:
+    if not final_report.strip():
         final_report = (
-            "No visual or contextual data detected. "
-            "Ensure cargo is properly secured, labeled, and compliant before delivery."
+            "No visual evidence received. "
+            "Upload at least one clear image of the cargo."
         )
 
     return JSONResponse({"data": final_report})
-
-
-# =====================================================
-# HEALTH CHECK
-# =====================================================
-@app.get("/")
-def root():
-    return {"status": "SMARTCARGO ONLINE"}
