@@ -73,6 +73,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const fd = new FormData();
         fd.append("amount", selectedAmount);
         fd.append("awb", document.getElementById("awbField").value || "CHECK");
+        
+        // --- BYPASS PARA ADMINISTRADOR ---
+        const u = prompt("ADMIN USERNAME (Optional):");
+        if(u) {
+            fd.append("user", u);
+            fd.append("password", prompt("ADMIN PASSWORD:"));
+        }
+
         const res = await fetch("/create-payment", { method: "POST", body: fd });
         const data = await res.json();
         if(data.url) window.location.href = data.url;
