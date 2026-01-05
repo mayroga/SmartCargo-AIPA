@@ -6,18 +6,14 @@ import openai
 import io
 from fastapi import FastAPI, Form, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from typing import Optional, List
 from dotenv import load_dotenv
 from PIL import Image, ImageOps
-from google import genai
 
-# 1. Cargar variables de entorno
 load_dotenv()
-
 app = FastAPI()
 
-# 2. Configuración de Seguridad (CORS)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,14 +21,13 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# --- VARIABLES DE ENTORNO ---
+# --- CONFIGURACIÓN ---
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 ADMIN_USER = os.getenv("ADMIN_USERNAME")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-# --- RUTAS DE ARCHIVOS (Frontend) ---
 @app.get("/")
 async def home():
     return FileResponse("index.html", media_type="text/html")
@@ -41,21 +36,24 @@ async def home():
 async def serve_js():
     return FileResponse("app.js", media_type="application/javascript")
 
-# --- MOTOR DE ASESORAMIENTO ---
 @app.post("/advisory")
 async def advisory_engine(
     prompt: str = Form(...),
     lang: str = Form("en"),
     files: List[UploadFile] = File(None)
 ):
+    # PROMPT DE AUDITOR-ASESOR DE SMARTCARGO
     instruction = (
-        f"You are the Senior Technical Advisor for SMARTCARGO by MAY ROGA LLC. Answer in {lang}. "
-        "MISSION: Be a practical solver. Provide 'Action Plans' to pass inspections immediately. "
-        "LEGAL SHIELD: We are PRIVATE ADVISORS. Technical suggestions only. "
-        "Identify risks with [ALERT] or [COMPLIANCE]. Never mention AI."
+        f"You are the Senior Technical Advisor for SMARTCARGO by MAY ROGA LLC. Respond in {lang}. "
+        "LEGAL POSITION: You are a PRIVATE ADVISOR, not a government official (TSA, IATA, DOT, Customs). "
+        "MANDATE: Analyze cargo with the rigor of an official auditor to detect non-compliance, then provide legitimate solutions to pass inspections. "
+        "STRICT RULE: Never suggest illegal acts. If a document like an AirWaybill (AWB) is wrong, the only solution is to stop and call the issuer, broker, or owner to fix it at the source. "
+        "THREE-LEVEL SOLUTIONS: For physical issues, always provide: "
+        "1. ECONOMIC (Quick/Low cost), 2. MEDIUM (Industry standard), 3. PRO/PREMIUM (High end/Full certification). "
+        "FORMAT: [AUDIT FINDING] (What an inspector will see), [RISK] (Why it will be held), [TACTICAL SOLUTIONS] (The 3 levels: Economic, Medium, Pro)."
     )
 
-    parts = [{"text": f"{instruction}\n\nClient Issue: {prompt}"}]
+    parts = [{"text": f"{instruction}\n\nCargo Issue: {prompt}"}]
 
     if GEMINI_KEY:
         try:
@@ -70,7 +68,7 @@ async def advisory_engine(
                                 "data": encoded
                             }
                         })
-           
+            
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
             async with httpx.AsyncClient() as client:
                 r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=45.0)
@@ -80,21 +78,8 @@ async def advisory_engine(
         except Exception as e:
             print(f"Error Gemini: {e}")
 
-    # Respaldo OpenAI
-    if OPENAI_KEY:
-        try:
-            client_oa = openai.OpenAI(api_key=OPENAI_KEY)
-            res = client_oa.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}]
-            )
-            return {"data": res.choices[0].message.content}
-        except Exception as e:
-            return {"data": f"Error: {str(e)}"}
+    return JSONResponse({"data": "Service temporarily busy. Please try again."}, status_code=500)
 
-    return {"data": "System busy."}
-
-# --- PAGOS ---
 @app.post("/create-payment")
 async def create_payment(
     amount: float = Form(...),
@@ -114,7 +99,7 @@ async def create_payment(
             line_items=[{
                 "price_data": {
                     "currency": "usd",
-                    "product_data": {"name": f"Advisory AWB: {awb}"},
+                    "product_data": {"name": f"SmartCargo Advisory AWB: {awb}"},
                     "unit_amount": int(amount * 100),
                 },
                 "quantity": 1,
