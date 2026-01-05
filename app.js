@@ -1,7 +1,7 @@
 let selectedRole = "", selectedAmount = 0, currentLang = "en", timeLeft = 0, idleTime = 0;
 const ui = { en: { wait: "⚙️ ANALYZING...", alert: "TOUCH TO STAY ACTIVE!" }, es: { wait: "⚙️ ANALIZANDO...", alert: "¡TOQUE PARA SEGUIR ACTIVO!" } };
 
-function setLang(l, el) { currentLang = l; document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); }
+function setLang(l, el) { currentLang = l; }
 
 function loadPhoto(i) {
     const file = document.getElementById(`f${i}`).files[0];
@@ -13,27 +13,27 @@ function loadPhoto(i) {
 }
 
 function startVoice() {
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = currentLang === 'es' ? 'es-ES' : 'en-US';
-    recognition.onresult = (e) => { document.getElementById("promptArea").value += e.results[0][0].transcript; };
-    recognition.start();
+    const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    rec.lang = currentLang === 'es' ? 'es-ES' : 'en-US';
+    rec.onresult = (e) => { document.getElementById("promptArea").value += e.results[0][0].transcript; };
+    rec.start();
 }
 
 async function getSolution() {
     const out = document.getElementById("advResponse");
     out.innerHTML = `<strong>${ui[currentLang].wait}</strong>`;
     const fd = new FormData();
-    fd.append("prompt", `Role: ${selectedRole}. Tier: ${selectedAmount}. Detail: ${document.getElementById("promptArea").value}`);
+    fd.append("prompt", `Role: ${selectedRole}. Tier: ${selectedAmount}. Input: ${document.getElementById("promptArea").value}`);
     fd.append("lang", currentLang);
     const res = await fetch("/advisory", { method: "POST", body: fd });
     const data = await res.json();
-    out.innerHTML = `<div class="report">${data.data}</div>`;
+    out.innerHTML = `<div style="background:#f1f3f5; border-left:6px solid #d4af37; padding:15px; font-size:14px; white-space:pre-wrap;">${data.data}</div>`;
     document.getElementById("btnWs").style.display = "block";
 }
 
 function sendWS() {
     const text = document.getElementById("advResponse").innerText;
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent("SmartCargo Advisory Result:\n\n" + text)}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent("SmartCargo Solution:\n\n" + text)}`, '_blank');
 }
 
 function resetIdle() { idleTime = 0; }
@@ -45,13 +45,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if(p.get("access") === "granted") {
         document.getElementById("mainApp").style.display = "block";
         document.getElementById("accessSection").style.display = "none";
-        const tier = p.get("tier");
-        let mins = tier == "95" ? 45 : (tier == "35" ? 20 : (tier == "15" ? 10 : 4));
-        timeLeft = mins * 60;
+        const t = p.get("tier");
+        timeLeft = (t == "95" ? 45 : (t == "35" ? 20 : (t == "15" ? 10 : 4))) * 60;
         setInterval(() => {
             timeLeft--; idleTime++;
             if(idleTime === 59) { alert(ui[currentLang].alert); resetIdle(); }
-            document.getElementById("timerDisp").innerHTML = `<div style="font-size:9px;">LEVEL: ${tier == 95 ? 'PROJECT' : (tier == 35 ? 'CRITICAL' : 'STANDARD')}</div> SESSION ACTIVE: ${Math.floor(timeLeft/60)}:${(timeLeft%60).toString().padStart(2,'0')}`;
+            document.getElementById("timerDisp").innerHTML = `SESSION ACTIVE: ${Math.floor(timeLeft/60)}:${(timeLeft%60).toString().padStart(2,'0')}`;
             if(timeLeft <= 0) location.href="/";
         }, 1000);
     }
