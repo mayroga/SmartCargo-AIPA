@@ -132,6 +132,84 @@ async def create_payment(
             cancel_url=base_url,
         )
         return {"url": session.url}
+        # ===== SMARTCARGO VISUAL ADVISORY — MOBILE SAFE & LEGAL =====
+import os, base64, io
+from fastapi import HTTPException
+from google import genai
+from PIL import Image, ImageOps
+
+# --- API Key segura ---
+_gk = os.getenv("GEMINI_API_KEY")
+if not _gk:
+    raise RuntimeError("Server config error")
+
+_gc = genai.Client(api_key=_gk)
+
+def describe_image(image_b64: str) -> str:
+    """
+    SMARTCARGO: convierte cualquier foto móvil y genera soluciones reales
+    y legales para toda la cadena logística.
+    Entradas: imagen base64 de celular.
+    Salidas: asesoría paso a paso lista para que cada actor ejecute.
+    """
+    try:
+        if not image_b64:
+            raise Exception()
+
+        # Quita prefijo base64 si existe
+        if "," in image_b64:
+            image_b64 = image_b64.split(",", 1)[1]
+
+        # Decodifica imagen
+        raw = base64.b64decode(image_b64.strip(), validate=True)
+
+        # ---- NORMALIZACIÓN DE IMÁGENES MÓVILES ----
+        img = Image.open(io.BytesIO(raw))
+        img = ImageOps.exif_transpose(img) # Corrige orientación celular
+        img = img.convert("RGB") # HEIC / RGBA / CMYK -> RGB
+        img.thumbnail((1600, 1600)) # Tamaño seguro
+
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=85, optimize=True)
+        img_bytes = buf.getvalue()
+        if len(img_bytes) < 1024:
+            raise Exception()
+
+        # ---- PROMPT SMARTCARGO — SOLUCIONES REALES ----
+        prompt = (
+            "Actúa como un asesor visual experto en logística y transporte. "
+            "Observa la imagen y proporciona soluciones prácticas, paso a paso, "
+            "para toda la cadena: desde el dueño/shipper hasta operadores terrestres, "
+            "marítimos y aéreos. "
+            "Indica cómo mover, organizar, etiquetar o asegurar la carga, cómo verificar "
+            "documentos, y cómo evitar riesgos legales u operativos. "
+            "Genera instrucciones claras y accionables que resuelvan el problema, "
+            "siempre legales y preventivas. "
+            "Esta información es solo asesoría y debe ser validada por personal autorizado."
+        )
+
+        # ---- ENVÍO A GEMINI ----
+        r = _gc.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=[{
+                "role": "user",
+                "parts": [
+                    {"text": prompt},
+                    {"inline_data": {"data": img_bytes, "mime_type": "image/jpeg"}}
+                ]
+            }]
+        )
+
+        # Validación de respuesta
+        if not r or not r.candidates or not r.text:
+            raise Exception()
+
+        return r.text.strip()
+
+    except Exception:
+        raise HTTPException(500, "No se pudo procesar la imagen para asesoría SMARTCARGO")
+# ==============================================
+
     except Exception as e:
         return {"error": str(e)}
 
