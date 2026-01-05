@@ -3,11 +3,14 @@ import stripe
 import httpx
 import base64
 import openai
-from fastapi import FastAPI, Form, File, UploadFile
+import io
+from fastapi import FastAPI, Form, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from typing import Optional, List
 from dotenv import load_dotenv
+from PIL import Image, ImageOps
+from google import genai  # Asegúrate de tener 'google-genai' en requirements.txt
 
 # 1. Cargar variables de entorno
 load_dotenv()
@@ -29,6 +32,10 @@ ADMIN_USER = os.getenv("ADMIN_USERNAME")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
+# Cliente de Google GenAI para la función visual
+if GEMINI_KEY:
+    _gc = genai.Client(api_key=GEMINI_KEY)
+
 # --- RUTAS DE ARCHIVOS ---
 @app.get("/")
 async def home():
@@ -42,12 +49,12 @@ async def success():
 async def serve_js():
     return FileResponse("app.js")
 
-# --- MOTOR DE ASESORAMIENTO (Gemini + OpenAI backup) ---
+# --- MOTOR DE ASESORAMIENTO (Texto e Imágenes) ---
 @app.post("/advisory")
 async def advisory_engine(
     prompt: str = Form(...),
     lang: str = Form("en"),
-    files: List[UploadFile] = File(None)  # Cambiado a 'files' para mayor compatibilidad
+    files: List[UploadFile] = File(None)
 ):
     instruction = (
         f"You are the Senior Technical Advisor for SMARTCARGO by MAY ROGA LLC. Answer in {lang}. "
@@ -56,14 +63,12 @@ async def advisory_engine(
         "Identify risks with [ALERT] or [COMPLIANCE]. Never mention AI."
     )
 
-    # Preparamos las partes del mensaje (Texto inicial)
     parts = [{"text": f"{instruction}\n\nClient Issue: {prompt}"}]
 
-    # --- 1. PROCESAR IMÁGENES PARA GEMINI ---
     if GEMINI_KEY:
         try:
             if files:
-                for img in files[:3]: # Límite de 3 imágenes para estabilidad
+                for img in files[:3]:
                     content = await img.read()
                     if content:
                         parts.append({
@@ -72,21 +77,17 @@ async def advisory_engine(
                                 "data": base64.b64encode(content).decode("utf-8")
                             }
                         })
-           
-            # Llamada a la API de Gemini mediante HTTPX
+            
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
             async with httpx.AsyncClient() as client:
                 r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=45.0)
                 res_data = r.json()
-               
+                
                 if "candidates" in res_data:
                     return {"data": res_data["candidates"][0]["content"]["parts"][0]["text"]}
-                else:
-                    print(f"Gemini API Error: {res_data}")
         except Exception as e:
-            print(f"Error en Gemini: {type(e).__name__}: {e}")
+            print(f"Error en Gemini: {e}")
 
-    # --- 2. RESPALDO CON OPENAI (Si Gemini falla o no tiene fotos) ---
     if OPENAI_KEY:
         try:
             client_oa = openai.OpenAI(api_key=OPENAI_KEY)
@@ -108,11 +109,9 @@ async def create_payment(
     user: Optional[str] = Form(None),
     password: Optional[str] = Form(None)
 ):
-    # Enlace de éxito (Ajusta la URL a tu dominio de Render)
     base_url = "https://smartcargo-aipa.onrender.com"
     success_url = f"{base_url}/?access=granted&awb={awb}"
 
-    # Bypass para Administrador
     if user == ADMIN_USER and password == ADMIN_PASS:
         return {"url": success_url}
 
@@ -132,63 +131,30 @@ async def create_payment(
             cancel_url=base_url,
         )
         return {"url": session.url}
-        # ===== SMARTCARGO VISUAL ADVISORY — MOBILE SAFE & LEGAL =====
-import os, base64, io
-from fastapi import HTTPException
-from google import genai
-from PIL import Image, ImageOps
+    except Exception as e:
+        return {"error": str(e)}
 
-# --- API Key segura ---
-_gk = os.getenv("GEMINI_API_KEY")
-if not _gk:
-    raise RuntimeError("Server config error")
-
-_gc = genai.Client(api_key=_gk)
-
+# --- FUNCIÓN ADICIONAL SMARTCARGO VISUAL ---
 def describe_image(image_b64: str) -> str:
-    """
-    SMARTCARGO: convierte cualquier foto móvil y genera soluciones reales
-    y legales para toda la cadena logística.
-    Entradas: imagen base64 de celular.
-    Salidas: asesoría paso a paso lista para que cada actor ejecute.
-    """
     try:
-        if not image_b64:
-            raise Exception()
-
-        # Quita prefijo base64 si existe
         if "," in image_b64:
             image_b64 = image_b64.split(",", 1)[1]
 
-        # Decodifica imagen
         raw = base64.b64decode(image_b64.strip(), validate=True)
-
-        # ---- NORMALIZACIÓN DE IMÁGENES MÓVILES ----
         img = Image.open(io.BytesIO(raw))
-        img = ImageOps.exif_transpose(img) # Corrige orientación celular
-        img = img.convert("RGB") # HEIC / RGBA / CMYK -> RGB
-        img.thumbnail((1600, 1600)) # Tamaño seguro
+        img = ImageOps.exif_transpose(img)
+        img = img.convert("RGB")
+        img.thumbnail((1600, 1600))
 
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=85, optimize=True)
         img_bytes = buf.getvalue()
-        if len(img_bytes) < 1024:
-            raise Exception()
 
-        # ---- PROMPT SMARTCARGO — SOLUCIONES REALES ----
         prompt = (
-            "Actúa como un asesor visual experto en logística y transporte. "
-            "Observa la imagen y proporciona soluciones prácticas, paso a paso, "
-            "para toda la cadena: desde el dueño/shipper hasta operadores terrestres, "
-            "marítimos y aéreos. "
-            "Indica cómo mover, organizar, etiquetar o asegurar la carga, cómo verificar "
-            "documentos, y cómo evitar riesgos legales u operativos. "
-            "Genera instrucciones claras y accionables que resuelvan el problema, "
-            "siempre legales y preventivas. "
-            "Esta información es solo asesoría y debe ser validada por personal autorizado."
+            "Actúa como un asesor visual experto en logística y transporte... "
+            "Genera instrucciones claras y accionables."
         )
 
-        # ---- ENVÍO A GEMINI ----
         r = _gc.models.generate_content(
             model="gemini-1.5-flash",
             contents=[{
@@ -199,17 +165,6 @@ def describe_image(image_b64: str) -> str:
                 ]
             }]
         )
-
-        # Validación de respuesta
-        if not r or not r.candidates or not r.text:
-            raise Exception()
-
         return r.text.strip()
-
     except Exception:
-        raise HTTPException(500, "No se pudo procesar la imagen para asesoría SMARTCARGO")
-# ==============================================
-
-    except Exception as e:
-        return {"error": str(e)}
-
+        raise HTTPException(500, "No se pudo procesar la imagen")
