@@ -2,18 +2,12 @@ const translations = {
     en: {
         act: "1. Service Activation",
         sol: "2. Solution Center",
-        m_title: "Why SmartCargo?",
-        m_desc: "We provide stability to the logistics chain, preventing fines and delays.",
-        l_title: "⚠️ Legal Shield",
-        l_desc: "We are PRIVATE ADVISORS. Not IATA/TSA/DOT. Technical suggestions only; no cargo handling."
+        l_desc: "PRIVATE ADVISORS. Not IATA/TSA/DOT. Technical solutions to prevent financial loss."
     },
     es: {
         act: "1. Activación de Servicio",
         sol: "2. Centro de Soluciones",
-        m_title: "¿Por qué SmartCargo?",
-        m_desc: "Damos estabilidad a la cadena logística, evitando multas y retenciones.",
-        l_title: "⚠️ Blindaje Legal",
-        l_desc: "Somos ASESORES PRIVADOS. No somos IATA/TSA/DOT. Solo sugerencias técnicas."
+        l_desc: "ASESORES PRIVADOS. No somos IATA/TSA/DOT. Soluciones técnicas para evitar pérdidas de dinero."
     }
 };
 
@@ -24,16 +18,26 @@ function setLang(lang) {
     const t = translations[lang] || translations.en;
     document.getElementById("t_act").innerText = t.act;
     document.getElementById("t_sol").innerText = t.sol;
-    document.getElementById("m_title").innerText = t.m_title;
-    document.getElementById("m_desc").innerText = t.m_desc;
-    document.getElementById("l_title").innerText = t.l_title;
-    document.getElementById("l_desc").innerText = t.l_desc;
 }
 
-function unlock() {
-    document.getElementById("mainApp").style.opacity = "1";
-    document.getElementById("mainApp").style.pointerEvents = "all";
-    document.getElementById("accessSection").style.display = "none";
+function previewImages() {
+    const container = document.getElementById("previewContainer");
+    const files = document.getElementById("fileInput").files;
+    container.innerHTML = "";
+    Array.from(files).forEach(file => {
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        img.className = "preview-img";
+        container.appendChild(img);
+    });
+}
+
+function clearForm() {
+    document.getElementById("promptField").value = "";
+    document.getElementById("fileInput").value = "";
+    document.getElementById("previewContainer").innerHTML = "";
+    document.getElementById("advResponse").innerHTML = "";
+    document.getElementById("actionBtns").style.display = "none";
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -42,20 +46,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("access") === "granted" || localStorage.getItem("sc_auth") === "true") {
         localStorage.setItem("sc_auth", "true");
-        unlock();
+        document.getElementById("mainApp").style.display = "block";
+        document.getElementById("accessSection").style.display = "none";
     }
 
     document.getElementById("activateBtn").onclick = async () => {
         const awb = document.getElementById("awbField").value || "N/A";
         const amt = document.getElementById("priceSelect").value;
-        const user = prompt("ADMIN USER (Cancel if not admin):");
+        const user = prompt("ADMIN USER:");
         const pass = user ? prompt("ADMIN PASS:") : null;
 
         const fd = new FormData();
-        fd.append("awb", awb);
-        fd.append("amount", amt);
-        if(user) fd.append("user", user);
-        if(pass) fd.append("password", pass);
+        fd.append("awb", awb); fd.append("amount", amt);
+        if(user) fd.append("user", user); if(pass) fd.append("password", pass);
 
         const res = await fetch(`/create-payment`, { method: "POST", body: fd });
         const data = await res.json();
@@ -65,26 +68,21 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("advForm").onsubmit = async (e) => {
         e.preventDefault();
         const out = document.getElementById("advResponse");
-        out.innerHTML = "<h4>🔍 Analyzing technical solutions...</h4>";
-       
+        out.innerHTML = "<h4>🔍 AUDITING TECHNICAL COMPLIANCE...</h4>";
+        
         const fd = new FormData(e.target);
         fd.append("lang", localStorage.getItem("user_lang") || "en");
 
         try {
             const res = await fetch(`/advisory`, { method: "POST", body: fd });
             const data = await res.json();
-           
-            out.innerHTML = `
-                <div id="finalReport" class="report-box">
-                    <h3 style="color:#01579b; border-bottom:2px solid #ffd600;">TACTICAL ACTION PLAN</h3>
-                    <p style="white-space: pre-wrap;">${data.data}</p>
-                </div>`;
-           
+            out.innerHTML = `<div id="report" class="report-box">
+                <h3 style="color:#01579b; margin-top:0;">AUDIT & ACTION PLAN</h3>
+                <p style="white-space: pre-wrap;">${data.data}</p>
+            </div>`;
             document.getElementById("actionBtns").style.display = "flex";
             startTimer();
-        } catch (err) {
-            out.innerHTML = "Error processing request.";
-        }
+        } catch (err) { out.innerHTML = "Connection Error."; }
     };
 });
 
@@ -96,16 +94,12 @@ function startTimer() {
     timer = setInterval(() => {
         timeLeft--;
         document.getElementById("secs").innerText = timeLeft;
-        if(timeLeft <= 0) {
-            localStorage.removeItem("sc_auth");
-            location.reload();
-        }
+        if(timeLeft <= 0) location.reload();
     }, 1000);
 }
 
-function downloadPDF() { html2pdf().from(document.getElementById("finalReport")).save("SmartCargo_Report.pdf"); }
+function downloadPDF() { html2pdf().from(document.getElementById("report")).save("SmartCargo_Plan.pdf"); }
 function shareWA() {
-    const text = document.getElementById("finalReport").innerText;
+    const text = document.getElementById("report").innerText;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
-   
