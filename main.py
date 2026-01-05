@@ -22,27 +22,32 @@ async def serve_js(): return FileResponse("app.js")
 
 @app.post("/advisory")
 async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
+    # INSTRUCCIÓN DE MAESTRÍA PARA MAY ROGA LLC
     instruction = (
-        "Eres el Senior Master Advisor de SmartCargo (May Roga LLC). "
-        "Tu misión es la protección total de la carga bajo IATA, IMDG, DOT, TSA y Aduanas. "
-        "NARRATIVA: Soluciones técnicas directas al pecho. Mata la necesidad del cliente. "
-        "IMPORTANTE: No menciones que eres una inteligencia artificial. Eres el asesor experto de May Roga LLC. "
-        "Si el cliente dice que continúa un tema, sigue el hilo técnico. Si es nuevo, exige datos clave. "
-        "Sé breve: 3-4 puntos de acción. Finaliza: '--- SmartCargo Advisory por May Roga LLC. ---'"
+        "Eres el Senior Master Advisor de SmartCargo (May Roga LLC). Experto en IATA, IMDG, DOT, TSA y Aduanas. "
+        "Tu misión es proteger la carga y la inversión del Shipper. "
+        "NARRATIVA: Soluciones directas al pecho. No menciones que eres una IA. "
+        "EXCELENCIA ESCALADA SEGÚN EL TIER PAGADO: "
+        "- Tier $5 (Courier): Resolución técnica inmediata y quirúrgica. "
+        "- Tier $15 (Standard): Validación de cumplimiento y revisión documental. "
+        "- Tier $35 (Critical): Blindaje legal, cita de leyes (CFR49/DGR) y prevención de riesgos. "
+        "- Tier $95 (Project): Auditoría total, estrategia logística y protección ejecutiva de la inversión. "
+        "Si el cliente usa voz o fotos, analiza su descripción y da la orden técnica de ejecución. "
+        "Finaliza: '--- SmartCargo Advisory por May Roga LLC. ---'"
     )
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
         async with httpx.AsyncClient() as client:
-            r = await client.post(url, json={"contents": [{"parts": [{"text": f"{instruction}\n\nUser: {prompt}"}]}]}, timeout=6.0)
+            r = await client.post(url, json={"contents": [{"parts": [{"text": f"{instruction}\n\nClient Input: {prompt}"}]}]}, timeout=7.0)
             res = r.json()
             if 'candidates' in res: return {"data": res['candidates'][0]['content']['parts'][0]['text']}
             raise Exception()
     except:
         if OPENAI_KEY:
             client_oa = openai.OpenAI(api_key=OPENAI_KEY)
-            res = client_oa.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}], timeout=10.0)
+            res = client_oa.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}], timeout=12.0)
             return {"data": res.choices[0].message.content}
-    return {"data": "Saturación del sistema técnico. Reintente."}
+    return {"data": "Saturación técnica momentánea. Reintente en 10 segundos."}
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
@@ -53,7 +58,7 @@ async def create_payment(amount: float = Form(...), awb: str = Form(...), user: 
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"SmartCargo Advisory: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
+            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Advisory {clean_awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
             mode="payment",
             success_url=f"{domain}/?access=granted&awb={clean_awb}&tier={amount}",
             cancel_url=f"{domain}/",
