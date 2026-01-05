@@ -68,3 +68,25 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function sendWS() { window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(document.getElementById("advResponse").innerText)}`); }
+function startVoice() {
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = document.documentElement.lang === 'es' ? 'es-ES' : 'en-US';
+    
+    // Cambiamos visualmente el placeholder para avisar que está escuchando
+    const area = document.getElementById("promptArea");
+    const originalPlaceholder = area.placeholder;
+    area.placeholder = "Listening / Escuchando...";
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        area.value += (area.value ? " " : "") + transcript;
+        area.placeholder = originalPlaceholder;
+    };
+
+    recognition.onerror = () => {
+        area.placeholder = originalPlaceholder;
+        alert("Voice recognition error. Check microphone permissions.");
+    };
+
+    recognition.start();
+}
