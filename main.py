@@ -5,83 +5,97 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 from typing import Optional, List
 from dotenv import load_dotenv
-# ===== SMARTCARGO VISUAL ADVISORY — MOBILE SAFE & LEGAL =====
-import os, base64, io
+# ===== SMARTCARGO IMAGE VISUAL ADVISOR — HARDENED VERSION =====
+import os, base64, io, re
 from fastapi import HTTPException
 from google import genai
 from PIL import Image, ImageOps
 
-# --- API Key segura ---
-_gk = os.getenv("GEMINI_API_KEY")
-if not _gk:
-    raise RuntimeError("Server config error")
+# --- API KEY (oculta) ---
+_API_KEY = os.getenv("GEMINI_API_KEY")
+if not _API_KEY:
+    raise RuntimeError("Server configuration error")
 
-_gc = genai.Client(api_key=_gk)
+_client = genai.Client(api_key=_API_KEY)
 
 def describe_image(image_b64: str) -> str:
-    """
-    SMARTCARGO: convierte cualquier foto móvil y genera soluciones reales
-    y legales para toda la cadena logística.
-    Entradas: imagen base64 de celular.
-    Salidas: asesoría paso a paso lista para que cada actor ejecute.
-    """
     try:
-        if not image_b64:
-            raise Exception()
+        if not image_b64 or not isinstance(image_b64, str):
+            raise Exception("Invalid input")
 
-        # Quita prefijo base64 si existe
+        # --- LIMPIEZA AGRESIVA BASE64 ---
+        image_b64 = re.sub(r"\s+", "", image_b64)
+
         if "," in image_b64:
             image_b64 = image_b64.split(",", 1)[1]
 
-        # Decodifica imagen
-        raw = base64.b64decode(image_b64.strip(), validate=True)
+        # Decodificación tolerante (validate=False evita falsos negativos)
+        raw = base64.b64decode(image_b64, validate=False)
 
-        # ---- NORMALIZACIÓN DE IMÁGENES MÓVILES ----
+        # --- DECODIFICACIÓN REAL DE IMAGEN ---
         img = Image.open(io.BytesIO(raw))
-        img = ImageOps.exif_transpose(img) # Corrige orientación celular
-        img = img.convert("RGB") # HEIC / RGBA / CMYK -> RGB
-        img.thumbnail((1600, 1600)) # Tamaño seguro
+        img.load()  # fuerza lectura completa
 
-        buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=85, optimize=True)
-        img_bytes = buf.getvalue()
-        if len(img_bytes) < 1024:
-            raise Exception()
+        # --- NORMALIZACIÓN MÓVIL TOTAL ---
+        img = ImageOps.exif_transpose(img)
 
-        # ---- PROMPT SMARTCARGO — SOLUCIONES REALES ----
+        if img.mode not in ("RGB",):
+            img = img.convert("RGB")
+
+        # Control de tamaño (Gemini-safe)
+        max_size = 1600
+        if img.width > max_size or img.height > max_size:
+            img.thumbnail((max_size, max_size))
+
+        # Re-encode TOTAL (elimina basura interna)
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=82, optimize=True)
+        img_bytes = buffer.getvalue()
+
+        if len(img_bytes) < 1500:
+            raise Exception("Image too small")
+
+        # --- PROMPT SMARTCARGO (SOLUCIONES REALES) ---
         prompt = (
-            "Actúa como un asesor visual experto en logística y transporte. "
-            "Observa la imagen y proporciona soluciones prácticas, paso a paso, "
-            "para toda la cadena: desde el dueño/shipper hasta operadores terrestres, "
-            "marítimos y aéreos. "
-            "Indica cómo mover, organizar, etiquetar o asegurar la carga, cómo verificar "
-            "documentos, y cómo evitar riesgos legales u operativos. "
-            "Genera instrucciones claras y accionables que resuelvan el problema, "
-            "siempre legales y preventivas. "
-            "Esta información es solo asesoría y debe ser validada por personal autorizado."
+            "Analiza esta imagen como un asesor visual experto en logística. "
+            "Identifica problemas reales relacionados con carga, embalaje, "
+            "estiba, documentación o manipulación. "
+            "Da instrucciones claras, directas y accionables para corregirlos: "
+            "mover cajas, redistribuir peso, asegurar mercancía, colocar o corregir etiquetas, "
+            "verificar documentos visibles o prevenir daños y rechazos. "
+            "La información es asesoría preventiva y debe aplicarse según normativas vigentes."
         )
 
-        # ---- ENVÍO A GEMINI ----
-        r = _gc.models.generate_content(
+        # --- ENVÍO CORRECTO A GEMINI ---
+        response = _client.models.generate_content(
             model="gemini-1.5-flash",
             contents=[{
                 "role": "user",
                 "parts": [
                     {"text": prompt},
-                    {"inline_data": {"data": img_bytes, "mime_type": "image/jpeg"}}
+                    {
+                        "inline_data": {
+                            "mime_type": "image/jpeg",
+                            "data": img_bytes
+                        }
+                    }
                 ]
             }]
         )
 
-        # Validación de respuesta
-        if not r or not r.candidates or not r.text:
-            raise Exception()
+        if not response or not response.text:
+            raise Exception("Empty response")
 
-        return r.text.strip()
+        return response.text.strip()
 
     except Exception:
-        raise HTTPException(500, "No se pudo procesar la imagen para asesoría SMARTCARGO")
-# ==============================================
+        raise HTTPException(
+            status_code=500,
+            detail="No se pudo generar la asesoría visual de la imagen"
+        )
+
+# ============================================================
+
 load_dotenv()
 app = FastAPI()
 
