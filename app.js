@@ -68,11 +68,32 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function sendWS() { window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(document.getElementById("advResponse").innerText)}`); }
+
+// Función para borrar el texto y la respuesta previa
+function clearText() {
+    if(confirm("¿Borrar descripción y respuesta actual?")) {
+        document.getElementById("promptArea").value = "";
+        document.getElementById("advResponse").innerText = "";
+        document.getElementById("btnWs").style.display = "none";
+        // Limpiar fotos
+        for(let i=1; i<=3; i++) {
+            document.getElementById(`p${i}`).src = "";
+            document.getElementById(`f${i}`).value = "";
+        }
+    }
+}
+
+// Función de voz optimizada
 function startVoice() {
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = document.documentElement.lang === 'es' ? 'es-ES' : 'en-US';
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        alert("Tu navegador no soporta reconocimiento de voz.");
+        return;
+    }
     
-    // Cambiamos visualmente el placeholder para avisar que está escuchando
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'es-ES'; 
+    
     const area = document.getElementById("promptArea");
     const originalPlaceholder = area.placeholder;
     area.placeholder = "Listening / Escuchando...";
@@ -85,7 +106,6 @@ function startVoice() {
 
     recognition.onerror = () => {
         area.placeholder = originalPlaceholder;
-        alert("Voice recognition error. Check microphone permissions.");
     };
 
     recognition.start();
