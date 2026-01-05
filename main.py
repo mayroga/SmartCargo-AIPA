@@ -31,36 +31,43 @@ async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
         "Finalize: '--- SmartCargo Advisory checked your cargo today. Always by your side. ---'"
     )
 
-    # INTENTO 1: GEMINI con límite estricto de 6 segundos
+    # --- INTENTO 1: GEMINI (Límite 6s) ---
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
         async with httpx.AsyncClient() as client:
-            # Si en 6 segundos no hay respuesta, lanza una excepción y salta a OpenAI
             r = await client.post(url, json={"contents": [{"parts": [{"text": f"{instruction}\n\nUser: {prompt}"}]}]}, timeout=6.0)
-            return {"data": r.json()['candidates'][0]['content']['parts'][0]['text']}
+            res_data = r.json()
+            # Validación de respuesta para evitar el KeyError: 'candidates'
+            if 'candidates' in res_data and res_data['candidates']:
+                return {"data": res_data['candidates'][0]['content']['parts'][0]['text']}
+            else:
+                raise Exception("Gemini response invalid format")
+    
     except Exception as e:
-        print(f"Gemini falló o tardó demasiado: {e}. Saltando a OpenAI...")
+        print(f"Fallback activado. Motivo: {e}")
         
-        # INTENTO 2: OPENAI (GPT-4o) - Entra en acción si el primero falla
+        # --- INTENTO 2: OPENAI (Corregido) ---
         if OPENAI_KEY:
             try:
+                # CORRECCIÓN AQUÍ: Se usa openai.OpenAI correctamente
                 client_oa = openai.OpenAI(api_key=OPENAI_KEY)
                 res = client_oa.chat.completions.create(
                     model="gpt-4o", 
                     messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}],
-                    timeout=15.0
+                    timeout=12.0
                 )
                 return {"data": res.choices[0].message.content}
             except Exception as e_oa:
-                return {"data": f"Error crítico de comunicación: {str(e_oa)}"}
+                return {"data": f"Error en ambos motores. Intente de nuevo. (Detalle: {str(e_oa)})"}
     
-    return {"data": "System busy. Please try again in a few moments."}
+    return {"data": "System busy. Please try again."}
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
     clean_awb = urllib.parse.quote(awb)
     if user == ADMIN_USER and password == ADMIN_PASS:
         return {"url": f"/?access=granted&awb={clean_awb}&tier={amount}"}
+    
     domain = os.getenv("DOMAIN_URL", "https://smartcargo-aipa.onrender.com")
     try:
         session = stripe.checkout.Session.create(
