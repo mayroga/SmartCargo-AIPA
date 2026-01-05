@@ -1,37 +1,50 @@
-import os, stripe, httpx, base64, openai
-from fastapi import FastAPI, Form, File, UploadFile
+import os, stripe, httpx, base64, io, re, openai
+from fastapi import FastAPI, Form, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse
 from typing import Optional, List
 from dotenv import load_dotenv
-# ===== SMARTCARGO IMAGE VISUAL ADVISOR — FINAL FIX =====
-import os, base64, io, re
-from fastapi import HTTPException
+
 from google import genai
 from google.genai import types
 from PIL import Image, ImageOps
 
-_API_KEY = os.getenv("GEMINI_API_KEY")
-if not _API_KEY:
-    raise RuntimeError("Server configuration error")
+# =====================================================
+# ENV
+# =====================================================
+load_dotenv()
 
-_client = genai.Client(api_key=_API_KEY)
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+ADMIN_USER = os.getenv("ADMIN_USERNAME")
+ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-def describe_image(image_b64: str) -> str:
+if not GEMINI_KEY:
+    raise RuntimeError("GEMINI_API_KEY missing")
+
+_gemini = genai.Client(api_key=GEMINI_KEY)
+
+# =====================================================
+# FASTAPI
+# =====================================================
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+# =====================================================
+# VISUAL ADVISOR CORE (MOBILE SAFE – REAL VISION)
+# =====================================================
+def describe_image(image_bytes: bytes) -> str:
     try:
-        if not image_b64 or not isinstance(image_b64, str):
-            raise Exception("Invalid input")
-
-        # --- LIMPIEZA BASE64 ---
-        image_b64 = re.sub(r"\s+", "", image_b64)
-        if "," in image_b64:
-            image_b64 = image_b64.split(",", 1)[1]
-
-        raw = base64.b64decode(image_b64, validate=False)
-
-        # --- NORMALIZACIÓN MÓVIL ---
-        img = Image.open(io.BytesIO(raw))
+        # --- NORMALIZAR IMAGEN DE CELULAR ---
+        img = Image.open(io.BytesIO(image_bytes))
         img.load()
         img = ImageOps.exif_transpose(img)
         img = img.convert("RGB")
@@ -41,28 +54,26 @@ def describe_image(image_b64: str) -> str:
 
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=82, optimize=True)
-        img_bytes = buf.getvalue()
+        jpeg_bytes = buf.getvalue()
 
-        if len(img_bytes) < 1500:
+        if len(jpeg_bytes) < 1500:
             raise Exception("Invalid image")
 
-        # --- PROMPT SMARTCARGO ---
         prompt = (
-            "Analiza esta imagen como un asesor visual profesional de logística. "
-            "Detecta problemas reales en carga, estiba, embalaje, etiquetado, "
-            "documentación visible o manipulación. "
-            "Da soluciones claras y accionables para corregirlos y prevenir rechazos, "
-            "daños o incumplimientos. "
-            "La información es únicamente asesoría preventiva."
+            "Analyze this image as a PRIVATE LOGISTICS VISUAL ADVISOR. "
+            "Focus on the cargo itself. Detect real problems in loading, "
+            "weight distribution, packaging, labeling, visible documents, "
+            "or handling. Provide DIRECT, ACTIONABLE SOLUTIONS ONLY "
+            "(move, adjust, secure, re-label, separate, redistribute). "
+            "This is preventive technical advisory, not a legal or regulatory decision."
         )
 
-        # 🔴 ESTA ES LA DIFERENCIA CRÍTICA 🔴
-        response = _client.models.generate_content(
+        response = _gemini.models.generate_content(
             model="gemini-1.5-flash",
             contents=[
                 types.Part.from_text(prompt),
                 types.Part.from_bytes(
-                    data=img_bytes,
+                    data=jpeg_bytes,
                     mime_type="image/jpeg"
                 )
             ]
@@ -76,82 +87,111 @@ def describe_image(image_b64: str) -> str:
     except Exception:
         raise HTTPException(
             status_code=500,
-            detail="No se pudo generar la asesoría visual"
+            detail="Visual advisory could not be generated"
         )
 
-# ======================================================
-
-
-load_dotenv()
-app = FastAPI()
-
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-OPENAI_KEY = os.getenv("OPENAI_API_KEY")
-ADMIN_USER = os.getenv("ADMIN_USERNAME")
-ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-
+# =====================================================
+# ROUTES
+# =====================================================
 @app.get("/")
-async def home(): return FileResponse("index.html")
+async def home():
+    return FileResponse("index.html")
 
 @app.get("/success")
-async def success(): return FileResponse("success.html")
+async def success():
+    return FileResponse("success.html")
 
-# Servir JS correctamente sin errores de ruta
 @app.get("/app.js")
-async def serve_js(): return FileResponse("app.js")
+async def serve_js():
+    return FileResponse("app.js")
 
+# =====================================================
+# MAIN ADVISORY ENDPOINT (TEXT + IMAGES)
+# =====================================================
 @app.post("/advisory")
-async def advisory_engine(prompt: str = Form(...), lang: str = Form("en"), images: List[UploadFile] = File(None)):
-    # INSTRUCCIÓN TÁCTICA ACTUALIZADA
-    instruction = (
-        f"You are the Senior Technical Advisor for SMARTCARGO by MAY ROGA LLC. Answer in {lang}. "
-        "MISSION: Be a practical solver. Provide 'Action Plans' (Haz esto, acomoda aquello) to pass inspections immediately. "
-        "LEGAL SHIELD: We are PRIVATE ADVISORS. Not IATA/TSA/DOT. Technical suggestions only, not a legal verdict. "
-        "1. FASTEST SOLUTION. 2. INTERMEDIATE. 3. STRUCTURAL. Provide stability and hope. "
-        "Identify risks with 🔴 [ALERT] or 🟢 [COMPLIANCE]. Never mention AI."
-    )
-   
-    parts = [{"text": f"{instruction}\n\nClient Issue: {prompt}"}]
-   
-    # 1. Intentar con Gemini
-    if GEMINI_KEY:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-            if images:
-                for img in images[:3]:
-                    content = await img.read()
-                    if content: parts.append({"inline_data": {"mime_type": img.content_type, "data": base64.b64encode(content).decode("utf-8")}})
-            async with httpx.AsyncClient() as client:
-                r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=45.0)
-                return {"data": r.json()["candidates"][0]["content"]["parts"][0]["text"]}
-        except: pass
+async def advisory_engine(
+    prompt: str = Form(...),
+    lang: str = Form("en"),
+    images: List[UploadFile] = File(None)
+):
+    reports = []
 
-    # 2. Respaldo OpenAI (Opción B si falla Gemini)
+    # ---- VISUAL ANALYSIS FIRST ----
+    if images:
+        for img in images[:3]:
+            raw = await img.read()
+            vision = describe_image(raw)
+            reports.append(vision)
+
+    # ---- TEXT CONTEXT ----
+    instruction = (
+        f"You are the Senior Technical Advisor for SMARTCARGO by MAY ROGA LLC. "
+        f"Answer in {lang}. "
+        "MISSION: Solve real logistics problems fast. "
+        "Provide ACTION PLANS, not theory. "
+        "LEGAL SHIELD: PRIVATE ADVISORY ONLY. Not IATA, TSA, DOT, or any authority. "
+        "Never mention AI."
+    )
+
+    combined_input = instruction + "\n\nCLIENT ISSUE:\n" + prompt
+    if reports:
+        combined_input += "\n\nVISUAL FINDINGS:\n" + "\n\n".join(reports)
+
+    # ---- GEMINI TEXT REFINEMENT ----
+    try:
+        response = _gemini.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=combined_input
+        )
+        if response and response.text:
+            return {"data": response.text.strip()}
+    except:
+        pass
+
+    # ---- BACKUP OPENAI ----
     if OPENAI_KEY:
         try:
             client = openai.OpenAI(api_key=OPENAI_KEY)
             res = client.chat.completions.create(
                 model="gpt-4o",
-                messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": combined_input}]
             )
             return {"data": res.choices[0].message.content}
-        except Exception as e: return {"data": f"Error: {str(e)}"}
+        except Exception as e:
+            return {"data": f"Error: {str(e)}"}
 
     return {"data": "System busy. Try again later."}
 
+# =====================================================
+# PAYMENT
+# =====================================================
 @app.post("/create-payment")
-async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
+async def create_payment(
+    amount: float = Form(...),
+    awb: str = Form(...),
+    user: Optional[str] = Form(None),
+    password: Optional[str] = Form(None)
+):
     success_url = f"https://smartcargo-aipa.onrender.com/?access=granted&awb={awb}"
-    if user == ADMIN_USER and password == ADMIN_PASS: return {"url": success_url}
-   
+
+    if user == ADMIN_USER and password == ADMIN_PASS:
+        return {"url": success_url}
+
     session = stripe.checkout.Session.create(
         payment_method_types=["card"],
-        line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Advisory AWB: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
-        mode="payment", success_url=success_url, cancel_url=success_url
+        line_items=[{
+            "price_data": {
+                "currency": "usd",
+                "product_data": {"name": f"Advisory AWB: {awb}"},
+                "unit_amount": int(amount * 100)
+            },
+            "quantity": 1
+        }],
+        mode="payment",
+        success_url=success_url,
+        cancel_url=success_url
     )
     return {"url": session.url}
 
-app.mount("/static", StaticFiles(directory="."), name="static")                         
+# =====================================================
+app.mount("/static", StaticFiles(directory="."), name="static")
