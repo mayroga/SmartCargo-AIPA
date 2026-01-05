@@ -1,4 +1,4 @@
-import os, stripe, httpx, base64, io
+import os, stripe, httpx, base64, openai
 from fastapi import FastAPI, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -9,7 +9,9 @@ load_dotenv()
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# Configuración de Llaves
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 ADMIN_USER = os.getenv("ADMIN_USERNAME")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
@@ -21,32 +23,35 @@ async def home(): return FileResponse("index.html")
 async def serve_js(): return FileResponse("app.js")
 
 @app.post("/advisory")
-async def advisory_engine(prompt: str = Form(...), lang: str = Form("en"), files: List[UploadFile] = File(None)):
+async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
     instruction = (
         f"Identify as 'SmartCargo Advisory by May Roga LLC'. Respond in {lang}. "
-        "IDENTITY: You are the BRAIN of the logistics chain. Private Technical Advisor. "
-        "MISSION: Kill the problem. Save the money. Avoid holds/fines/returns. "
-        "UNIVERSAL LOGIC: Apply expert knowledge to ANY logistics scenario (Air, Sea, Land, Docs, Cargo). "
-        "METHOD: Analyze step-by-step from top to bottom. If a risk is detected, use: '[🔴 RED LIGHT WARNING]'. "
-        "3-LEVEL SOLUTIONS: 1. Economic (Tactical/Fast), 2. Standard (Industry), 3. Pro (Certified). "
-        "No trash talk. Be direct. You provide the solution that the hand must execute. "
+        "LEGAL: Private Advisor only. NOT Gov/TSA/IATA/Customs. We DO NOT touch cargo. "
+        "MISSION: Kill the doubt, save money, prevent holds/fines. "
+        "METHOD: Guide the user STEP-BY-STEP (top to bottom). Surgical and direct. "
+        "Use '[🔴 ADVISORY WARNING]' for risks. Give 3-level solutions: Economic, Standard, Pro. "
         "ADVERTISING: End with '--- SmartCargo Advisory protected your cargo today. Recommend us! ---'"
     )
 
-    parts = [{"text": f"{instruction}\n\nClient Input: {prompt}"}]
-    if files:
-        for f in files[:3]:
-            content = await f.read()
-            if content:
-                parts.append({"inline_data": {"mime_type": f.content_type, "data": base64.b64encode(content).decode("utf-8")}})
-
+    # Motor 1: Gemini
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
         async with httpx.AsyncClient() as client:
-            r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=45.0)
+            r = await client.post(url, json={"contents": [{"parts": [{"text": f"{instruction}\n\n{prompt}"}]}]}, timeout=30.0)
             return {"data": r.json()['candidates'][0]['content']['parts'][0]['text']}
-    except:
-        return {"data": "Advisory center offline. Try again."}
+    except: pass
+
+    # Motor 2: OpenAI (Respaldo)
+    if OPENAI_KEY:
+        try:
+            client_oa = openai.OpenAI(api_key=OPENAI_KEY)
+            res = client_oa.chat.completions.create(
+                model="gpt-4o", messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}]
+            )
+            return {"data": res.choices[0].message.content}
+        except: return {"data": "System busy. Try again."}
+    
+    return {"data": "Service offline."}
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
@@ -55,10 +60,10 @@ async def create_payment(amount: float = Form(...), awb: str = Form(...), user: 
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Advisory Access {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
+            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Advisory {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
             mode="payment",
             success_url=f"https://smartcargo-aipa.onrender.com/?access=granted&awb={awb}&tier={amount}",
             cancel_url="https://smartcargo-aipa.onrender.com/"
         )
         return {"url": session.url}
-    except: return {"error": "Payment Error"}
+    except Exception as e: return {"error": str(e)}
