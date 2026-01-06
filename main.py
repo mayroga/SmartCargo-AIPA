@@ -1,4 +1,4 @@
-import os, stripe, httpx, openai, urllib.parse
+import os, stripe, httpx, openai, urllib.parse, base64
 from fastapi import FastAPI, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -7,7 +7,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# Permiso total para que Google Sites pueda enviar fotos a Render sin bloqueos
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
@@ -22,25 +30,43 @@ async def home(): return FileResponse("index.html")
 async def serve_js(): return FileResponse("app.js")
 
 @app.post("/advisory")
-async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
+async def advisory_engine(prompt: str = Form(...), image_data: Optional[str] = Form(None)):
     instruction = (
         "You are the Senior Master Advisor of SmartCargo (MAY ROGA LLC). PRIVATE TECHNICAL ADVISORS. "
-        "Purpose: Prevent fines and holds so customers never lose money. No 'audit' words. "
-        "EXCELENCIA ESCALADA: Tier $5 (Courier), $15 (Standard), $35 (Critical Shield), $95 (Project Master). "
+        "Analyze the provided visual evidence. Describe labels, UN codes, and hazards. "
+        "Purpose: Prevent fines and holds. No 'audit' words. "
         "Direct solutions. Finalize: '--- SmartCargo Advisory by MAY ROGA LLC. ---'"
     )
+    
     try:
+        # Preparamos los componentes de la consulta (Texto + Imagen)
+        parts = [{"text": f"{instruction}\n\nClient Input: {prompt}"}]
+        
+        # Procesamos la "lectura" de la imagen enviada desde Google Sites
+        if image_data and "," in image_data:
+            # Quitamos el prefijo 'data:image/jpeg;base64,'
+            header, encoded_image = image_data.split(",", 1)
+            parts.append({
+                "inline_data": {
+                    "mime_type": "image/jpeg",
+                    "data": encoded_image
+                }
+            })
+
+        # Endpoint de Gemini 1.5 Flash (Soporta Multimodalidad/Visión)
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-        async with httpx.AsyncClient() as client:
-            r = await client.post(url, json={"contents": [{"parts": [{"text": f"{instruction}\n\nInput: {prompt}"}]}]}, timeout=10.0)
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=30.0)
             res = r.json()
-            return {"data": res['candidates'][0]['content']['parts'][0]['text']}
-    except:
-        if OPENAI_KEY:
-            client_oa = openai.OpenAI(api_key=OPENAI_KEY)
-            res = client_oa.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}])
-            return {"data": res.choices[0].message.content}
-    return {"data": "System error. Contact Admin."}
+            
+            if 'candidates' in res and res['candidates'][0]['content']['parts']:
+                return {"data": res['candidates'][0]['content']['parts'][0]['text']}
+            
+            return {"data": "Visual analysis failed or returned empty. Please ensure the photo is clear."}
+
+    except Exception as e:
+        return {"data": f"Technical connection error: {str(e)}"}
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
@@ -48,12 +74,13 @@ async def create_payment(amount: float = Form(...), awb: str = Form(...), user: 
         return {"url": f"/?access=granted&awb={urllib.parse.quote(awb)}&tier={amount}"}
     
     try:
+        domain = os.getenv('DOMAIN_URL', 'https://smartcargo-aipa.onrender.com')
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Advisory {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
             mode="payment",
-            success_url=f"{os.getenv('DOMAIN_URL')}/?access=granted&awb={urllib.parse.quote(awb)}&tier={amount}",
-            cancel_url=f"{os.getenv('DOMAIN_URL')}/",
+            success_url=f"{domain}/?access=granted&awb={urllib.parse.quote(awb)}&tier={amount}",
+            cancel_url=f"{domain}/",
         )
         return {"url": session.url}
     except Exception as e:
