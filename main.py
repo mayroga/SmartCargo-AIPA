@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI()
 
-# Autorización total para que Google Sites envíe la lectura sin bloqueos
+# Tu configuración de autorización total
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,7 +26,6 @@ async def home(): return FileResponse("index.html")
 
 @app.post("/advisory")
 async def advisory_engine(prompt: str = Form(...), image_data: Optional[str] = Form(None)):
-    # Instrucción técnica de MAY ROGA LLC
     instruction = (
         "You are the Senior Master Advisor of SmartCargo (MAY ROGA LLC). "
         "Analyze the provided visual evidence. Describe labels, UN codes, and hazards. "
@@ -35,13 +34,12 @@ async def advisory_engine(prompt: str = Form(...), image_data: Optional[str] = F
     )
     
     try:
-        # Capa de Seguridad: Preparar el envío multimodal
         parts = [{"text": f"{instruction}\n\nClient Input: {prompt}"}]
         
-        # LA LLAVE: Si existe la lectura de la imagen, la procesamos
+        # LA LLAVE: Procesamos la lectura idéntica que envía el teléfono
         if image_data and "," in image_data:
-            # Extraemos solo los bits de la lectura (quitamos el header data:image/...)
-            clean_reading = image_data.split(",")[1].strip()
+            # Extraemos los datos puros después de la coma y reparamos posibles espacios
+            clean_reading = image_data.split(",")[1].replace(" ", "+").strip()
             parts.append({
                 "inline_data": {
                     "mime_type": "image/jpeg",
@@ -49,14 +47,13 @@ async def advisory_engine(prompt: str = Form(...), image_data: Optional[str] = F
                 }
             })
 
-        # Endpoint oficial de Gemini 1.5 Flash
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
         
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(url, json={"contents": [{"parts": parts}]})
             res = r.json()
             
-            # Navegación estricta para evitar 'Undefined'
+            # Navegación estricta en el JSON para evitar fallos
             if 'candidates' in res and res['candidates'][0]['content']['parts']:
                 return {"data": res['candidates'][0]['content']['parts'][0]['text']}
             
