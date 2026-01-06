@@ -1,110 +1,103 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SmartCargo Advisory | MAY ROGA LLC</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
     <style>
-        body { background: #000b1a; color: #333; font-family: sans-serif; padding: 10px; margin:0; }
+        body { background: #000b1a; color: #333; font-family: sans-serif; padding: 10px; }
         .card { max-width: 500px; margin: auto; background: white; border-radius: 20px; padding: 25px; border-top: 10px solid #d4af37; box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
         .branding h2 { font-weight: 900; color: #001d3d; text-align: center; margin-bottom: 0; }
         .branding p { font-size: 12px; font-weight: bold; color: #d4af37; text-align: center; text-transform: uppercase; margin-top: 0; }
         .legal-box { background: #fff1f0; border: 2px solid #ff4d4f; border-radius: 10px; padding: 12px; color: #a8071a; font-size: 10px; text-align: center; margin-bottom: 20px; font-weight: bold; }
-        .btn-opt { border: 2px solid #001d3d; padding: 10px; border-radius: 10px; text-align: center; cursor: pointer; font-size: 10px; font-weight: bold; margin-bottom: 8px; background: #f8f9fa; }
-        .selected { background: #001d3d !important; color: white !important; }
         .btn-main { background: #001d3d; color: white; width: 100%; height: 50px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; text-transform: uppercase; }
-        .photo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-        .photo-box { width:100%; height:110px; background:#000; border:2px solid #001d3d; border-radius:8px; object-fit:contain; display:block; }
-        .vision-card { border: 2px solid #d4af37; border-radius: 15px; padding: 15px; margin-top: 20px; background: #fff; }
+        .photo-box { width:100%; height:180px; background:#000; border:2px solid #001d3d; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; }
     </style>
 </head>
 <body>
 <div class="card">
     <div class="branding"><h2>SmartCargo ADVISORY</h2><p>Technical Consulting by MAY ROGA LLC</p></div>
-    <div class="legal-box">⚠️ LEGAL SHIELD: WE ARE PRIVATE ADVISORS. NOT IATA/TSA/DOT. WE PROVIDE TECHNICAL SOLUTIONS; WE DON'T CERTIFY DG OR HANDLE CARGO.</div>
+    
+    <select id="userLang" style="width:100%; font-weight:bold; border:2px solid #d4af37; margin: 15px 0;">
+        <option value="es">IDIOMA: ESPAÑOL 🇪🇸</option>
+        <option value="en">LANGUAGE: ENGLISH 🇺🇸</option>
+    </select>
+
+    <div class="legal-box">⚠️ LEGAL SHIELD: PRIVATE ADVISORS. NOT IATA/TSA/DOT. WE PROVIDE SOLUTIONS.</div>
     
     <div id="accessSection">
+        <input type="text" id="awbField" class="u-full-width" placeholder="AWB / Reference">
+        <p style="font-size: 10px; text-align: center; font-weight: bold;">SELECCIONE TIER DE CONSULTA</p>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-            <div class="btn-opt role-btn" onclick="selRole('Shipper', this)">Shipper</div>
-            <div class="btn-opt role-btn" onclick="selRole('Forwarder', this)">Forwarder</div>
-            <div class="btn-opt role-btn" onclick="selRole('Trucker', this)">Trucker</div>
-            <div class="btn-opt role-btn" onclick="selRole('Operator', this)">Operator</div>
+            <button class="btn-main" style="height:40px; font-size:10px;" onclick="pay(5)">Courier $5</button>
+            <button class="btn-main" style="height:40px; font-size:10px;" onclick="pay(15)">Standard $15</button>
+            <button class="btn-main" style="height:40px; font-size:10px;" onclick="pay(35)">Critical $35</button>
+            <button class="btn-main" style="height:40px; font-size:10px;" onclick="pay(95)">Project $95</button>
         </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px;">
-            <div class="btn-opt tier-btn" onclick="selTier(5, this)">Courier ($5)</div>
-            <div class="btn-opt tier-btn" onclick="selTier(15, this)">Standard ($15)</div>
-            <div class="btn-opt tier-btn" onclick="selTier(35, this)">Critical ($35)</div>
-            <div class="btn-opt tier-btn" onclick="selTier(95, this)">Project ($95)</div>
-        </div>
-        <input type="text" id="awbField" class="u-full-width" placeholder="Reference / AWB" style="margin-top:10px;">
-        <button id="activateBtn" class="btn-main">Validate & Access</button>
-
-        <div class="vision-card">
-            <h4 style="color:#001d3d; margin:0; text-align: center; font-size: 18px;">SmartCargo VISION</h4>
-            <select id="userLang" style="width:100%; margin: 10px 0; border: 1px solid #d4af37; font-weight: bold;">
-                <option value="es">ESPAÑOL 🇪🇸</option>
-                <option value="en">ENGLISH 🇺🇸</option>
-            </select>
-            <div onclick="document.getElementById('scFile').click()" style="width:100%; height:160px; background:#000; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; overflow:hidden;">
-                <img id="scPrev" style="max-width:100%; max-height:100%; display:none;">
-                <span id="scLab" style="color:white; font-size:12px;">📷 ESCANEAR EVIDENCIA</span>
-                <input type="file" id="scFile" accept="image/*" capture="environment" style="display:none;" onchange="scCapture(event)">
-            </div>
-            <button onclick="scAnalyze()" class="btn-main" style="background:#d4af37; color:#001d3d; height:40px; margin-top:10px; font-size: 12px;">ANALYZE IMAGE</button>
-            <div id="scRes" style="margin-top:15px; font-size:12px; white-space:pre-wrap; border-top:1px solid #eee; padding-top:10px;"></div>
-        </div>
+        <hr>
+        <p style="font-size: 10px; text-align: center;">LOGIN ADMINISTRADOR</p>
+        <input type="text" id="u" placeholder="User" class="u-full-width">
+        <input type="password" id="p" placeholder="Pass" class="u-full-width">
+        <button onclick="pay(0)" class="btn-main" style="background:#444;">ACCESO MASTER</button>
     </div>
 
     <div id="mainApp" style="display:none;">
-        <div id="timerDisp" style="background:#d4af37; text-align:center; font-weight:bold; padding:10px; margin-bottom:10px; border-radius:10px;"></div>
-        <div class="photo-grid">
-            <div onclick="document.getElementById('f1').click()"><img id="p1" class="photo-box"><input type="file" id="f1" style="display:none" onchange="loadPhoto(1)"></div>
-            <div onclick="document.getElementById('f2').click()"><img id="p2" class="photo-box"><input type="file" id="f2" style="display:none" onchange="loadPhoto(2)"></div>
-            <div onclick="document.getElementById('f3').click()"><img id="p3" class="photo-box"><input type="file" id="f3" style="display:none" onchange="loadPhoto(3)"></div>
+        <div onclick="document.getElementById('scFile').click()" class="photo-box">
+            <img id="scView" style="max-width:100%; max-height:100%; display:none;">
+            <span id="scLab" style="color:white; font-size:12px;">📷 ESCANEAR EVIDENCIA (IATA/DOT)</span>
+            <input type="file" id="scFile" accept="image/*" capture="environment" style="display:none;" onchange="scRead(event)">
         </div>
-        <div style="position:relative;">
-            <textarea id="promptArea" class="u-full-width" style="height:100px;" placeholder="Describe issue..."></textarea>
-            <div style="position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:5px;">
-                <button onclick="startVoice()" style="border:none; background:none; font-size:20px; cursor:pointer;">🎤</button>
-                <button onclick="clearText()" style="border:none; background:none; font-size:18px; cursor:pointer;">🗑️</button>
-            </div>
-        </div>
-        <button id="btnSolve" class="btn-main" style="background:#1b5e20;" onclick="getSolution()">Get Solution</button>
-        <div id="advResponse" style="margin-top:15px; font-size:14px; white-space:pre-wrap;"></div>
-        <button id="btnWs" class="btn-main" style="background:#25D366; margin-top:10px; display:none;" onclick="sendWS()">📩 WhatsApp</button>
+        <textarea id="promptArea" class="u-full-width" style="margin-top:10px;" placeholder="Describa el problema..."></textarea>
+        <button onclick="getSolution()" class="btn-main" style="background:#1b5e20;">DICTAMINAR SOLUCIÓN</button>
+        <div id="advResponse" style="margin-top:15px; font-size:14px; white-space:pre-wrap; font-weight:bold;"></div>
+        <button onclick="clearAll()" style="width:100%; background:none; border:none; color:red; cursor:pointer; font-size:11px; margin-top:10px;">🗑️ BORRAR DATOS Y SALIR</button>
     </div>
 </div>
 
 <script>
-    /* LÓGICA DE VISIÓN INDEPENDIENTE */
-    let scData = "";
-    function scCapture(e) {
+    let imgData = "";
+    const params = new URLSearchParams(window.location.search);
+    if(params.get('access') === 'granted') {
+        document.getElementById('accessSection').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+    }
+
+    function scRead(e) {
         const reader = new FileReader();
         reader.onload = () => {
-            document.getElementById('scPrev').src = reader.result;
-            document.getElementById('scPrev').style.display = "block";
+            imgData = reader.result;
+            document.getElementById('scView').src = imgData;
+            document.getElementById('scView').style.display = "block";
             document.getElementById('scLab').style.display = "none";
-            scData = reader.result;
         };
         reader.readAsDataURL(e.target.files[0]);
     }
 
-    async function scAnalyze() {
-        if(!scData) return alert("Take a photo first");
-        const out = document.getElementById('scRes');
-        out.innerHTML = "MAY ROGA LLC: Analyzing image...";
+    async function pay(amt) {
         const fd = new FormData();
-        fd.append("prompt", "Analyze labels, hazards and UN codes.");
-        fd.append("lang", document.getElementById('userLang').value);
-        fd.append("image_data", scData);
-        try {
-            const r = await fetch('/advisory', { method: 'POST', body: fd });
-            const d = await r.json();
-            out.innerHTML = "<b>REPORT:</b>\n" + d.data;
-        } catch(e) { out.innerHTML = "Error."; }
+        fd.append("amount", amt);
+        fd.append("awb", document.getElementById('awbField').value || "REF-LOG");
+        fd.append("user", document.getElementById('u').value);
+        fd.append("password", document.getElementById('p').value);
+        const r = await fetch('/create-payment', { method: 'POST', body: fd });
+        const d = await r.json();
+        if(d.url) window.location.href = d.url;
     }
+
+    async function getSolution() {
+        const out = document.getElementById('advResponse');
+        out.innerText = "ASESOR ANALIZANDO MILLONES DE ESCENARIOS...";
+        const fd = new FormData();
+        fd.append("prompt", document.getElementById('promptArea').value);
+        fd.append("lang", document.getElementById('userLang').value);
+        fd.append("image_data", imgData);
+        const r = await fetch('/advisory', { method: 'POST', body: fd });
+        const d = await r.json();
+        out.innerText = d.data;
+    }
+
+    function clearAll() { window.location.href = '/'; }
 </script>
-<script src="app.js"></script>
 </body>
 </html>
