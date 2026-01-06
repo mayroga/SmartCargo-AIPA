@@ -7,7 +7,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
@@ -18,51 +24,63 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 @app.get("/")
 async def home(): return FileResponse("index.html")
 
-@app.get("/app.js")
-async def serve_js(): return FileResponse("app.js")
-
 @app.post("/advisory")
-async def advisory_engine(prompt: str = Form(...), image_data: Optional[str] = Form(None), lang: str = Form("en")):
+async def advisory_engine(prompt: str = Form(...), lang: str = Form("en"), image_data: Optional[str] = Form(None)):
+    # Instrucciones estrictas para evitar respuestas genéricas
     instruction = (
-        "You are the Senior Master Advisor of SmartCargo (MAY ROGA LLC). PRIVATE TECHNICAL ADVISORS. "
-        "Analyze visual evidence: labels, UN codes, and hazards. "
-        "Purpose: Prevent fines and holds. No 'audit' words. "
-        "EXCELENCIA ESCALADA: Tier $5 (Courier), $15 (Standard), $35 (Critical Shield), $95 (Project Master). "
-        "Direct solutions. Finalize: '--- SmartCargo Advisory by MAY ROGA LLC. ---'"
+        f"You are the Senior Master Advisor of SmartCargo (MAY ROGA LLC). Language: {lang}. "
+        "Analyze the provided image data immediately. Describe UN codes and hazards. "
+        "If an image is provided, you MUST analyze it visually. Do not say you cannot see it. "
+        "Finalize: '--- SmartCargo Advisory by MAY ROGA LLC. ---'"
     )
     
     try:
-        # LLAVE: Preparamos las partes (Texto + Imagen si existe)
-        parts = [{"text": f"{instruction}\n\nInput: {prompt}"}]
+        # CONSTRUCCIÓN QUIRÚRGICA DEL CONTENIDO
+        # Parte 1: El texto de instrucción
+        payload_parts = [{"text": f"{instruction}\n\nClient Input: {prompt}"}]
         
+        # Parte 2: La "Lectura" (La clave de Google)
         if image_data and "," in image_data:
-            # Capturamos la lectura directa (Base64) eliminando el encabezado
-            clean_b64 = image_data.split(",")[1].replace(" ", "+").strip()
-            parts.append({
+            # Extraer base64 puro y asegurar que no tenga espacios corruptos
+            b64_string = image_data.split(",")[1].replace(" ", "+").strip()
+            payload_parts.append({
                 "inline_data": {
                     "mime_type": "image/jpeg",
-                    "data": clean_b64
+                    "data": b64_string
                 }
             })
 
+        # Endpoint de la API 1.5 Flash (El que procesa visión)
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-        async with httpx.AsyncClient() as client:
-            r = await client.post(url, json={"contents": [{"parts": parts}]}, timeout=15.0)
-            res = r.json()
-            return {"data": res['candidates'][0]['content']['parts'][0]['text']}
-    except Exception as e:
-        # Si Gemini falla o no hay imagen, el respaldo de OpenAI sigue funcionando igual
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, json={"contents": [{"parts": payload_parts}]})
+            res_json = response.json()
+            
+            # Si Gemini responde correctamente
+            if 'candidates' in res_json:
+                answer = res_json['candidates'][0]['content']['parts'][0]['text']
+                return {"data": answer}
+            
+            raise ValueError("Respuesta fallida de la API")
+
+    except Exception:
+        # Respaldo a OpenAI si Gemini tiene problemas de red
         if OPENAI_KEY:
             client_oa = openai.OpenAI(api_key=OPENAI_KEY)
-            res = client_oa.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}])
+            res = client_oa.chat.completions.create(
+                model="gpt-4o", 
+                messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}]
+            )
             return {"data": res.choices[0].message.content}
-    return {"data": "System error. Contact Admin."}
+    
+    return {"data": "Error en el sistema de visión. Contacte a MAY ROGA LLC."}
 
+# Ruta de pagos (Intacta)
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
     if user == ADMIN_USER and password == ADMIN_PASS:
         return {"url": f"/?access=granted&awb={urllib.parse.quote(awb)}&tier={amount}"}
-    
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
