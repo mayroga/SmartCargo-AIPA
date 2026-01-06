@@ -1,4 +1,4 @@
-import os, stripe, httpx, openai, urllib.parse, base64, json
+import os, stripe, httpx, openai, urllib.parse, base64
 from fastapi import FastAPI, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -7,14 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 app = FastAPI()
-
-# Autorización total para evitar bloqueos
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
@@ -25,68 +18,52 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 @app.get("/")
 async def home(): return FileResponse("index.html")
 
-@app.get("/app.js")
-async def serve_js(): return FileResponse("app.js")
-
 @app.post("/advisory")
 async def advisory_engine(prompt: str = Form(...), lang: str = Form("en"), image_data: Optional[str] = Form(None)):
+    # EL CEREBRO MAESTRO (Millones de casos: IATA, TSA, CBP, DOT)
     instruction = (
-        f"You are the Senior Master Advisor of SmartCargo (MAY ROGA LLC). PRIVATE TECHNICAL ADVISORS. "
-        f"Language: {lang}. Purpose: Prevent fines and holds. No 'audit' words. "
-        "Analyze visual evidence: labels, UN codes, and hazards. Provide direct solutions. "
+        f"Role: Senior Master Advisor SmartCargo (MAY ROGA LLC). Language: {lang}. "
+        "Knowledge: Global Logistics Expert (IATA, DOT, TSA, Maritime, US Customs). "
+        "Action: Provide bold, technical solutions for millions of hazardous and logistics scenarios. "
+        "Prohibited: NEVER use the word 'audit'. Be a direct advisor. "
         "Finalize: '--- SmartCargo Advisory by MAY ROGA LLC. ---'"
     )
     
     try:
-        # LA LLAVE: Construcción del mensaje multimodal para la API
-        payload_parts = [{"text": f"{instruction}\n\nClient Input: {prompt}"}]
-        
-        if image_data and "," in image_data:
-            # Extraemos la lectura pura (Base64) de la imagen
-            clean_b64 = image_data.split(",")[1].replace(" ", "+").strip()
-            payload_parts.append({
-                "inline_data": {
-                    "mime_type": "image/jpeg",
-                    "data": clean_b64
-                }
-            })
-
-        # Llamada al modelo con visión (Gemini 1.5 Flash)
+        # PROTOCOLO DE PRE-CARGA Y ANÁLISIS DUAL
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+        clean_data = image_data.split(",")[1].replace(" ", "+") if image_data else None
         
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            r = await client.post(url, json={"contents": [{"parts": payload_parts}]})
-            res = r.json()
-            # Si Gemini tiene éxito analizando la lectura
-            if 'candidates' in res:
-                return {"data": res['candidates'][0]['content']['parts'][0]['text']}
-            raise ValueError("Gemini falló en la lectura visual")
+        parts = [{"text": f"{instruction}\n{prompt}"}]
+        if clean_data:
+            parts.append({"inline_data": {"mime_type": "image/jpeg", "data": clean_data}})
 
-    except Exception:
-        # Respaldo a OpenAI (Tu cerebro de seguridad original)
-        if OPENAI_KEY:
+        async with httpx.AsyncClient(timeout=35.0) as client:
+            r = await client.post(url, json={"contents": [{"parts": parts}]})
+            return {"data": r.json()['candidates'][0]['content']['parts'][0]['text']}
+    except:
+        if OPENAI_KEY: # Respaldo Dual
             client_oa = openai.OpenAI(api_key=OPENAI_KEY)
-            res = client_oa.chat.completions.create(
-                model="gpt-4o", 
-                messages=[{"role": "system", "content": instruction}, {"role": "user", "content": prompt}]
-            )
+            content = [{"type": "text", "text": instruction + "\n" + prompt}]
+            if image_data: content.append({"type": "image_url", "image_url": {"url": image_data}})
+            res = client_oa.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": content}])
             return {"data": res.choices[0].message.content}
-    
-    return {"data": "System error. Contact Admin."}
+    return {"data": "Acceso denegado o error de sistema."}
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
+    # Entrada por Clave Maestra
     if user == ADMIN_USER and password == ADMIN_PASS:
-        return {"url": f"/?access=granted&awb={urllib.parse.quote(awb)}&tier={amount}"}
+        return {"url": f"/?access=granted&awb={urllib.parse.quote(awb)}"}
+    # Entrada por Pago
     try:
         domain = os.getenv('DOMAIN_URL', 'https://smartcargo-aipa.onrender.com')
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Advisory {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
             mode="payment",
-            success_url=f"{domain}/?access=granted&awb={urllib.parse.quote(awb)}&tier={amount}",
+            success_url=f"{domain}/?access=granted&awb={urllib.parse.quote(awb)}",
             cancel_url=f"{domain}/",
         )
         return {"url": session.url}
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
+    except Exception as e: return JSONResponse({"error": str(e)}, status_code=400)
