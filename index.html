@@ -87,6 +87,11 @@ input:focus, textarea:focus { border:1px solid #d4af37; }
 <button class="btn-main" style="background:#1b5e20;" onclick="run()">GET SOLUTION</button>
 <div id="res"></div>
 
+<!-- BOTÓN DE BOCINA PARA ESCUCHAR RESPUESTA -->
+<div style="margin-top:5px; text-align:right;">
+  <button class="btn-main" id="btnListen" style="background:#ff9900; font-size:12px; width:100px;" onclick="speakResult()">🔊 Listen</button>
+</div>
+
 <div class="grid">
 <button class="btn-main" style="background:#25D366;font-size:9px;" onclick="ws()">WhatsApp</button>
 <button class="btn-main" style="background:#0056b3;font-size:9px;" onclick="copy()">Copy</button>
@@ -94,5 +99,16 @@ input:focus, textarea:focus { border:1px solid #d4af37; }
 </div>
 </div>
 <script src="app.js"></script>
+<script>
+/* Función para reproducir la respuesta en voz */
+function speakResult() {
+    const text = document.getElementById('res').innerText;
+    if(!text) return;
+    const utter = new SpeechSynthesisUtterance(text);
+    const lang = document.getElementById('userLang').value;
+    utter.lang = lang==='es'?'es-ES':'en-US';
+    window.speechSynthesis.speak(utter);
+}
+</script>
 </body>
 </html>
