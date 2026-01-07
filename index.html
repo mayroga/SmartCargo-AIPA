@@ -1,44 +1,50 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SmartCargo Advisory | MAY ROGA LLC</title>
+    <title>SmartCargo Advisory</title>
     <style>
-        body { background: #000b1a; font-family: sans-serif; padding: 10px; margin:0; }
-        .card { max-width: 480px; margin: auto; background: white; border-radius: 20px; padding: 20px; border-top: 10px solid #d4af37; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        #ad { color: #0056b3; font-weight: bold; text-align: center; height: 20px; margin-bottom: 10px; transition: 0.5s; }
-        #timer { background: #a8071a; color: white; text-align: center; font-weight: bold; padding: 5px; border-radius: 8px; margin-bottom: 10px; display: none; font-size: 12px; }
+        body { background: #000b1a; font-family: sans-serif; padding: 10px; margin:0; color: #333; }
+        .card { max-width: 480px; margin: auto; background: white; border-radius: 20px; padding: 20px; border-top: 10px solid #d4af37; }
+        #ad { color: #0056b3; font-weight: bold; text-align: center; height: 20px; margin: 10px 0; }
+        .legal-banner { background: #ff4d4f; color: white; padding: 10px; font-size: 11px; text-align: center; font-weight: bold; border-radius: 10px; margin-bottom: 15px; border: 2px solid #000; }
         .btn-main { background: #001d3d; color: white; width: 100%; padding: 14px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
-        .photo-box { width: 100%; height: 180px; background: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid #d4af37; overflow: hidden; margin-top: 10px; }
-        .role-btn { border: 2px solid #001d3d; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; cursor: pointer; background: #f8f9fa; font-size: 11px; }
+        .photo-box { width: 100%; height: 180px; background: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid #d4af37; margin-top: 10px; overflow: hidden; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .role-btn { border: 2px solid #001d3d; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; cursor: pointer; font-size: 11px; }
         .role-btn.selected { background: #001d3d; color: white; }
     </style>
 </head>
 <body>
 <div class="card">
-    <h2 style="text-align:center; margin:0; color:#001d3d;">SmartCargo ADVISORY</h2>
-    <div id="ad">Prevenga multas y retenciones.</div>
-    <div id="timer">TIEMPO RESTANTE: --:--</div>
+    <select id="userLang" onchange="changeLang(this.value)" style="width:100%; font-weight:bold; border:2px solid #d4af37; margin-bottom: 10px; padding: 5px;">
+        <option value="en">ENGLISH 🇺🇸</option>
+        <option value="es">ESPAÑOL 🇪🇸</option>
+    </select>
+
+    <div class="legal-banner" id="txt-legal">
+        PRIVATE ADVISORY. NOT IATA, NOT TSA, NOT DOT. NOT GOVERNMENT.
+    </div>
+
+    <h2 id="txt-title" style="text-align:center; margin:0; color:#001d3d;">SmartCargo ADVISORY</h2>
+    <div id="ad">Protect your money and avoid holds.</div>
+    <div id="timer" style="background: #a8071a; color: white; text-align: center; font-weight: bold; padding: 5px; border-radius: 8px; display: none; margin-bottom: 5px; font-size: 12px;">TIME: --:--</div>
 
     <div id="accessSection">
-        <select id="userLang" style="width:100%; font-weight:bold; border:2px solid #d4af37; margin-bottom: 10px;">
-            <option value="es">ESPAÑOL 🇪🇸</option>
-            <option value="en">ENGLISH 🇺🇸</option>
-        </select>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div class="grid">
             <button class="btn-main" style="background:#0056b3; font-size:10px;" onclick="pay(5)">Courier $5</button>
             <button class="btn-main" style="background:#0056b3; font-size:10px;" onclick="pay(15)">Standard $15</button>
             <button class="btn-main" style="background:#0056b3; font-size:10px;" onclick="pay(35)">Critical $35</button>
             <button class="btn-main" style="background:#0056b3; font-size:10px;" onclick="pay(95)">Project $95</button>
         </div>
-        <input type="text" id="awb" placeholder="AWB / Referencia" style="width:100%; margin-top:10px; padding:10px; box-sizing:border-box;">
-        <input type="text" id="u" placeholder="Admin User" style="width:48%;"> <input type="password" id="p" placeholder="Pass" style="width:48%;">
-        <button onclick="pay(0)" class="btn-main" style="background:#444;">ACCESO MASTER</button>
+        <input type="text" id="awb" placeholder="Reference / AWB" style="width:100%; margin-top:10px; padding:10px; box-sizing:border-box;">
+        <input type="text" id="u" placeholder="User" style="width:48%;"> <input type="password" id="p" placeholder="Pass" style="width:48%;">
+        <button id="txt-master" onclick="pay(0)" class="btn-main" style="background:#333;">MASTER ACCESS</button>
     </div>
 
     <div id="mainApp" style="display:none;">
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:5px;">
+        <div class="grid" id="roleGrid">
             <div class="role-btn" onclick="selRole('Shipper', this)">Shipper</div>
             <div class="role-btn" onclick="selRole('Forwarder', this)">Forwarder</div>
             <div class="role-btn" onclick="selRole('Trucker', this)">Trucker</div>
@@ -46,19 +52,19 @@
         </div>
         <div onclick="document.getElementById('f').click()" class="photo-box">
             <img id="v" style="max-width:100%; max-height:100%; display:none;">
-            <span id="l" style="color:white; font-size:12px;">📷 VÍA 1: ESCANEO DE CARGA</span>
+            <span id="txt-capture" style="color:white; font-size:12px;">📷 CAPTURE CARGO / DOCS</span>
             <input type="file" id="f" accept="image/*" capture="environment" style="display:none;" onchange="scRead(event)">
         </div>
         <div style="position:relative; margin-top:10px;">
-            <textarea id="prompt" style="width:100%; height:80px; box-sizing:border-box; padding:10px; border-radius:10px;" placeholder="VÍA 2 y 3: Texto o Micrófono..."></textarea>
+            <textarea id="prompt" style="width:100%; height:80px; box-sizing:border-box; padding:10px;" placeholder="Describe your case..."></textarea>
             <button onclick="activarVoz()" style="position:absolute; right:10px; bottom:10px; border:none; background:none; cursor:pointer; font-size:22px;">🎤</button>
         </div>
-        <button onclick="run()" class="btn-main" style="background:#1b5e20;">SOLICITAR DICTAMEN</button>
+        <button id="txt-get" onclick="run()" class="btn-main" style="background:#1b5e20;">GET SOLUTION</button>
         <div id="res" style="margin-top:15px; font-size:13px; white-space:pre-wrap; background:#f4f4f4; padding:12px; border-radius:10px; display:none;"></div>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px;">
+        <div class="grid">
             <button class="btn-main" style="background:#25D366; font-size:9px;" onclick="ws()">WhatsApp</button>
             <button class="btn-main" style="background:#0056b3; font-size:9px;" onclick="copy()">Copy</button>
-            <button class="btn-main" style="background:#a8071a; font-size:9px;" onclick="location.href='/'">Clear</button>
+            <button id="txt-clear" class="btn-main" style="background:#a8071a; font-size:9px;" onclick="limpiar()">Clear</button>
         </div>
     </div>
 </div>
