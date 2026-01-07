@@ -1,112 +1,88 @@
-let selectedRole = "", selectedAmount = 0, timeLeft = 0;
+let imgB64 = "";
+let lastLang = "en";
+let selectedRole = "";
 
-function selRole(v, el) { 
-    selectedRole = v; 
-    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected')); 
-    el.classList.add('selected'); 
+const ads = [
+  "No holds. No fines.",
+  "Prevent cargo delays.",
+  "Avoid cargo returns.",
+  "Protect your money.",
+  "Cargo arrives compliant."
+];
+
+let i = 0;
+setInterval(()=>{
+  const el = document.getElementById("ad");
+  if(el) el.innerText = ads[i++ % ads.length];
+},3000);
+
+function selRole(role, el){
+  selectedRole = role;
+  document.querySelectorAll(".role-btn").forEach(b=>b.classList.remove("selected"));
+  el.classList.add("selected");
 }
 
-function selTier(v, el) { 
-    selectedAmount = v; 
-    document.querySelectorAll('.tier-btn').forEach(b => b.classList.remove('selected')); 
-    el.classList.add('selected'); 
+function loadPhoto(el){
+  if(!el.files[0]) return;
+  const r = new FileReader();
+  r.onload = e=>{
+    imgB64 = e.target.result;
+    document.getElementById("img").src = imgB64;
+  };
+  r.readAsDataURL(el.files[0]);
 }
 
-function loadPhoto(i) {
-    const file = document.getElementById(`f${i}`).files[0];
-    if (file) {
-        const r = new FileReader();
-        r.onload = (e) => { document.getElementById(`p${i}`).src = e.target.result; };
-        r.readAsDataURL(file);
-    }
+async function pay(amount){
+  const fd = new FormData();
+  fd.append("amount", amount);
+  fd.append("awb", document.getElementById("awb").value || "REF");
+  fd.append("user", document.getElementById("adminUser").value);
+  fd.append("password", document.getElementById("adminPass").value);
+  const r = await fetch("/create-payment",{method:"POST",body:fd});
+  const d = await r.json();
+  if(d.url) location.href = d.url;
+  else alert("Access denied");
 }
 
-async function getSolution() {
-    const out = document.getElementById("advResponse");
-    out.innerText = "Processing...";
-    const fd = new FormData();
-    fd.append("prompt", `Role: ${selectedRole}. Issue: ${document.getElementById("promptArea").value}`);
-    try {
-        const res = await fetch("/advisory", { method: "POST", body: fd });
-        const data = await res.json();
-        out.innerText = data.data;
-        document.getElementById("btnWs").style.display = "block";
-    } catch(e) { out.innerText = "Error. Try again."; }
+async function analyze(){
+  if(!selectedRole) return alert("Select role first");
+  const fd = new FormData();
+  fd.append("prompt", `ROLE: ${selectedRole}. ${document.getElementById("prompt").value}`);
+  fd.append("image_data", imgB64);
+  fd.append("lang", document.getElementById("langSwitch").value);
+
+  document.getElementById("advResponse").innerText = "Analyzing cargo...";
+  const r = await fetch("/advisory",{method:"POST",body:fd});
+  const d = await r.json();
+  document.getElementById("advResponse").innerText = d.data;
+  lastLang = d.lang || "en";
 }
 
-document.getElementById("activateBtn").onclick = async () => {
-    if(!selectedRole || selectedAmount === 0) return alert("Select Role and Price");
-    const awb = document.getElementById("awbField").value || "N/A";
-    const fd = new FormData();
-    fd.append("amount", selectedAmount);
-    fd.append("awb", awb);
-    
-    const u = prompt("Admin User? (Leave blank for Card Payment)");
-    if(u) {
-        fd.append("user", u);
-        fd.append("password", prompt("Admin Pass?"));
-    }
-
-    const res = await fetch("/create-payment", { method: "POST", body: fd });
-    const data = await res.json();
-    if(data.url) window.location.href = data.url; else alert("Check Admin credentials or Internet.");
-};
-
-document.addEventListener("DOMContentLoaded", () => {
-    const p = new URLSearchParams(window.location.search);
-    if(p.get("access") === "granted") {
-        document.getElementById("mainApp").style.display = "block";
-        document.getElementById("accessSection").style.display = "none";
-        const t = p.get("tier");
-        timeLeft = (t == 95 ? 45 : (t == 35 ? 20 : (t == 15 ? 10 : 4))) * 60;
-        setInterval(() => {
-            timeLeft--;
-            document.getElementById("timerDisp").innerText = `ACTIVE SESSION: ${Math.floor(timeLeft/60)}m ${timeLeft%60}s`;
-            if(timeLeft <= 0) window.location.href = "/";
-        }, 1000);
-    }
-});
-
-function sendWS() { window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(document.getElementById("advResponse").innerText)}`); }
-
-// Función para borrar el texto y la respuesta previa
-function clearText() {
-    if(confirm("¿Borrar descripción y respuesta actual?")) {
-        document.getElementById("promptArea").value = "";
-        document.getElementById("advResponse").innerText = "";
-        document.getElementById("btnWs").style.display = "none";
-        // Limpiar fotos
-        for(let i=1; i<=3; i++) {
-            document.getElementById(`p${i}`).src = "";
-            document.getElementById(`f${i}`).value = "";
-        }
-    }
+async function translate(){
+  const fd = new FormData();
+  fd.append("text", document.getElementById("advResponse").innerText);
+  fd.append("target", lastLang === "en" ? "es" : "en");
+  const r = await fetch("/translate",{method:"POST",body:fd});
+  const d = await r.json();
+  document.getElementById("advResponse").innerText = d.text;
+  lastLang = d.lang;
 }
 
-// Función de voz optimizada
-function startVoice() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        alert("Tu navegador no soporta reconocimiento de voz.");
-        return;
-    }
-    
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'es-ES'; 
-    
-    const area = document.getElementById("promptArea");
-    const originalPlaceholder = area.placeholder;
-    area.placeholder = "Listening / Escuchando...";
+function sendWS(){
+  window.open("https://wa.me/?text="+encodeURIComponent(document.getElementById("advResponse").innerText));
+}
 
-    recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        area.value += (area.value ? " " : "") + transcript;
-        area.placeholder = originalPlaceholder;
-    };
+function copyText(){
+  navigator.clipboard.writeText(document.getElementById("advResponse").innerText);
+  alert("Copied to clipboard");
+}
 
-    recognition.onerror = () => {
-        area.placeholder = originalPlaceholder;
-    };
-
-    recognition.start();
+function clearAll(){
+  if(!confirm("Clear image and analysis?")) return;
+  imgB64 = "";
+  selectedRole = "";
+  document.getElementById("img").src = "";
+  document.getElementById("prompt").value = "";
+  document.getElementById("advResponse").innerText = "";
+  document.querySelectorAll(".role-btn").forEach(b=>b.classList.remove("selected"));
 }
