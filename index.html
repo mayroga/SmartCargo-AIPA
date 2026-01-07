@@ -1,100 +1,83 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SmartCargo | MAY ROGA LLC</title>
-    <style>
-        body { background: #000b1a; color: #333; font-family: sans-serif; padding: 15px; margin:0; }
-        .card { max-width: 450px; margin: auto; background: white; border-radius: 20px; padding: 25px; border-top: 10px solid #d4af37; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .branding h2 { font-weight: 900; color: #001d3d; text-align: center; margin: 0; }
-        .branding p { font-size: 11px; font-weight: bold; color: #d4af37; text-align: center; text-transform: uppercase; margin: 0 0 20px 0; }
-        .btn-main { background: #001d3d; color: white; width: 100%; padding: 15px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
-        .tier-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
-        .photo-box { width: 100%; height: 200px; background: #000; border-radius: 10px; margin-top: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; border: 2px solid #d4af37; }
-        #advResponse { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 15px; font-size: 14px; white-space: pre-wrap; display: none; }
-    </style>
+<meta charset="UTF-8">
+<title>SmartCargo Advisory | MAY ROGA LLC</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body { background:#000b1a; font-family:Arial; margin:0; padding:10px }
+.card { max-width:480px; margin:auto; background:white; border-radius:20px; padding:20px }
+h2 { text-align:center; margin:0 }
+#ad { font-size:12px; text-align:center; color:#0056b3; font-weight:bold; height:18px }
+.legal { background:#fff1f0; border:2px solid #ff4d4f; padding:10px; font-size:10px; margin:10px 0 }
+.btn { width:100%; padding:14px; font-weight:bold; margin-top:10px }
+.photo { width:100%; height:160px; border:2px dashed #999; border-radius:10px; object-fit:contain }
+.roles { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px }
+.role-btn { padding:10px; border:2px solid #001d3d; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold }
+.role-btn.selected { background:#001d3d; color:white }
+#advResponse { white-space:pre-wrap; background:#eef2f7; padding:10px; margin-top:10px; border-radius:8px }
+</style>
 </head>
+
 <body>
-
 <div class="card">
-    <div class="branding"><h2>SmartCargo ADVISORY</h2><p>Technical Consulting by MAY ROGA LLC</p></div>
+<h2>SmartCargo Advisory</h2>
+<p style="text-align:center;font-size:12px;">Knowledge-Based Logistics Intelligence</p>
 
-    <select id="userLang" style="width:100%; font-weight:bold; border:2px solid #d4af37; padding: 10px; border-radius: 10px;">
-        <option value="es">ESPAÑOL 🇪🇸</option>
-        <option value="en">ENGLISH 🇺🇸</option>
-    </select>
+<div id="ad">Prevent holds & fines.</div>
 
-    <div id="accessSection">
-        <input type="text" id="awb" class="u-full-width" placeholder="AWB / Referencia" style="width: 100%; padding: 10px; margin: 15px 0; box-sizing: border-box;">
-        <div class="tier-grid">
-            <button class="btn-main" style="font-size: 10px;" onclick="iniciarPago(5)">Courier $5</button>
-            <button class="btn-main" style="font-size: 10px;" onclick="iniciarPago(15)">Standard $15</button>
-            <button class="btn-main" style="font-size: 10px;" onclick="iniciarPago(35)">Critical $35</button>
-            <button class="btn-main" style="font-size: 10px;" onclick="iniciarPago(95)">Project $95</button>
-        </div>
-        <hr>
-        <input type="text" id="u" placeholder="Admin User" style="width:100%; margin-bottom:5px;">
-        <input type="password" id="p" placeholder="Admin Pass" style="width:100%;">
-        <button onclick="iniciarPago(0)" class="btn-main" style="background:#444;">ACCESO MASTER</button>
-    </div>
-
-    <div id="mainApp" style="display:none;">
-        <div onclick="document.getElementById('fileIn').click()" class="photo-box">
-            <img id="view" style="max-width:100%; max-height:100%; display:none;">
-            <span id="lab" style="color:white; font-size:12px;">📷 ESCANEAR CARGA / DOCUMENTO</span>
-            <input type="file" id="fileIn" accept="image/*" capture="environment" style="display:none;" onchange="capturar(event)">
-        </div>
-        <textarea id="prompt" style="width:100%; height:80px; margin-top:15px; padding:10px; box-sizing:border-box;" placeholder="¿Cuál es la situación?"></textarea>
-        <button onclick="obtenerSolucion()" class="btn-main" style="background:#1b5e20;">OBTENER SOLUCIÓN MAESTRA</button>
-        <div id="advResponse"></div>
-        <button onclick="location.href='/'" class="btn-main" style="background:red; font-size:10px; height:auto; padding:5px;">SALIR Y BORRAR</button>
-    </div>
+<div class="legal">
+⚠️ PRIVATE ADVISORY SYSTEM.<br>
+NOT IATA / TSA / DOT / CBP / PORT AUTHORITY.<br>
+WE DO NOT HANDLE CARGO OR ISSUE DOCUMENTS.<br>
+ADVISORY & KNOWLEDGE ONLY.
 </div>
 
-<script>
-    let imageData = "";
-    const params = new URLSearchParams(window.location.search);
-    if(params.get('access') === 'granted') {
-        document.getElementById('accessSection').style.display = 'none';
-        document.getElementById('mainApp').style.display = 'block';
-    }
+<select id="langSwitch" class="btn">
+<option value="auto">🌐 Auto Language</option>
+<option value="en">English</option>
+<option value="es">Español</option>
+</select>
 
-    function capturar(e) {
-        const reader = new FileReader();
-        reader.onload = () => {
-            imageData = reader.result;
-            document.getElementById('view').src = imageData;
-            document.getElementById('view').style.display = "block";
-            document.getElementById('lab').style.display = "none";
-        };
-        reader.readAsDataURL(e.target.files[0]);
-    }
+<div id="accessSection">
+<input id="awb" placeholder="Reference / AWB" class="btn">
+<input id="adminUser" placeholder="Admin User (optional)" class="btn">
+<input id="adminPass" placeholder="Admin Pass" type="password" class="btn">
+<button class="btn" onclick="pay(0)">VALIDATE ACCESS</button>
+<hr>
+<button class="btn" onclick="pay(5)">$5 Courier</button>
+<button class="btn" onclick="pay(15)">$15 Standard</button>
+<button class="btn" onclick="pay(35)">$35 Critical</button>
+<button class="btn" onclick="pay(95)">$95 Project</button>
+</div>
 
-    async function iniciarPago(amt) {
-        const fd = new FormData();
-        fd.append("amount", amt);
-        fd.append("awb", document.getElementById('awb').value || "REF-SMART");
-        fd.append("user", document.getElementById('u').value);
-        fd.append("password", document.getElementById('p').value);
-        const r = await fetch('/create-payment', { method: 'POST', body: fd });
-        const d = await r.json();
-        if(d.url) window.location.href = d.url;
-        else alert("Credenciales incorrectas.");
-    }
+<div id="mainApp" style="display:none;">
 
-    async function obtenerSolucion() {
-        const resBox = document.getElementById('advResponse');
-        resBox.style.display = "block";
-        resBox.innerHTML = "<b>SISTEMA:</b> Analizando millones de variables técnicas...";
-        const fd = new FormData();
-        fd.append("prompt", document.getElementById('prompt').value || "Analizar evidencia.");
-        fd.append("lang", document.getElementById('userLang').value);
-        fd.append("image_data", imageData);
-        const r = await fetch('/advisory', { method: 'POST', body: fd });
-        const d = await r.json();
-        resBox.innerHTML = "<b>DICTAMEN MAY ROGA LLC:</b>\n" + d.data;
-    }
-</script>
+<div class="roles">
+  <div class="role-btn" onclick="selRole('Shipper',this)">Shipper</div>
+  <div class="role-btn" onclick="selRole('Forwarder',this)">Forwarder</div>
+  <div class="role-btn" onclick="selRole('Trucker',this)">Trucker</div>
+  <div class="role-btn" onclick="selRole('Operator',this)">Operator</div>
+</div>
+
+<input type="file" accept="image/*" capture="environment" onchange="loadPhoto(this)" class="btn">
+<img id="img" class="photo">
+
+<textarea id="prompt" placeholder="Optional description (damage, label, document)" class="btn"></textarea>
+
+<button class="btn" onclick="analyze()">ANALYZE CARGO</button>
+<button class="btn" onclick="translate()">TRANSLATE EN ↔ ES</button>
+
+<div id="advResponse"></div>
+
+<button class="btn" onclick="sendWS()">SEND WHATSAPP</button>
+<button class="btn" onclick="copyText()">COPY RESULT</button>
+<button class="btn" style="background:#a8071a;color:white" onclick="clearAll()">CLEAR / RESET</button>
+
+</div>
+</div>
+
+<script src="/app.js"></script>
 </body>
 </html>
