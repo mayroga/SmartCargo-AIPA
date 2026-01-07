@@ -34,6 +34,7 @@ OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 ADMIN_USER = os.getenv("ADMIN_USERNAME")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+DOMAIN_URL = os.getenv("DOMAIN_URL", "https://smartcargo-aipa.onrender.com")
 
 # =========================
 # STATIC FILES
@@ -50,7 +51,6 @@ async def js_serve():
 # HELPER: Parse AI Response
 # =========================
 def parse_ai_response(response_json):
-    """Extrae texto de Gemini o OpenAI"""
     text = ""
     if "candidates" in response_json:  # Gemini
         for c in response_json["candidates"]:
@@ -73,45 +73,35 @@ def parse_ai_response(response_json):
 async def advisory_engine(
     prompt: str = Form(...),
     lang: str = Form("en"),
-    image_data: Optional[str] = Form(None)  # Solo referencia, no procesar IA
+    image_data: Optional[str] = Form(None)  # Solo referencia visual
 ):
-    """
-    SmartCargo Advisory - Direct Action
-    Resuelve cualquier situación logística BEFORE, DURING, AFTER shipment.
-    Roles: Shipper, Forwarder, Operator, Trucker, Manager.
-    Nunca dice "no sé", ni "llame a alguien", ni da teoría.
-    """
     instruction = f"""
 You are SmartCargo Advisory by MAY ROGA LLC.
 Language: {lang}.
 Roles: Shipper, Forwarder, Operator, Trucker, Manager.
 Objective: Solve any logistics problem IMMEDIATELY, BEFORE, DURING, and AFTER operations.
 Do NOT say "I don't know", "call someone", or give theory.
-Focus ONLY on ACTIONABLE, DIRECT, STEP-BY-STEP SOLUTIONS.
-Ask questions to clarify the shipment if needed (type, flammable, liquids, etc.).
-Provide the exact classification or recommendation based on the client's description.
-Images are only for reference, do NOT ask the client to send photos.
-Respond in a professional, confident, and human-like tone.
+Focus only on ACTIONABLE, DIRECT, STEP-BY-STEP SOLUTIONS.
 Client input: {prompt}
 """
-
-    result = {"data": "SmartCargo Advisory: Unable to process at this moment, try again."}
+    result = {"data": "SYSTEM: No data received."}
 
     # -------------------------
     # PLAN A - GEMINI
     # -------------------------
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-        parts = [{"text": instruction}]
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            r = await client.post(url, json={
-                "contents": [{"parts": parts}],
-                "generationConfig": {"maxOutputTokens": 800, "temperature": 0.1}
-            })
-            result_text = parse_ai_response(r.json())
-            if result_text:
-                result["data"] = result_text
-                return result
+        if GEMINI_KEY:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+            parts = [{"text": instruction}]
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                r = await client.post(url, json={
+                    "contents": [{"parts": parts}],
+                    "generationConfig": {"maxOutputTokens": 800, "temperature": 0.1}
+                })
+                result_text = parse_ai_response(r.json())
+                if result_text:
+                    result["data"] = result_text
+                    return result
     except Exception as e:
         print("Gemini Error:", e)
 
@@ -130,12 +120,12 @@ Client input: {prompt}
             if result_text:
                 result["data"] = result_text
     except Exception as e:
-        result["data"] = "SmartCargo Advisory: Unable to process at this moment, try again."
+        result["data"] = f"TECH ERROR: {str(e)}"
 
     return result
 
 # =========================
-# STRIPE PAYMENT
+# STRIPE / MASTER PAYMENT
 # =========================
 @app.post("/create-payment")
 async def create_payment(
@@ -144,11 +134,16 @@ async def create_payment(
     user: Optional[str] = Form(None),
     password: Optional[str] = Form(None)
 ):
+    # -------------------------
+    # MASTER ACCESS
+    # -------------------------
     if user == ADMIN_USER and password == ADMIN_PASS:
         return {"url": f"./?access=granted&awb={urllib.parse.quote(awb)}&monto=0"}
 
+    # -------------------------
+    # STRIPE PAYMENT
+    # -------------------------
     try:
-        domain = os.getenv("DOMAIN_URL", "https://smartcargo-aipa.onrender.com")
         checkout = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{
@@ -160,8 +155,8 @@ async def create_payment(
                 "quantity": 1,
             }],
             mode="payment",
-            success_url=f"{domain}/?access=granted&awb={urllib.parse.quote(awb)}&monto={amount}",
-            cancel_url=f"{domain}/",
+            success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}&monto={amount}",
+            cancel_url=f"{DOMAIN_URL}/",
         )
         return {"url": checkout.url}
     except Exception as e:
