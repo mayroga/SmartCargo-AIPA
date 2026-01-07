@@ -2,55 +2,64 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo ADVISORY | MAY ROGA LLC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SmartCargo Advisory | MAY ROGA LLC</title>
     <style>
-        body { background:#0b0f23; font-family:sans-serif; margin:0; padding:10px; }
-        .card { max-width:480px; margin:auto; background:#f5f5f5; border-radius:20px; padding:25px; border-top:10px solid #d4af37; box-shadow:0 15px 35px rgba(0,0,0,0.5); }
-        h1 { text-align:center; color:#001d3d; margin:0; font-size:26px; }
-        #ad { height:20px; text-align:center; color:#0056b3; font-weight:bold; font-size:13px; margin:10px 0; }
-        .legal { background:#fff1f0; border:2px solid #ff4d4f; padding:10px; font-size:10px; text-align:center; border-radius:10px; margin-bottom:15px; color:#a8071a; font-weight:bold; }
-        .btn { width:100%; padding:15px; border-radius:10px; border:none; font-weight:bold; cursor:pointer; text-transform:uppercase; margin-top:10px; }
-        .btn-primary { background:#001d3d; color:white; }
-        .roles { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:15px 0; }
-        .role-btn { padding:12px; border:2px solid #001d3d; border-radius:8px; text-align:center; font-weight:bold; cursor:pointer; background:white; }
-        .role-btn.selected { background:#001d3d; color:white; }
-        #advResponse { background:white; padding:15px; border-radius:10px; margin-top:15px; font-size:14px; white-space:pre-wrap; border-left:5px solid #1b5e20; display:none; }
+        body { background: #000b1a; font-family: sans-serif; padding: 10px; margin:0; }
+        .card { max-width: 480px; margin: auto; background: white; border-radius: 20px; padding: 20px; border-top: 10px solid #d4af37; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #ad { color: #0056b3; font-weight: bold; text-align: center; height: 20px; margin-bottom: 10px; transition: 0.5s; }
+        #timer { background: #a8071a; color: white; text-align: center; font-weight: bold; padding: 5px; border-radius: 8px; margin-bottom: 10px; display: none; font-size: 12px; }
+        .btn-main { background: #001d3d; color: white; width: 100%; padding: 14px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+        .photo-box { width: 100%; height: 180px; background: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid #d4af37; overflow: hidden; margin-top: 10px; }
+        .role-btn { border: 2px solid #001d3d; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; cursor: pointer; background: #f8f9fa; font-size: 11px; }
+        .role-btn.selected { background: #001d3d; color: white; }
     </style>
 </head>
 <body>
 <div class="card">
-    <h1>SmartCargo ADVISORY</h1>
-    <p style="text-align:center; margin:0; font-weight:bold; color:#d4af37;">Technical Consulting by MAY ROGA LLC</p>
-    <div id="ad">Prevenga retenciones y multas.</div>
-    <div class="legal">⚠️ SISTEMA DE ASESORÍA PRIVADA. NO VINCULADO A AGENCIAS GUBERNAMENTALES.</div>
+    <h2 style="text-align:center; margin:0; color:#001d3d;">SmartCargo ADVISORY</h2>
+    <div id="ad">Prevenga multas y retenciones.</div>
+    <div id="timer">TIEMPO RESTANTE: --:--</div>
 
     <div id="accessSection">
-        <input type="text" id="awb" placeholder="Referencia / AWB" style="width:100%; padding:12px; box-sizing:border-box; border-radius:8px; border:1px solid #ccc;">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
-            <button class="btn" style="background:#0056b3; color:white;" onclick="pay(5)">Courier $5</button>
-            <button class="btn" style="background:#0056b3; color:white;" onclick="pay(15)">Standard $15</button>
-            <button class="btn" style="background:#0056b3; color:white;" onclick="pay(35)">Critical $35</button>
-            <button class="btn" style="background:#0056b3; color:white;" onclick="pay(95)">Project $95</button>
+        <select id="userLang" style="width:100%; font-weight:bold; border:2px solid #d4af37; margin-bottom: 10px;">
+            <option value="es">ESPAÑOL 🇪🇸</option>
+            <option value="en">ENGLISH 🇺🇸</option>
+        </select>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <button class="btn-main" style="background:#0056b3; font-size:10px;" onclick="pay(5)">Courier $5</button>
+            <button class="btn-main" style="background:#0056b3; font-size:10px;" onclick="pay(15)">Standard $15</button>
+            <button class="btn-main" style="background:#0056b3; font-size:10px;" onclick="pay(35)">Critical $35</button>
+            <button class="btn-main" style="background:#0056b3; font-size:10px;" onclick="pay(95)">Project $95</button>
         </div>
-        <input type="text" id="adminUser" placeholder="Usuario" style="width:100%; margin-top:10px; padding:8px; box-sizing:border-box;">
-        <input type="password" id="adminPass" placeholder="Clave" style="width:100%; margin-top:5px; padding:8px; box-sizing:border-box;">
-        <button class="btn btn-primary" onclick="pay(0)">VALIDAR ACCESO</button>
+        <input type="text" id="awb" placeholder="AWB / Referencia" style="width:100%; margin-top:10px; padding:10px; box-sizing:border-box;">
+        <input type="text" id="u" placeholder="Admin User" style="width:48%;"> <input type="password" id="p" placeholder="Pass" style="width:48%;">
+        <button onclick="pay(0)" class="btn-main" style="background:#444;">ACCESO MASTER</button>
     </div>
 
     <div id="mainApp" style="display:none;">
-        <div class="roles">
-            <div class="role-btn" onclick="selRole('Shipper',this)">Shipper</div>
-            <div class="role-btn" onclick="selRole('Forwarder',this)">Forwarder</div>
-            <div class="role-btn" onclick="selRole('Trucker',this)">Trucker</div>
-            <div class="role-btn" onclick="selRole('Operator',this)">Operator</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:5px;">
+            <div class="role-btn" onclick="selRole('Shipper', this)">Shipper</div>
+            <div class="role-btn" onclick="selRole('Forwarder', this)">Forwarder</div>
+            <div class="role-btn" onclick="selRole('Trucker', this)">Trucker</div>
+            <div class="role-btn" onclick="selRole('Operator', this)">Operator</div>
         </div>
-        <button class="btn btn-primary" onclick="document.getElementById('fileIn').click()">📷 ESCANEAR CARGA</button>
-        <input type="file" id="fileIn" accept="image/*" capture="environment" style="display:none;" onchange="loadPhoto(this)">
-        <textarea id="prompt" placeholder="Detalles adicionales..." rows="3" style="width:100%; margin-top:10px; border-radius:8px; padding:10px; box-sizing:border-box;"></textarea>
-        <button class="btn btn-primary" style="background:#1b5e20;" onclick="analyze()">OBTENER DICTAMEN TÉCNICO</button>
-        <div id="advResponse"></div>
-        <button class="btn" style="background:#25D366; color:white;" onclick="sendWS()">WhatsApp Report</button>
+        <div onclick="document.getElementById('f').click()" class="photo-box">
+            <img id="v" style="max-width:100%; max-height:100%; display:none;">
+            <span id="l" style="color:white; font-size:12px;">📷 VÍA 1: ESCANEO DE CARGA</span>
+            <input type="file" id="f" accept="image/*" capture="environment" style="display:none;" onchange="scRead(event)">
+        </div>
+        <div style="position:relative; margin-top:10px;">
+            <textarea id="prompt" style="width:100%; height:80px; box-sizing:border-box; padding:10px; border-radius:10px;" placeholder="VÍA 2 y 3: Texto o Micrófono..."></textarea>
+            <button onclick="activarVoz()" style="position:absolute; right:10px; bottom:10px; border:none; background:none; cursor:pointer; font-size:22px;">🎤</button>
+        </div>
+        <button onclick="run()" class="btn-main" style="background:#1b5e20;">SOLICITAR DICTAMEN</button>
+        <div id="res" style="margin-top:15px; font-size:13px; white-space:pre-wrap; background:#f4f4f4; padding:12px; border-radius:10px; display:none;"></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px;">
+            <button class="btn-main" style="background:#25D366; font-size:9px;" onclick="ws()">WhatsApp</button>
+            <button class="btn-main" style="background:#0056b3; font-size:9px;" onclick="copy()">Copy</button>
+            <button class="btn-main" style="background:#a8071a; font-size:9px;" onclick="location.href='/'">Clear</button>
+        </div>
     </div>
 </div>
 <script src="app.js"></script>
