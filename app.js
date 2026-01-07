@@ -8,7 +8,7 @@ const i18n = {
         master: "MASTER ACCESS",
         clear: "CLEAR CONSULT",
         prompt: "Describe your case or use Microphone...",
-        analyzing: "Analyzing data...",
+        analyzing: "Analyzing cargo data...",
         timer: "TIME:"
     },
     es: {
@@ -18,7 +18,7 @@ const i18n = {
         master: "ACCESO MAESTRO",
         clear: "LIMPIAR CONSULTA",
         prompt: "Describa su caso o use el Micrófono...",
-        analyzing: "Analizando datos...",
+        analyzing: "Analizando datos de carga...",
         timer: "TIEMPO:"
     }
 };
@@ -30,6 +30,12 @@ function changeLang(l) {
     if(document.getElementById('txt-master')) document.getElementById('txt-master').innerText = i18n[l].master;
     document.getElementById('txt-clear').innerText = i18n[l].clear;
     document.getElementById('prompt').placeholder = i18n[l].prompt;
+    // Actualizar el texto del temporizador si ya está activo
+    const tDiv = document.getElementById('timer');
+    if(tDiv.style.display === "block") {
+        let current = tDiv.innerText.split(" ")[1];
+        tDiv.innerText = `${i18n[l].timer} ${current}`;
+    }
 }
 
 const params = new URLSearchParams(window.location.search);
@@ -40,51 +46,100 @@ if(params.get('access') === 'granted') {
     timeLeft = t[params.get('monto')] || 300;
     const tDiv = document.getElementById('timer'); tDiv.style.display = "block";
     setInterval(() => {
-        if(timeLeft <= 0) location.href = "/";
+        if(timeLeft <= 0) {
+            alert("Session Expired");
+            location.href = "/";
+        }
         let m = Math.floor(timeLeft / 60); let s = timeLeft % 60;
-        tDiv.innerText = `${i18n[document.getElementById('userLang').value].timer} ${m}:${s<10?'0':''}${s}`;
+        let lang = document.getElementById('userLang').value;
+        tDiv.innerText = `${i18n[lang].timer} ${m}:${s<10?'0':''}${s}`;
         timeLeft--;
     }, 1000);
 }
 
 function scRead(e) {
     const r = new FileReader();
-    r.onload = () => { imgB64 = r.result; document.getElementById('v').src = imgB64; document.getElementById('v').style.display="block"; document.getElementById('txt-capture').style.display="none"; };
+    r.onload = () => { 
+        imgB64 = r.result; 
+        document.getElementById('v').src = imgB64; 
+        document.getElementById('v').style.display="block"; 
+        document.getElementById('txt-capture').style.display="none"; 
+    };
     r.readAsDataURL(e.target.files[0]);
 }
 
 function activarVoz() {
-    const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!Speech) return alert("Voz no soportada en este navegador");
+    const rec = new Speech();
     rec.lang = document.getElementById('userLang').value === 'es' ? 'es-ES' : 'en-US';
     rec.start();
     rec.onresult = (e) => { document.getElementById('prompt').value = e.results[0][0].transcript; };
 }
 
 async function pay(amt) {
-    const fd = new FormData(); fd.append("amount", amt); fd.append("awb", document.getElementById('awb').value || "REF");
-    fd.append("user", document.getElementById('u').value); fd.append("password", document.getElementById('p').value);
+    const fd = new FormData(); 
+    fd.append("amount", amt); 
+    fd.append("awb", document.getElementById('awb').value || "REF");
+    fd.append("user", document.getElementById('u').value); 
+    fd.append("password", document.getElementById('p').value);
     const r = await fetch('/create-payment', { method: 'POST', body: fd });
-    const d = await r.json(); if(d.url) window.location.href = d.url;
+    const d = await r.json(); 
+    if(d.url) window.location.href = d.url;
+    else alert("Access Denied");
 }
 
 async function run() {
-    if(!role) return alert("Select Role");
-    const out = document.getElementById('res'); out.style.display = "block"; 
-    out.innerText = i18n[document.getElementById('userLang').value].analyzing;
+    if(!role) return alert("Please select your Role (Shipper, Forwarder, etc.)");
+    const out = document.getElementById('res'); 
+    const lang = document.getElementById('userLang').value;
+    out.style.display = "block"; 
+    out.innerText = i18n[lang].analyzing;
+    
     const fd = new FormData();
-    fd.append("prompt", `Role: ${role}. Case: ${document.getElementById('prompt').value}`);
-    fd.append("lang", document.getElementById('userLang').value);
+    // Enviamos el prompt limpio para que el cerebro actúe
+    fd.append("prompt", `Role: ${role}. Case: ${document.getElementById('prompt').value || "Visual inspection requested."}`);
+    fd.append("lang", lang);
     if(imgB64) fd.append("image_data", imgB64);
-    const r = await fetch('/advisory', { method: 'POST', body: fd });
-    const d = await r.json(); out.innerText = d.data;
+    
+    try {
+        const r = await fetch('/advisory', { method: 'POST', body: fd });
+        const d = await r.json(); 
+        
+        // REFUERZO: Si el servidor devuelve una imagen, la mantenemos visible
+        if(d.image) {
+            document.getElementById('v').src = d.image;
+        }
+        
+        out.innerText = d.data || "SYSTEM: Error in response structure.";
+    } catch(e) { 
+        console.error(e);
+        out.innerText = "Connection Error. Please describe your cargo via text or voice."; 
+    }
 }
 
 function limpiar() {
-    imgB64 = ""; document.getElementById('v').style.display="none"; 
+    imgB64 = ""; 
+    document.getElementById('v').style.display="none"; 
     document.getElementById('txt-capture').style.display="block";
-    document.getElementById('prompt').value = ""; document.getElementById('res').innerText = "";
+    document.getElementById('prompt').value = ""; 
+    document.getElementById('res').innerText = "";
+    document.getElementById('res').style.display = "none";
 }
 
-function selRole(r, el) { role = r; document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected')); el.classList.add('selected'); }
-function ws() { window.open("https://wa.me/?text=" + encodeURIComponent(document.getElementById('res').innerText)); }
-function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("Copied"); }
+function selRole(r, el) { 
+    role = r; 
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected')); 
+    el.classList.add('selected'); 
+}
+
+function ws() { 
+    const text = document.getElementById('res').innerText;
+    window.open("https://wa.me/?text=" + encodeURIComponent(text)); 
+}
+
+function copy() { 
+    const text = document.getElementById('res').innerText;
+    navigator.clipboard.writeText(text); 
+    alert("Copied to clipboard"); 
+}
