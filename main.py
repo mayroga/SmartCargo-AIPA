@@ -47,21 +47,19 @@ async def js_serve():
     return FileResponse("app.js")
 
 # =========================
-# HELPER: Parse AI response
+# HELPER: Parse AI Response
 # =========================
 def parse_ai_response(response_json):
-    """Extrae texto de Gemini o OpenAI sin errores."""
+    """Extrae texto de Gemini o OpenAI"""
     text = ""
-    # Gemini-style
-    if "candidates" in response_json:
+    if "candidates" in response_json:  # Gemini
         for c in response_json["candidates"]:
             if "content" in c:
                 parts = c["content"].get("parts", [])
                 for p in parts:
                     if "text" in p:
                         text += p["text"] + "\n"
-    # OpenAI-style
-    elif "choices" in response_json:
+    elif "choices" in response_json:  # OpenAI
         try:
             text += response_json["choices"][0]["message"]["content"]
         except:
@@ -69,48 +67,43 @@ def parse_ai_response(response_json):
     return text.strip()
 
 # =========================
-# CORE ADVISORY ENGINE
+# ADVISORY ENGINE
 # =========================
 @app.post("/advisory")
 async def advisory_engine(
     prompt: str = Form(...),
     lang: str = Form("en"),
-    image_data: Optional[str] = Form(None)
+    image_data: Optional[str] = Form(None)  # Solo referencia, no procesar IA
 ):
-    # Si el usuario no escribió nada, devolver instrucción
-    if not prompt.strip():
-        return {"data": "Please describe your case or use the microphone to get your SmartCargo solution.", "image": image_data}
+    """
+    SmartCargo Advisory - Direct Action
+    Resolves any logistics situation BEFORE, DURING, AFTER shipment.
+    Roles: Shipper, Forwarder, Operator, Trucker, Manager.
+    Never says "I don't know" or "call someone".
+    """
+    instruction = f"""
+You are SmartCargo Advisory by MAY ROGA LLC.
+Language: {lang}.
+Roles: Shipper, Forwarder, Operator, Trucker, Manager.
+Objective: Solve any logistics problem IMMEDIATELY, BEFORE, DURING, and AFTER operations.
+Do NOT say "I don't know", "call someone", or give theory.
+Focus only on ACTIONABLE, DIRECT, STEP-BY-STEP SOLUTIONS.
+Use your knowledge of DOT, TSA, IATA, CBP, customs, maritime, air, and land transport.
+Client input: {prompt}
+"""
 
-    # Mensaje principal de SmartCargo Advisory
-    instruction = (
-        f"You are the Senior Master Advisor of SmartCargo (MAY ROGA LLC). Language: {lang}. "
-        "You are a Tactical Logistics General. Your objective is to resolve ANY logistics situation, "
-        "before, during, and after operations. You serve shippers, forwarders, operators, truckers, airline managers, customs offices, etc. "
-        "You NEVER say 'I don't know', 'call here' or 'I can't'. Always provide the correct and direct solution. "
-        "Use your complete knowledge: DOT, TSA, IATA, CBP, customs, maritime, air, land, cargo measures, documentation, returns, delays, fines, coordination. "
-        "Focus on actionable steps, clarity, and confidence. Make the client feel 100% in control.\n\n"
-        "STRUCTURE:\n"
-        "1. DIRECT ACTION / SOLUTION\n"
-        "2. WHAT TO DO BEFORE, DURING, AFTER\n"
-        "3. THREE ACTIONABLE RECOMMENDATIONS\n\n"
-        "--- SmartCargo Advisory by MAY ROGA LLC ---"
-    )
+    result = {"data": "SYSTEM: No data received."}
 
-    result = {"data": "Generating solution...", "image": image_data}
-
-    # PLAN A — GEMINI
+    # -------------------------
+    # PLAN A - GEMINI
+    # -------------------------
     try:
-        url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-        )
-
-        parts = [{"text": f"{instruction}\n\nClient Input: {prompt}"}]
-
-        # NUNCA ANALIZAMOS FOTO, solo como referencia
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+        parts = [{"text": instruction}]
         async with httpx.AsyncClient(timeout=45.0) as client:
             r = await client.post(url, json={
                 "contents": [{"parts": parts}],
-                "generationConfig": {"maxOutputTokens": 600, "temperature": 0.1}
+                "generationConfig": {"maxOutputTokens": 800, "temperature": 0.1}
             })
             result_text = parse_ai_response(r.json())
             if result_text:
@@ -119,15 +112,16 @@ async def advisory_engine(
     except Exception as e:
         print("Gemini Error:", e)
 
-    # PLAN B — OPENAI BACKUP
+    # -------------------------
+    # PLAN B - OPENAI BACKUP
+    # -------------------------
     try:
         if OPENAI_KEY:
             client_oa = openai.OpenAI(api_key=OPENAI_KEY)
-            content = [{"type": "text", "text": instruction + "\n" + prompt}]
             res = client_oa.chat.completions.create(
                 model="gpt-4o",
-                messages=[{"role": "user", "content": content}],
-                max_tokens=600
+                messages=[{"role": "user", "content": instruction}],
+                max_tokens=800
             )
             result_text = parse_ai_response(res.to_dict())
             if result_text:
