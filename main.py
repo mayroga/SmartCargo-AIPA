@@ -46,7 +46,6 @@ async def home():
 async def js_serve():
     return FileResponse("app.js")
 
-
 # =========================
 # HELPER: Parse modern AI response
 # =========================
@@ -75,13 +74,13 @@ def parse_ai_response(response_json):
 # =========================
 @app.post("/advisory")
 async def advisory_engine(
-    prompt: str = Form(...),
+    prompt: Optional[str] = Form(None),  # ahora es opcional
     lang: str = Form("en"),
     image_data: Optional[str] = Form(None)
 ):
     instruction = (
         f"You are the Senior Master Advisor of SmartCargo (MAY ROGA LLC). Language: {lang}. "
-        "You are a Tactical Logistics General. Provide EXECUTIVE SOLUTIONS only.\n\n"
+        "Provide EXECUTIVE SOLUTIONS only.\n\n"
         "STRUCTURE:\n"
         "1. DIRECT DIAGNOSIS\n"
         "2. WHERE TO LOOK\n"
@@ -93,50 +92,67 @@ async def advisory_engine(
         "--- SmartCargo Advisory by MAY ROGA LLC ---"
     )
 
+    # Base response
     result = {"data": "SYSTEM: No data received.", "image": image_data}
 
+    # Limpiar Base64 si existe
+    if image_data and "," in image_data:
+        image_data_clean = image_data.split(",")[1].replace(" ", "+").strip()
+    else:
+        image_data_clean = None
+
+    # =========================
     # PLAN A — GEMINI
+    # =========================
     try:
-        url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-        )
+        if GEMINI_KEY:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+            parts = []
 
-        parts = [{"text": f"{instruction}\n\nClient Input: {prompt}"}]
+            if prompt:
+                parts.append({"text": f"{instruction}\n\nClient Input: {prompt}"})
+            else:
+                parts.append({"text": instruction})
 
-        if image_data and "," in image_data:
-            b64_clean = image_data.split(",")[1].replace(" ", "+").strip()
-            parts.append({"inline_data": {"mime_type": "image/jpeg", "data": b64_clean}})
+            if image_data_clean:
+                parts.append({"inline_data": {"mime_type": "image/jpeg", "data": image_data_clean}})
 
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            r = await client.post(url, json={
-                "contents": [{"parts": parts}],
-                "generationConfig": {"maxOutputTokens": 600, "temperature": 0.1}
-            })
-            result_text = parse_ai_response(r.json())
-            if result_text:
-                result["data"] = result_text
-                return result
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                r = await client.post(url, json={
+                    "contents": [{"parts": parts}],
+                    "generationConfig": {"maxOutputTokens": 600, "temperature": 0.1}
+                })
+                text = parse_ai_response(r.json())
+                if text:
+                    result["data"] = text
+                    return result
     except Exception as e:
         print("Gemini Error:", e)
 
+    # =========================
     # PLAN B — OPENAI BACKUP
+    # =========================
     try:
         if OPENAI_KEY:
             client_oa = openai.OpenAI(api_key=OPENAI_KEY)
+            content = []
 
-            content = [{"type": "text", "text": instruction + "\n" + prompt}]
-            if image_data:
-                content.append({"type": "image_url", "image_url": {"url": image_data}})
+            if instruction:
+                content.append({"type": "text", "text": instruction})
+            if prompt:
+                content.append({"type": "text", "text": prompt})
+            if image_data_clean:
+                content.append({"type": "image_url", "image_url": {"url": image_data}})  # OpenAI solo acepta URL
 
-            res = client_oa.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": content}],
-                max_tokens=600
-            )
-
-            result_text = parse_ai_response(res.to_dict())
-            if result_text:
-                result["data"] = result_text
+            if content:
+                res = client_oa.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[{"role": "user", "content": content}],
+                    max_tokens=600
+                )
+                text = parse_ai_response(res.to_dict())
+                if text:
+                    result["data"] = text
     except Exception as e:
         result["data"] = f"TECH ERROR: {str(e)}"
 
@@ -182,9 +198,13 @@ async def create_payment(
 # =========================
 @app.post("/vision-scan")
 async def vision_scan(
-    image_data: str = Form(...),
+    image_data: str = Form(...),  # obligatorio
     lang: str = Form("en")
 ):
+    # Limpiar Base64 si accidentalmente viene
+    if "," in image_data:
+        image_data = image_data.split(",")[1].replace(" ", "+").strip()
+
     prompt = (
         "Perform a strict visual inspection.\n"
         "If document: list visible fields, numbers, dates, signatures.\n"
@@ -198,12 +218,11 @@ async def vision_scan(
             model="gpt-4o",
             messages=[{"role": "user", "content": [
                 {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": image_data}}
+                {"type": "image_url", "image_url": {"url": image_data}}  # OpenAI solo acepta URL
             ]}],
             max_tokens=400
         )
-        result_text = parse_ai_response(res.to_dict())
-        return {"description": result_text}
-
+        text = parse_ai_response(res.to_dict())
+        return {"description": text}
     except Exception as e:
         return {"error": str(e)}
