@@ -1,5 +1,5 @@
-import os, stripe, httpx, openai, urllib.parse, base64
-from fastapi import FastAPI, Form, Request
+import os, stripe, httpx, openai, urllib.parse
+from fastapi import FastAPI, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from typing import Optional
@@ -17,46 +17,41 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 @app.get("/")
 async def home(): return FileResponse("index.html")
-
 @app.get("/app.js")
 async def js_serve(): return FileResponse("app.js")
 
 @app.post("/advisory")
-async def advisory_engine(prompt: str = Form(...), lang: str = Form("es"), image_data: Optional[str] = Form(None)):
+async def advisory_engine(prompt: str = Form(...), lang: str = Form("en"), image_data: Optional[str] = Form(None)):
     instruction = (
-        f"Eres el Cerebro Global de Logística de SmartCargo (MAY ROGA LLC). Idioma: {lang}. "
-        "Misión: Dar 3 soluciones técnicas directas (Antes, Durante, Después). "
-        "Experto en TSA, CBP, DOT, IATA, Marítimo y Terrestre. "
-        "Si la imagen no es clara, interroga proactivamente (Voz/Texto) para resolver. "
-        "PROHIBIDO: No uses 'auditoría' ni menciones ser una IA. "
-        "Finaliza: '--- SmartCargo Advisory by MAY ROGA LLC. ---'"
+        f"You are the Senior Master Advisor of SmartCargo (MAY ROGA LLC). Language: {lang}. "
+        "Strict Rule: We are PRIVATE consultants. We are NOT government (NOT TSA, NOT CBP, NOT DOT). "
+        "Provide direct technical solutions for cargo safety and compliance to avoid fines. "
+        "Analyze image, voice, or text. Be precise. No auditing. "
+        "End with: '--- SmartCargo Advisory by MAY ROGA LLC. ---'"
     )
     
-    res_final = {"data": "SISTEMA: No se pudo procesar. Use Voz o Texto.", "image": image_data}
+    res_final = {"data": "SYSTEM ERROR: Describe cargo by text/voice.", "image": image_data}
 
     try:
-        # PLAN A: GEMINI (Optimizado para ahorro de tokens)
+        # PLAN A: GEMINI
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-        parts = [{"text": f"{instruction}\n\nConsulta: {prompt}"}]
+        parts = [{"text": f"{instruction}\n\nCase: {prompt}"}]
         if image_data and "," in image_data:
             parts.append({"inline_data": {"mime_type": "image/jpeg", "data": image_data.split(",")[1].replace(" ", "+")}})
 
-        async with httpx.AsyncClient(timeout=40.0) as client:
-            r = await client.post(url, json={
-                "contents": [{"parts": parts}],
-                "generationConfig": {"maxOutputTokens": 400, "temperature": 0.2}
-            })
+        async with httpx.AsyncClient(timeout=45.0) as client:
+            r = await client.post(url, json={"contents": [{"parts": parts}]})
             j = r.json()
             if "candidates" in j:
                 res_final["data"] = j['candidates'][0]['content']['parts'][0]['text']
                 return res_final
     except:
-        # PLAN B: OPENAI (Estructura de Visión)
+        # PLAN B: OPENAI
         if OPENAI_KEY:
             client_oa = openai.OpenAI(api_key=OPENAI_KEY)
             content = [{"type": "text", "text": instruction + "\n" + prompt}]
             if image_data: content.append({"type": "image_url", "image_url": {"url": image_data}})
-            res = client_oa.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": content}], max_tokens=400)
+            res = client_oa.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": content}])
             res_final["data"] = res.choices[0].message.content
             return res_final
     
