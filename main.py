@@ -123,6 +123,43 @@ async def create_payment(amount: float = Form(...), awb: str = Form(...), user: 
             success_url=f"{domain}/?access=granted&awb={urllib.parse.quote(awb)}&monto={amount}",
             cancel_url=f"{domain}/",
         )
+
+        @app.post("/vision-scan")
+async def vision_scan(image_data: str = Form(...), lang: str = Form("en")):
+    """
+    Micro-módulo de visión pura.
+    No interfiere con /advisory.
+    No toca pagos, roles ni timers.
+    """
+    try:
+        client_oa = openai.OpenAI(api_key=OPENAI_KEY)
+
+        base_prompt = (
+            "Perform a strict visual inspection. "
+            "If document: list visible fields, numbers, dates, signatures. "
+            "If cargo: identify labels, UN numbers, damages, markings, quantities. "
+            "Be objective. No assumptions."
+        )
+
+        res = client_oa.chat.completions.create(
+            model="gpt-4o",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": base_prompt},
+                    {"type": "image_url", "image_url": {"url": image_data}}
+                ]
+            }],
+            max_tokens=400
+        )
+
+        return {
+            "description": res.choices[0].message.content
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
         return {"url": checkout_session.url}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=400)
