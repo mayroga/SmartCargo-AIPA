@@ -3,7 +3,6 @@ import stripe
 import httpx
 import openai
 import urllib.parse
-
 from fastapi import FastAPI, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -74,7 +73,7 @@ def parse_ai_response(response_json):
 # =========================
 @app.post("/advisory")
 async def advisory_engine(
-    prompt: Optional[str] = Form(None),  # ahora es opcional
+    prompt: Optional[str] = Form(None),  # opcional
     lang: str = Form("en"),
     image_data: Optional[str] = Form(None)
 ):
@@ -92,14 +91,14 @@ async def advisory_engine(
         "--- SmartCargo Advisory by MAY ROGA LLC ---"
     )
 
-    # Base response
     result = {"data": "SYSTEM: No data received.", "image": image_data}
 
-    # Limpiar Base64 si existe
+    # limpiar Base64 si existe
+    image_data_clean = None
     if image_data and "," in image_data:
         image_data_clean = image_data.split(",")[1].replace(" ", "+").strip()
-    else:
-        image_data_clean = None
+    elif image_data:
+        image_data_clean = image_data
 
     # =========================
     # PLAN A — GEMINI
@@ -108,12 +107,10 @@ async def advisory_engine(
         if GEMINI_KEY:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
             parts = []
-
-            if prompt:
-                parts.append({"text": f"{instruction}\n\nClient Input: {prompt}"})
-            else:
+            if instruction:
                 parts.append({"text": instruction})
-
+            if prompt:
+                parts.append({"text": prompt})
             if image_data_clean:
                 parts.append({"inline_data": {"mime_type": "image/jpeg", "data": image_data_clean}})
 
@@ -136,13 +133,13 @@ async def advisory_engine(
         if OPENAI_KEY:
             client_oa = openai.OpenAI(api_key=OPENAI_KEY)
             content = []
-
             if instruction:
                 content.append({"type": "text", "text": instruction})
             if prompt:
                 content.append({"type": "text", "text": prompt})
-            if image_data_clean:
-                content.append({"type": "image_url", "image_url": {"url": image_data}})  # OpenAI solo acepta URL
+            # OpenAI solo acepta URL para imagen; si es Base64, se ignora
+            if image_data_clean and image_data_clean.startswith("http"):
+                content.append({"type": "image_url", "image_url": {"url": image_data_clean}})
 
             if content:
                 res = client_oa.chat.completions.create(
@@ -160,40 +157,6 @@ async def advisory_engine(
 
 
 # =========================
-# STRIPE PAYMENT
-# =========================
-@app.post("/create-payment")
-async def create_payment(
-    amount: float = Form(...),
-    awb: str = Form(...),
-    user: Optional[str] = Form(None),
-    password: Optional[str] = Form(None)
-):
-    if user == ADMIN_USER and password == ADMIN_PASS:
-        return {"url": f"./?access=granted&awb={urllib.parse.quote(awb)}&monto=0"}
-
-    try:
-        domain = os.getenv("DOMAIN_URL", "https://smartcargo-aipa.onrender.com")
-        checkout = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {"name": f"Advisory Ref: {awb}"},
-                    "unit_amount": int(amount * 100),
-                },
-                "quantity": 1,
-            }],
-            mode="payment",
-            success_url=f"{domain}/?access=granted&awb={urllib.parse.quote(awb)}&monto={amount}",
-            cancel_url=f"{domain}/",
-        )
-        return {"url": checkout.url}
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
-
-
-# =========================
 # VISION MICRO-SERVICE
 # =========================
 @app.post("/vision-scan")
@@ -201,10 +164,6 @@ async def vision_scan(
     image_data: str = Form(...),  # obligatorio
     lang: str = Form("en")
 ):
-    # Limpiar Base64 si accidentalmente viene
-    if "," in image_data:
-        image_data = image_data.split(",")[1].replace(" ", "+").strip()
-
     prompt = (
         "Perform a strict visual inspection.\n"
         "If document: list visible fields, numbers, dates, signatures.\n"
@@ -212,17 +171,54 @@ async def vision_scan(
         "Be objective. No assumptions."
     )
 
+    image_data_clean = None
+    # limpiar Base64 si viene en data URI
+    if "," in image_data:
+        image_data_clean = image_data.split(",")[1].replace(" ", "+").strip()
+    else:
+        image_data_clean = image_data
+
+    result_text = None
+
+    # =========================
+    # PLAN A — GEMINI
+    # =========================
     try:
-        client_oa = openai.OpenAI(api_key=OPENAI_KEY)
-        res = client_oa.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": image_data}}  # OpenAI solo acepta URL
-            ]}],
-            max_tokens=400
-        )
-        text = parse_ai_response(res.to_dict())
-        return {"description": text}
+        if GEMINI_KEY:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+            parts = [{"text": prompt}]
+            if image_data_clean:
+                parts.append({"inline_data": {"mime_type": "image/jpeg", "data": image_data_clean}})
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                r = await client.post(url, json={
+                    "contents": [{"parts": parts}],
+                    "generationConfig": {"maxOutputTokens": 400, "temperature": 0.1}
+                })
+                result_text = parse_ai_response(r.json())
+                if result_text:
+                    return {"description": result_text}
+    except Exception as e:
+        print("Gemini Vision Error:", e)
+
+    # =========================
+    # PLAN B — OPENAI BACKUP
+    # =========================
+    try:
+        if OPENAI_KEY:
+            client_oa = openai.OpenAI(api_key=OPENAI_KEY)
+            content = [{"type": "text", "text": prompt}]
+            # solo si es URL, OpenAI puede analizar la imagen
+            if image_data_clean and image_data_clean.startswith("http"):
+                content.append({"type": "image_url", "image_url": {"url": image_data_clean}})
+            res = client_oa.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": content}],
+                max_tokens=400
+            )
+            result_text = parse_ai_response(res.to_dict())
+            if result_text:
+                return {"description": result_text}
     except Exception as e:
         return {"error": str(e)}
+
+    return {"description": "SYSTEM: No data processed."}
