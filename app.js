@@ -1,31 +1,55 @@
 let imgB64 = ""; let role = ""; let timeLeft = 0;
 
-// Autopropaganda Dinámica
-const ads = ["Prevenimos multas de CBP.","Expertos en IATA y TSA.","Soluciones Antes, Durante y Después.","SmartCargo: Tranquilidad 24/7."];
-let i = 0; setInterval(() => { document.getElementById('ad').innerText = ads[i++ % ads.length]; }, 3500);
+const i18n = {
+    en: {
+        legal: "PRIVATE ADVISORY. NOT IATA, TSA, DOT. NOT GOVERNMENT.",
+        capture: "📷 CAPTURE CARGO / DOCS",
+        get: "GET TECHNICAL SOLUTION",
+        master: "MASTER ACCESS",
+        clear: "CLEAR CONSULT",
+        prompt: "Describe your case or use Microphone...",
+        analyzing: "Analyzing data...",
+        timer: "TIME:"
+    },
+    es: {
+        legal: "ASESORÍA PRIVADA. NO SOMOS IATA, TSA, DOT. NO GOBIERNO.",
+        capture: "📷 CAPTURAR CARGA / DOCS",
+        get: "OBTENER SOLUCIÓN TÉCNICA",
+        master: "ACCESO MAESTRO",
+        clear: "LIMPIAR CONSULTA",
+        prompt: "Describa su caso o use el Micrófono...",
+        analyzing: "Analizando datos...",
+        timer: "TIEMPO:"
+    }
+};
 
-// Control de Acceso y Reloj
+function changeLang(l) {
+    document.getElementById('txt-legal').innerText = i18n[l].legal;
+    document.getElementById('txt-capture').innerText = i18n[l].capture;
+    document.getElementById('txt-get').innerText = i18n[l].get;
+    if(document.getElementById('txt-master')) document.getElementById('txt-master').innerText = i18n[l].master;
+    document.getElementById('txt-clear').innerText = i18n[l].clear;
+    document.getElementById('prompt').placeholder = i18n[l].prompt;
+}
+
 const params = new URLSearchParams(window.location.search);
 if(params.get('access') === 'granted') {
     document.getElementById('accessSection').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
-    const tiempos = {"5":300, "15":900, "35":1800, "95":3600, "0":86400};
-    timeLeft = tiempos[params.get('monto')] || 300;
-    const tDiv = document.getElementById('timer');
-    tDiv.style.display = "block";
+    const t = {"5":300, "15":900, "35":1800, "95":3600, "0":86400};
+    timeLeft = t[params.get('monto')] || 300;
+    const tDiv = document.getElementById('timer'); tDiv.style.display = "block";
     setInterval(() => {
         if(timeLeft <= 0) location.href = "/";
         let m = Math.floor(timeLeft / 60); let s = timeLeft % 60;
-        tDiv.innerText = `TIEMPO RESTANTE: ${m}:${s<10?'0':''}${s}`;
+        tDiv.innerText = `${i18n[document.getElementById('userLang').value].timer} ${m}:${s<10?'0':''}${s}`;
         timeLeft--;
     }, 1000);
 }
 
-function selRole(r, el) { role = r; document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected')); el.classList.add('selected'); }
-
 function scRead(e) {
     const r = new FileReader();
-    r.onload = () => { imgB64 = r.result; document.getElementById('v').src = imgB64; document.getElementById('v').style.display="block"; document.getElementById('l').style.display="none"; };
+    r.onload = () => { imgB64 = r.result; document.getElementById('v').src = imgB64; document.getElementById('v').style.display="block"; document.getElementById('txt-capture').style.display="none"; };
     r.readAsDataURL(e.target.files[0]);
 }
 
@@ -44,14 +68,23 @@ async function pay(amt) {
 }
 
 async function run() {
-    if(!role) return alert("Seleccione Rol.");
-    const out = document.getElementById('res'); out.style.display = "block"; out.innerText = "Analizando...";
-    const fd = new FormData(); fd.append("prompt", `Rol: ${role}. ${document.getElementById('prompt').value}`);
+    if(!role) return alert("Select Role");
+    const out = document.getElementById('res'); out.style.display = "block"; 
+    out.innerText = i18n[document.getElementById('userLang').value].analyzing;
+    const fd = new FormData();
+    fd.append("prompt", `Role: ${role}. Case: ${document.getElementById('prompt').value}`);
     fd.append("lang", document.getElementById('userLang').value);
     if(imgB64) fd.append("image_data", imgB64);
     const r = await fetch('/advisory', { method: 'POST', body: fd });
     const d = await r.json(); out.innerText = d.data;
 }
 
+function limpiar() {
+    imgB64 = ""; document.getElementById('v').style.display="none"; 
+    document.getElementById('txt-capture').style.display="block";
+    document.getElementById('prompt').value = ""; document.getElementById('res').innerText = "";
+}
+
+function selRole(r, el) { role = r; document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected')); el.classList.add('selected'); }
 function ws() { window.open("https://wa.me/?text=" + encodeURIComponent(document.getElementById('res').innerText)); }
-function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("Copiado"); }
+function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("Copied"); }
