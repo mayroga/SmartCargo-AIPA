@@ -77,9 +77,9 @@ async def advisory_engine(
 ):
     """
     SmartCargo Advisory - Direct Action
-    Resolves any logistics situation BEFORE, DURING, AFTER shipment.
+    Resuelve cualquier situación logística BEFORE, DURING, AFTER shipment.
     Roles: Shipper, Forwarder, Operator, Trucker, Manager.
-    Never says "I don't know" or "call someone".
+    Nunca dice "no sé", ni "llame a alguien", ni da teoría.
     """
     instruction = f"""
 You are SmartCargo Advisory by MAY ROGA LLC.
@@ -87,12 +87,15 @@ Language: {lang}.
 Roles: Shipper, Forwarder, Operator, Trucker, Manager.
 Objective: Solve any logistics problem IMMEDIATELY, BEFORE, DURING, and AFTER operations.
 Do NOT say "I don't know", "call someone", or give theory.
-Focus only on ACTIONABLE, DIRECT, STEP-BY-STEP SOLUTIONS.
-Use your knowledge of DOT, TSA, IATA, CBP, customs, maritime, air, and land transport.
+Focus ONLY on ACTIONABLE, DIRECT, STEP-BY-STEP SOLUTIONS.
+Ask questions to clarify the shipment if needed (type, flammable, liquids, etc.).
+Provide the exact classification or recommendation based on the client's description.
+Images are only for reference, do NOT ask the client to send photos.
+Respond in a professional, confident, and human-like tone.
 Client input: {prompt}
 """
 
-    result = {"data": "SYSTEM: No data received."}
+    result = {"data": "SmartCargo Advisory: Unable to process at this moment, try again."}
 
     # -------------------------
     # PLAN A - GEMINI
@@ -127,7 +130,7 @@ Client input: {prompt}
             if result_text:
                 result["data"] = result_text
     except Exception as e:
-        result["data"] = f"TECH ERROR: {str(e)}"
+        result["data"] = "SmartCargo Advisory: Unable to process at this moment, try again."
 
     return result
 
