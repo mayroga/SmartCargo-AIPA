@@ -30,7 +30,6 @@ function changeLang(l) {
     if(document.getElementById('txt-master')) document.getElementById('txt-master').innerText = i18n[l].master;
     document.getElementById('txt-clear').innerText = i18n[l].clear;
     document.getElementById('prompt').placeholder = i18n[l].prompt;
-    // Actualizar el texto del temporizador si ya está activo
     const tDiv = document.getElementById('timer');
     if(tDiv.style.display === "block") {
         let current = tDiv.innerText.split(" ")[1];
@@ -57,6 +56,30 @@ if(params.get('access') === 'granted') {
     }, 1000);
 }
 
+// NUEVA FUNCIÓN DE PRE-ESCÁNER
+async function preScanVision() {
+    if(!imgB64) return;
+    const fd = new FormData();
+    fd.append("image_data", imgB64);
+    fd.append("lang", document.getElementById('userLang').value);
+
+    try {
+        const r = await fetch("/vision-scan", {
+            method: "POST",
+            body: fd
+        });
+        const d = await r.json();
+
+        if(d.description) {
+            const p = document.getElementById('prompt');
+            // Se inyecta la descripción visual al principio sin borrar lo que el usuario escribió
+            p.value = "AUTO VISUAL SCAN:\n" + d.description + "\n\n" + (p.value || "");
+        }
+    } catch(e) {
+        console.warn("Vision pre-scan skipped");
+    }
+}
+
 function scRead(e) {
     const r = new FileReader();
     r.onload = () => { 
@@ -64,6 +87,9 @@ function scRead(e) {
         document.getElementById('v').src = imgB64; 
         document.getElementById('v').style.display="block"; 
         document.getElementById('txt-capture').style.display="none"; 
+
+        // 🔥 LÍNEA NUEVA: Dispara el análisis visual en cuanto sube la foto
+        preScanVision();
     };
     r.readAsDataURL(e.target.files[0]);
 }
@@ -97,7 +123,6 @@ async function run() {
     out.innerText = i18n[lang].analyzing;
     
     const fd = new FormData();
-    // Enviamos el prompt limpio para que el cerebro actúe
     fd.append("prompt", `Role: ${role}. Case: ${document.getElementById('prompt').value || "Visual inspection requested."}`);
     fd.append("lang", lang);
     if(imgB64) fd.append("image_data", imgB64);
@@ -105,12 +130,9 @@ async function run() {
     try {
         const r = await fetch('/advisory', { method: 'POST', body: fd });
         const d = await r.json(); 
-        
-        // REFUERZO: Si el servidor devuelve una imagen, la mantenemos visible
         if(d.image) {
             document.getElementById('v').src = d.image;
         }
-        
         out.innerText = d.data || "SYSTEM: Error in response structure.";
     } catch(e) { 
         console.error(e);
