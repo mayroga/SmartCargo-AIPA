@@ -2,28 +2,54 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SmartCargo Advisory | MAY ROGA LLC</title>
+<title>SmartCargo ADVISORY | MAY ROGA LLC</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body { background:#000b1a; font-family:Arial; margin:0; padding:10px }
-.card { max-width:480px; margin:auto; background:white; border-radius:20px; padding:20px }
-h2 { text-align:center; margin:0 }
-#ad { font-size:12px; text-align:center; color:#0056b3; font-weight:bold; height:18px }
-.legal { background:#fff1f0; border:2px solid #ff4d4f; padding:10px; font-size:10px; margin:10px 0 }
-.btn { width:100%; padding:14px; font-weight:bold; margin-top:10px }
-.photo { width:100%; height:160px; border:2px dashed #999; border-radius:10px; object-fit:contain }
-.roles { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px }
-.role-btn { padding:10px; border:2px solid #001d3d; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold }
-.role-btn.selected { background:#001d3d; color:white }
-#advResponse { white-space:pre-wrap; background:#eef2f7; padding:10px; margin-top:10px; border-radius:8px }
+/* ======================= BASE ======================= */
+body { background:#0b0f23; font-family:Arial,sans-serif; margin:0; padding:10px; color:#fff; }
+.card { max-width:480px; margin:auto; background:#f5f5f5; border-radius:20px; padding:20px; color:#001d3d; box-shadow:0 0 15px rgba(0,0,0,0.3);}
+h1 { text-align:center; margin:0; font-size:28px; font-weight:bold; color:#001d3d; }
+h3 { text-align:center; margin:2px 0 10px 0; font-size:14px; font-weight:normal; color:#555; }
+
+/* ======================= AUTOPROPAGANDA ======================= */
+#ad { font-size:12px; text-align:center; color:#0056b3; font-weight:bold; height:18px; margin-bottom:10px; }
+
+/* ======================= LEGAL SHIELD ======================= */
+.legal { background:#fff1f0; border:2px solid #ff4d4f; padding:10px; font-size:10px; margin:10px 0; border-radius:8px; }
+
+/* ======================= BOTONES ======================= */
+.btn { width:100%; padding:14px; font-weight:bold; margin-top:10px; border:none; border-radius:8px; cursor:pointer; }
+.btn-primary { background:#001d3d; color:white; }
+.btn-secondary { background:#0056b3; color:white; }
+.btn-danger { background:#a8071a; color:white; }
+
+/* ======================= ROLES ======================= */
+.roles { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+.role-btn { padding:12px; border:2px solid #001d3d; border-radius:10px; cursor:pointer; font-size:14px; font-weight:bold; text-align:center; background:white; color:#001d3d; }
+.role-btn.selected { background:#001d3d; color:white; }
+
+/* ======================= IMAGEN Y TEXTAREA ======================= */
+.photo { width:100%; height:160px; border:2px dashed #999; border-radius:10px; object-fit:contain; margin-top:10px; }
+textarea { width:100%; padding:10px; margin-top:10px; border-radius:10px; border:1px solid #999; resize:none; }
+
+/* ======================= RESPUESTA ======================= */
+#advResponse { white-space:pre-wrap; background:#eef2f7; padding:10px; margin-top:10px; border-radius:8px; color:#001d3d; min-height:60px; }
+
+/* ======================= EVIDENCIA ======================= */
+.evidence { display:flex; gap:5px; margin-top:10px; }
+.evidence div { flex:1; height:80px; border:2px dashed #999; border-radius:8px; display:flex; justify-content:center; align-items:center; font-size:12px; color:#999; }
+
+/* ======================= INPUTS ======================= */
+input { width:100%; padding:12px; border-radius:8px; border:1px solid #999; margin-top:8px; }
+
 </style>
 </head>
 
 <body>
 <div class="card">
-<h2>SmartCargo Advisory</h2>
-<p style="text-align:center;font-size:12px;">Knowledge-Based Logistics Intelligence</p>
+<h1>SmartCargo ADVISORY</h1>
+<h3>by MAY ROGA LLC</h3>
 
 <div id="ad">Prevent holds & fines.</div>
 
@@ -34,22 +60,24 @@ WE DO NOT HANDLE CARGO OR ISSUE DOCUMENTS.<br>
 ADVISORY & KNOWLEDGE ONLY.
 </div>
 
-<select id="langSwitch" class="btn">
+<select id="langSwitch" class="btn btn-secondary">
 <option value="auto">🌐 Auto Language</option>
 <option value="en">English</option>
 <option value="es">Español</option>
 </select>
 
 <div id="accessSection">
-<input id="awb" placeholder="Reference / AWB" class="btn">
-<input id="adminUser" placeholder="Admin User (optional)" class="btn">
-<input id="adminPass" placeholder="Admin Pass" type="password" class="btn">
-<button class="btn" onclick="pay(0)">VALIDATE ACCESS</button>
+<input id="awb" placeholder="Reference / AWB">
+<input id="adminUser" placeholder="Admin User (optional)">
+<input id="adminPass" placeholder="Admin Pass" type="password">
+<button class="btn btn-primary" onclick="pay(0)">VALIDATE ACCESS</button>
+
 <hr>
-<button class="btn" onclick="pay(5)">$5 Courier</button>
-<button class="btn" onclick="pay(15)">$15 Standard</button>
-<button class="btn" onclick="pay(35)">$35 Critical</button>
-<button class="btn" onclick="pay(95)">$95 Project</button>
+
+<button class="btn btn-secondary" onclick="pay(5)">$5 Courier</button>
+<button class="btn btn-secondary" onclick="pay(15)">$15 Standard</button>
+<button class="btn btn-secondary" onclick="pay(35)">$35 Critical</button>
+<button class="btn btn-secondary" onclick="pay(95)">$95 Project</button>
 </div>
 
 <div id="mainApp" style="display:none;">
@@ -61,23 +89,49 @@ ADVISORY & KNOWLEDGE ONLY.
   <div class="role-btn" onclick="selRole('Operator',this)">Operator</div>
 </div>
 
-<input type="file" accept="image/*" capture="environment" onchange="loadPhoto(this)" class="btn">
+<input type="file" accept="image/*" capture="environment" onchange="loadPhoto(this)">
 <img id="img" class="photo">
 
-<textarea id="prompt" placeholder="Optional description (damage, label, document)" class="btn"></textarea>
+<textarea id="prompt" placeholder="Optional description (damage, label, document)" rows="3"></textarea>
 
-<button class="btn" onclick="analyze()">ANALYZE CARGO</button>
-<button class="btn" onclick="translate()">TRANSLATE EN ↔ ES</button>
+<button class="btn btn-primary" onclick="analyze()">ANALYZE CARGO</button>
+<button class="btn btn-secondary" onclick="translate()">TRANSLATE EN ↔ ES</button>
 
 <div id="advResponse"></div>
 
-<button class="btn" onclick="sendWS()">SEND WHATSAPP</button>
-<button class="btn" onclick="copyText()">COPY RESULT</button>
-<button class="btn" style="background:#a8071a;color:white" onclick="clearAll()">CLEAR / RESET</button>
+<div class="evidence">
+  <div>1</div>
+  <div>2</div>
+  <div>3</div>
+</div>
+
+<div style="display:flex; gap:5px; margin-top:10px;">
+<button class="btn btn-secondary" onclick="sendWS()">WhatsApp</button>
+<button class="btn btn-secondary" onclick="copyText()">Copy</button>
+<button class="btn btn-danger" onclick="clearAll()">Clear</button>
+</div>
 
 </div>
 </div>
 
 <script src="/app.js"></script>
+<script>
+// ======================= AUTOPROPAGANDA ANIMADA =======================
+let ads = ["No holds. No fines.","Prevent cargo delays.","Avoid cargo returns.","Protect your money.","Cargo arrives compliant."];
+let i = 0;
+setInterval(()=>{
+  const el = document.getElementById("ad");
+  if(el) el.innerText = ads[i++ % ads.length];
+},3000);
+
+// ======================= LOGIN / ACCESS =======================
+document.addEventListener("DOMContentLoaded", () => {
+  const params = new URLSearchParams(window.location.search);
+  if(params.get("access")==="granted"){
+    document.getElementById("accessSection").style.display="none";
+    document.getElementById("mainApp").style.display="block";
+  }
+});
+</script>
 </body>
 </html>
