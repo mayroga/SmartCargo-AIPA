@@ -1,137 +1,58 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>SmartCargo ADVISORY | MAY ROGA LLC</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<style>
-/* ======================= BASE ======================= */
-body { background:#0b0f23; font-family:Arial,sans-serif; margin:0; padding:10px; color:#fff; }
-.card { max-width:480px; margin:auto; background:#f5f5f5; border-radius:20px; padding:20px; color:#001d3d; box-shadow:0 0 15px rgba(0,0,0,0.3);}
-h1 { text-align:center; margin:0; font-size:28px; font-weight:bold; color:#001d3d; }
-h3 { text-align:center; margin:2px 0 10px 0; font-size:14px; font-weight:normal; color:#555; }
-
-/* ======================= AUTOPROPAGANDA ======================= */
-#ad { font-size:12px; text-align:center; color:#0056b3; font-weight:bold; height:18px; margin-bottom:10px; }
-
-/* ======================= LEGAL SHIELD ======================= */
-.legal { background:#fff1f0; border:2px solid #ff4d4f; padding:10px; font-size:10px; margin:10px 0; border-radius:8px; }
-
-/* ======================= BOTONES ======================= */
-.btn { width:100%; padding:14px; font-weight:bold; margin-top:10px; border:none; border-radius:8px; cursor:pointer; }
-.btn-primary { background:#001d3d; color:white; }
-.btn-secondary { background:#0056b3; color:white; }
-.btn-danger { background:#a8071a; color:white; }
-
-/* ======================= ROLES ======================= */
-.roles { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
-.role-btn { padding:12px; border:2px solid #001d3d; border-radius:10px; cursor:pointer; font-size:14px; font-weight:bold; text-align:center; background:white; color:#001d3d; }
-.role-btn.selected { background:#001d3d; color:white; }
-
-/* ======================= IMAGEN Y TEXTAREA ======================= */
-.photo { width:100%; height:160px; border:2px dashed #999; border-radius:10px; object-fit:contain; margin-top:10px; }
-textarea { width:100%; padding:10px; margin-top:10px; border-radius:10px; border:1px solid #999; resize:none; }
-
-/* ======================= RESPUESTA ======================= */
-#advResponse { white-space:pre-wrap; background:#eef2f7; padding:10px; margin-top:10px; border-radius:8px; color:#001d3d; min-height:60px; }
-
-/* ======================= EVIDENCIA ======================= */
-.evidence { display:flex; gap:5px; margin-top:10px; }
-.evidence div { flex:1; height:80px; border:2px dashed #999; border-radius:8px; display:flex; justify-content:center; align-items:center; font-size:12px; color:#999; }
-
-/* ======================= INPUTS ======================= */
-input { width:100%; padding:12px; border-radius:8px; border:1px solid #999; margin-top:8px; }
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCargo ADVISORY | MAY ROGA LLC</title>
+    <style>
+        body { background:#0b0f23; font-family:sans-serif; margin:0; padding:10px; }
+        .card { max-width:480px; margin:auto; background:#f5f5f5; border-radius:20px; padding:25px; border-top:10px solid #d4af37; box-shadow:0 15px 35px rgba(0,0,0,0.5); }
+        h1 { text-align:center; color:#001d3d; margin:0; font-size:26px; }
+        #ad { height:20px; text-align:center; color:#0056b3; font-weight:bold; font-size:13px; margin:10px 0; }
+        .legal { background:#fff1f0; border:2px solid #ff4d4f; padding:10px; font-size:10px; text-align:center; border-radius:10px; margin-bottom:15px; color:#a8071a; font-weight:bold; }
+        .btn { width:100%; padding:15px; border-radius:10px; border:none; font-weight:bold; cursor:pointer; text-transform:uppercase; margin-top:10px; }
+        .btn-primary { background:#001d3d; color:white; }
+        .roles { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:15px 0; }
+        .role-btn { padding:12px; border:2px solid #001d3d; border-radius:8px; text-align:center; font-weight:bold; cursor:pointer; background:white; }
+        .role-btn.selected { background:#001d3d; color:white; }
+        #advResponse { background:white; padding:15px; border-radius:10px; margin-top:15px; font-size:14px; white-space:pre-wrap; border-left:5px solid #1b5e20; display:none; }
+    </style>
 </head>
-
 <body>
 <div class="card">
-<h1>SmartCargo ADVISORY</h1>
-<h3>by MAY ROGA LLC</h3>
+    <h1>SmartCargo ADVISORY</h1>
+    <p style="text-align:center; margin:0; font-weight:bold; color:#d4af37;">Technical Consulting by MAY ROGA LLC</p>
+    <div id="ad">Prevenga retenciones y multas.</div>
+    <div class="legal">⚠️ SISTEMA DE ASESORÍA PRIVADA. NO VINCULADO A AGENCIAS GUBERNAMENTALES.</div>
 
-<div id="ad">Prevent holds & fines.</div>
+    <div id="accessSection">
+        <input type="text" id="awb" placeholder="Referencia / AWB" style="width:100%; padding:12px; box-sizing:border-box; border-radius:8px; border:1px solid #ccc;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
+            <button class="btn" style="background:#0056b3; color:white;" onclick="pay(5)">Courier $5</button>
+            <button class="btn" style="background:#0056b3; color:white;" onclick="pay(15)">Standard $15</button>
+            <button class="btn" style="background:#0056b3; color:white;" onclick="pay(35)">Critical $35</button>
+            <button class="btn" style="background:#0056b3; color:white;" onclick="pay(95)">Project $95</button>
+        </div>
+        <input type="text" id="adminUser" placeholder="Usuario" style="width:100%; margin-top:10px; padding:8px; box-sizing:border-box;">
+        <input type="password" id="adminPass" placeholder="Clave" style="width:100%; margin-top:5px; padding:8px; box-sizing:border-box;">
+        <button class="btn btn-primary" onclick="pay(0)">VALIDAR ACCESO</button>
+    </div>
 
-<div class="legal">
-⚠️ PRIVATE ADVISORY SYSTEM.<br>
-NOT IATA / TSA / DOT / CBP / PORT AUTHORITY.<br>
-WE DO NOT HANDLE CARGO OR ISSUE DOCUMENTS.<br>
-ADVISORY & KNOWLEDGE ONLY.
+    <div id="mainApp" style="display:none;">
+        <div class="roles">
+            <div class="role-btn" onclick="selRole('Shipper',this)">Shipper</div>
+            <div class="role-btn" onclick="selRole('Forwarder',this)">Forwarder</div>
+            <div class="role-btn" onclick="selRole('Trucker',this)">Trucker</div>
+            <div class="role-btn" onclick="selRole('Operator',this)">Operator</div>
+        </div>
+        <button class="btn btn-primary" onclick="document.getElementById('fileIn').click()">📷 ESCANEAR CARGA</button>
+        <input type="file" id="fileIn" accept="image/*" capture="environment" style="display:none;" onchange="loadPhoto(this)">
+        <textarea id="prompt" placeholder="Detalles adicionales..." rows="3" style="width:100%; margin-top:10px; border-radius:8px; padding:10px; box-sizing:border-box;"></textarea>
+        <button class="btn btn-primary" style="background:#1b5e20;" onclick="analyze()">OBTENER DICTAMEN TÉCNICO</button>
+        <div id="advResponse"></div>
+        <button class="btn" style="background:#25D366; color:white;" onclick="sendWS()">WhatsApp Report</button>
+    </div>
 </div>
-
-<select id="langSwitch" class="btn btn-secondary">
-<option value="auto">🌐 Auto Language</option>
-<option value="en">English</option>
-<option value="es">Español</option>
-</select>
-
-<div id="accessSection">
-<input id="awb" placeholder="Reference / AWB">
-<input id="adminUser" placeholder="Admin User (optional)">
-<input id="adminPass" placeholder="Admin Pass" type="password">
-<button class="btn btn-primary" onclick="pay(0)">VALIDATE ACCESS</button>
-
-<hr>
-
-<button class="btn btn-secondary" onclick="pay(5)">$5 Courier</button>
-<button class="btn btn-secondary" onclick="pay(15)">$15 Standard</button>
-<button class="btn btn-secondary" onclick="pay(35)">$35 Critical</button>
-<button class="btn btn-secondary" onclick="pay(95)">$95 Project</button>
-</div>
-
-<div id="mainApp" style="display:none;">
-
-<div class="roles">
-  <div class="role-btn" onclick="selRole('Shipper',this)">Shipper</div>
-  <div class="role-btn" onclick="selRole('Forwarder',this)">Forwarder</div>
-  <div class="role-btn" onclick="selRole('Trucker',this)">Trucker</div>
-  <div class="role-btn" onclick="selRole('Operator',this)">Operator</div>
-</div>
-
-<input type="file" accept="image/*" capture="environment" onchange="loadPhoto(this)">
-<img id="img" class="photo">
-
-<textarea id="prompt" placeholder="Optional description (damage, label, document)" rows="3"></textarea>
-
-<button class="btn btn-primary" onclick="analyze()">ANALYZE CARGO</button>
-<button class="btn btn-secondary" onclick="translate()">TRANSLATE EN ↔ ES</button>
-
-<div id="advResponse"></div>
-
-<div class="evidence">
-  <div>1</div>
-  <div>2</div>
-  <div>3</div>
-</div>
-
-<div style="display:flex; gap:5px; margin-top:10px;">
-<button class="btn btn-secondary" onclick="sendWS()">WhatsApp</button>
-<button class="btn btn-secondary" onclick="copyText()">Copy</button>
-<button class="btn btn-danger" onclick="clearAll()">Clear</button>
-</div>
-
-</div>
-</div>
-
-<script src="/app.js"></script>
-<script>
-// ======================= AUTOPROPAGANDA ANIMADA =======================
-let ads = ["No holds. No fines.","Prevent cargo delays.","Avoid cargo returns.","Protect your money.","Cargo arrives compliant."];
-let i = 0;
-setInterval(()=>{
-  const el = document.getElementById("ad");
-  if(el) el.innerText = ads[i++ % ads.length];
-},3000);
-
-// ======================= LOGIN / ACCESS =======================
-document.addEventListener("DOMContentLoaded", () => {
-  const params = new URLSearchParams(window.location.search);
-  if(params.get("access")==="granted"){
-    document.getElementById("accessSection").style.display="none";
-    document.getElementById("mainApp").style.display="block";
-  }
-});
-</script>
+<script src="app.js"></script>
 </body>
 </html>
