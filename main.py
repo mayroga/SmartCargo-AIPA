@@ -1,5 +1,5 @@
 import os, stripe, httpx, openai, urllib.parse
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from typing import Optional
@@ -9,8 +9,9 @@ load_dotenv()
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# Sincronización exacta con tus variables de Render
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_KEY = os.getenv("OPENAI_API_KEY") # Ajustado a tu lista
 ADMIN_USER = os.getenv("ADMIN_USERNAME")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
@@ -22,38 +23,49 @@ async def js_serve(): return FileResponse("app.js")
 
 @app.post("/advisory")
 async def advisory_engine(prompt: str = Form(...), lang: str = Form("en"), image_data: Optional[str] = Form(None)):
+    # Instrucción Maestra: El Cerebro de MAY ROGA LLC
     instruction = (
         f"You are the Senior Master Advisor of SmartCargo (MAY ROGA LLC). Language: {lang}. "
-        "Strict Rule: We are PRIVATE consultants. We are NOT government (NOT TSA, NOT CBP, NOT DOT). "
-        "Provide direct technical solutions for cargo safety and compliance to avoid fines. "
-        "Analyze image, voice, or text. Be precise. No auditing. "
+        "Your mission is to analyze logistics risks (BEFORE, DURING, AFTER). "
+        "Strict Rule: We are PRIVATE consultants. NOT government (NOT TSA, NOT CBP, NOT DOT). "
+        "If the image is not clear or missing, PROACTIVELY ask for details: Cargo type, Destination, UN codes, or Document types. "
+        "Provide 3 technical solutions to avoid holds and fines. No auditing. "
         "End with: '--- SmartCargo Advisory by MAY ROGA LLC. ---'"
     )
     
-    res_final = {"data": "SYSTEM ERROR: Describe cargo by text/voice.", "image": image_data}
+    res_final = {"data": "SYSTEM: Please describe your documents or cargo via voice/text for analysis.", "image": image_data}
 
     try:
-        # PLAN A: GEMINI
+        # PLAN A: GEMINI 1.5 FLASH (Protocolo de Visión Correcto)
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-        parts = [{"text": f"{instruction}\n\nCase: {prompt}"}]
+        parts = [{"text": f"{instruction}\n\nClient Input: {prompt}"}]
+        
         if image_data and "," in image_data:
-            parts.append({"inline_data": {"mime_type": "image/jpeg", "data": image_data.split(",")[1].replace(" ", "+")}})
+            b64_data = image_data.split(",")[1].replace(" ", "+").strip()
+            parts.append({"inline_data": {"mime_type": "image/jpeg", "data": b64_data}})
 
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            r = await client.post(url, json={"contents": [{"parts": parts}]})
+        async with httpx.AsyncClient(timeout=40.0) as client:
+            r = await client.post(url, json={"contents": [{"parts": parts}], "generationConfig": {"maxOutputTokens": 500, "temperature": 0.2}})
             j = r.json()
-            if "candidates" in j:
+            if "candidates" in j and len(j["candidates"]) > 0:
                 res_final["data"] = j['candidates'][0]['content']['parts'][0]['text']
                 return res_final
-    except:
-        # PLAN B: OPENAI
+    except Exception as e:
+        print(f"Gemini Error: {e}")
+
+    try:
+        # PLAN B: OPENAI GPT-4o (Respaldo)
         if OPENAI_KEY:
             client_oa = openai.OpenAI(api_key=OPENAI_KEY)
-            content = [{"type": "text", "text": instruction + "\n" + prompt}]
-            if image_data: content.append({"type": "image_url", "image_url": {"url": image_data}})
-            res = client_oa.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": content}])
+            content_list = [{"type": "text", "text": instruction + "\n" + prompt}]
+            if image_data:
+                content_list.append({"type": "image_url", "image_url": {"url": image_data}})
+            
+            res = client_oa.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": content_list}], max_tokens=500)
             res_final["data"] = res.choices[0].message.content
             return res_final
+    except Exception as e:
+        res_final["data"] = f"Technical Connection Error. Please use Voice/Text: {str(e)}"
     
     return res_final
 
