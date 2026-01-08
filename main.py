@@ -27,16 +27,16 @@ async def home(): return FileResponse("index.html")
 async def js_serve(): return FileResponse("app.js")
 
 @app.post("/advisory")
-async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
+async def advisory_engine(prompt: str = Form(...), lang: str = Form("es")):
     system_instr = (
-        f"You are the Strategic Advisor of SmartCargo by MAY ROGA LLC. Language: {lang}. "
-        "TONE: Advisory, professional, and suggestive. Never use mandatory or obligatory language. "
-        "Use phrases like: 'I suggest you do this...', 'My recommendation is...', 'It is proposed to check...'. "
-        "MISSION: Mitigate risk and keep logistics flowing Before, During, and After any situation. "
-        "We are a PRIVATE advisory service. We are NOT IATA, DOT, TSA, or CBP. "
-        "Solve the need by taking the burden from the client. Be surgical and direct. "
-        "If you don't have live airline data, suggest exactly who to contact. "
-        f"Data: {prompt}"
+        f"Eres el Cerebro Estratégico de SmartCargo by MAY ROGA LLC. Idioma: {lang}. "
+        "REGLA DE ORO: CERO TEORÍA. NO DES CLASES NI DEFINICIONES. "
+        "Tu misión es mitigar retenciones, retornos y ahorrar dinero pensando en la mercancía. "
+        "TONO: Sugerente, profesional y quirúrgico. Usa: 'Le sugiero...', 'Mi recomendación es...', 'Propongo revisar...'. "
+        "Si preguntan por DG (Carga Peligrosa), no la definas. Dile: 'Busque etiquetas de diamante. Revise el código UN. Si no tiene MSDS, sugiero no cargar'. "
+        "Somos asesoría PRIVADA. No somos IATA, DOT, TSA o CBP. "
+        "Sé breve, directo y enfocado en la solución inmediata del problema. "
+        f"Datos del caso: {prompt}"
     )
 
     if GEMINI_KEY:
@@ -59,7 +59,7 @@ async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
             return {"data": res.choices[0].message.content}
         except: pass
 
-    return {"data": "System error. Contact MAY ROGA LLC."}
+    return {"data": "Sistema fuera de línea. Contacte a MAY ROGA LLC."}
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
@@ -68,7 +68,7 @@ async def create_payment(amount: float = Form(...), awb: str = Form(...), user: 
     try:
         checkout = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Strategic Advisory: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
+            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Asesoría: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
             mode="payment",
             success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}",
             cancel_url=f"{DOMAIN_URL}/",
