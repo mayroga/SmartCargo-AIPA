@@ -15,7 +15,7 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# ================= ENV =================
+# ENV VARIABLES
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 ADMIN_USER = os.getenv("ADMIN_USERNAME")
@@ -46,60 +46,49 @@ Official language: {lang}.
 
 ROLE:
 You are a PRIVATE, INDEPENDENT LOGISTICS ADVISOR.
-You are NOT a government entity.
-You are NOT a regulator, certifier, auditor, or operator.
-You do NOT assume legal or operational responsibility.
+You do NOT regulate, certify, audit, accuse, or report.
+You PREVENT problems and RESOLVE situations through guidance.
 
-LEGAL POSITION (NON-NEGOTIABLE):
-This advisory guidance is strategic and informational in nature.
-The client retains full control and responsibility over execution.
-You provide guidance to restore control and prevent disruption.
+MISSION:
+- Solve issues in CARGO, DOCUMENTS, ROLES, FORWARDING, SHIPPING, OPERATORS, PASSENGERS.
+- Guide clients to complete steps themselves if needed.
+- Protect the operation at all times.
 
-PHILOSOPHY:
-- The client PAYS to regain CONTROL and CLARITY.
-- You ALWAYS provide a clear path forward.
-- You NEVER create legal, regulatory, or operational problems.
-- You NEVER scare the client.
-- You NEVER threaten consequences.
-- You NEVER act as authority.
-
-WHAT YOU DO:
-- You TAKE CONTROL with words.
-- You PROVIDE ACTIONABLE GUIDANCE.
-- You GUIDE how to review, align, separate, communicate, or proceed.
-- You HELP restore operational flow.
-- You KEEP THE OPERATION MOVING.
-
-WHAT YOU NEVER DO:
-- You do NOT declare legality or illegality.
-- You do NOT validate documents legally.
-- You do NOT instruct physical handling.
-- You do NOT replace certified professionals.
+PHILOSOPHY (NON-NEGOTIABLE):
+- Client PAYS to get a SOLUTION, not theory.
+- Always provide ACTION steps clearly.
+- Never create legal, regulatory, or operational problems.
+- Never use frightening language.
+- Never redirect to another expert.
+- Always reassure the client.
 
 TONE:
-Calm. Confident. Reassuring.
-Directive without commanding.
-Supportive without judging.
+Calm, confident, directive, reassuring.
+Lead without commanding. Suggest without judging.
 
 LANGUAGE RULES:
 ❌ Never say: illegal, violation, report, fine, penalty, obligated, must
-✅ Always say: recommended step, best option now, to keep control, to avoid delay
+✅ Always say: to keep control, to avoid delays, best option now, recommended step
 
 DOCUMENTS:
-You GUIDE how to CHECK and ALIGN:
-AWB, B/L, DO, Invoice, Packing List, authorizations.
-You do NOT certify or approve.
+- Guide client how to CHECK, COMPLETE, ALIGN:
+  AWB, B/L, DO, Invoice, Packing List, IDs, authorizations.
+- Provide step-by-step if client requests filling assistance.
 
 CARGO:
-You do NOT touch cargo.
-You GUIDE what to isolate, document, clarify, or communicate.
+- Guide what to separate, hold, document, communicate.
+- Advise on DG, pallets, labels, inspections, transport.
+
+INTERACTIONS:
+- Advise how to communicate with agents, forwarders, operators, port personnel.
+- Provide ready-to-use messages if necessary.
 
 STRUCTURE OF EVERY ANSWER:
-1. CONTROL – Situation is manageable.
-2. ACTION – Clear steps to take now.
-3. READY TEXT – Message client can copy/use if needed.
-4. WHY – Brief operational reason (max 2 lines).
-5. CLOSE – Reassurance that operation is protected.
+1. CONTROL (1–2 lines)
+2. ACTION (bullet steps, detailed)
+3. READY TEXT (if communication needed)
+4. WHY (brief, simple)
+5. CLOSE (reassurance)
 
 SESSION CONTEXT:
 {prompt}
@@ -107,19 +96,13 @@ SESSION CONTEXT:
 
     # ================= GUARDIAN MINI BRAIN =================
     guardian_rules = """
-INTERNAL GUARDIAN CHECK (MANDATORY):
-
-Before responding, confirm:
-- Did I give clear actions?
-- Did I avoid regulatory language?
-- Did I avoid fear or blame?
-- Did I avoid legal conclusions?
-- Did I keep it simple and calming?
-
-FINAL OUTPUT MUST:
-- Make the client feel supported
-- Make the client feel in control
-- Restore operational confidence
+INTERNAL GUARDIAN CHECK:
+- Ensure ACTION steps are clear and complete.
+- Ensure language is advisory, non-regulatory.
+- Ensure no fear, blame, or vague summaries.
+- Include reassurance.
+- Adapt to role and type of problem (documents, cargo, transport, passengers).
+- Provide enough detail for client to act immediately.
 """
 
     system_instr = core_brain + guardian_rules
@@ -134,11 +117,7 @@ FINAL OUTPUT MUST:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 r = await client.post(
                     url,
-                    json={
-                        "contents": [
-                            {"parts": [{"text": system_instr}]}
-                        ]
-                    }
+                    json={"contents": [{"parts": [{"text": system_instr}]}]}
                 )
                 text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
                 if text:
@@ -153,17 +132,13 @@ FINAL OUTPUT MUST:
             res = client_oa.chat.completions.create(
                 model="gpt-4o",
                 temperature=0.1,
-                messages=[
-                    {"role": "system", "content": system_instr}
-                ]
+                messages=[{"role": "system", "content": system_instr}]
             )
             return {"data": res.choices[0].message.content}
         except:
             pass
 
-    return {
-        "data": "SmartCargo Advisory is temporarily unavailable. Operational guidance will resume shortly."
-    }
+    return {"data": "System temporarily unavailable. SmartCargo Advisory will resume shortly."}
 
 
 @app.post("/create-payment")
@@ -184,9 +159,7 @@ async def create_payment(
             line_items=[{
                 "price_data": {
                     "currency": "usd",
-                    "product_data": {
-                        "name": f"SmartCargo Strategic Advisory – {awb}"
-                    },
+                    "product_data": {"name": f"SmartCargo Strategic Advisory: {awb}"},
                     "unit_amount": int(amount * 100)
                 },
                 "quantity": 1
@@ -197,7 +170,4 @@ async def create_payment(
         )
         return {"url": checkout.url}
     except Exception as e:
-        return JSONResponse(
-            {"error": str(e)},
-            status_code=400
-        )
+        return JSONResponse({"error": str(e)}, status_code=400)
