@@ -12,10 +12,10 @@ const i18n = {
         get: "RECEIVE ADVISORY",
         prompt: "Tell me what you see, I'm listening to suggest the best path...",
         analyzing: "MAY ROGA LLC | ANALYZING STRATEGY...",
-        askMomento: "When is this happening? \n1. Just starting \n2. I have a problem now \n3. It already happened",
+        askMomento: "When is this happening? \n1. Starting \n2. I have a problem now \n3. It already happened",
         askQueVe: "What do you have in your hand? \n1. Papers \n2. Things/Cargo \n3. A person/Officer \n4. I don't know",
         roleAlert: "Please select your role",
-        clear: "NEW SESSION",
+        clear: "NEW CONSULT",
         u: "Username", p: "Password", roles: ["Driver", "Agent", "Warehouse", "Owner"]
     },
     es: {
@@ -33,6 +33,14 @@ const i18n = {
         u: "Usuario", p: "Clave", roles: ["Chofer", "Agente", "Bodega", "Dueño"]
     }
 };
+
+window.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('access') === 'granted') {
+        document.getElementById('accessSection').style.display = "none";
+        document.getElementById('mainApp').style.display = "block";
+    }
+});
 
 function changeLang(l) {
     const lang = i18n[l];
@@ -96,7 +104,7 @@ async function run() {
     const l = document.getElementById('userLang').value;
     if (!role) return alert(i18n[l].roleAlert);
     const out = document.getElementById('res');
-    const userInput = document.getElementById('prompt').value || "Analyze";
+    const userInput = document.getElementById('prompt').value || "Check updates";
     out.style.display = "block"; out.innerText = i18n[l].analyzing;
 
     const fd = new FormData();
@@ -111,31 +119,19 @@ async function run() {
     } catch (e) { out.innerText = "Error."; }
 }
 
-function activarVoz() {
-    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Speech) return;
-    const rec = new Speech();
-    rec.lang = document.getElementById('userLang').value === 'es' ? 'es-ES' : 'en-US';
-    rec.start();
-    rec.onresult = (e) => { document.getElementById('prompt').value = e.results[0][0].transcript; };
-}
-
-function escuchar() {
-    const text = document.getElementById('res').innerText;
-    if (!text || text.includes("...")) return;
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = document.getElementById('userLang').value === 'es' ? 'es-ES' : 'en-US';
-    window.speechSynthesis.speak(utter);
-}
-
 function ws() { window.open("https://wa.me/?text=" + encodeURIComponent(document.getElementById('res').innerText)); }
 function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("OK"); }
 
 async function pay(amt) {
     const fd = new FormData();
-    fd.append("amount", amt); fd.append("awb", document.getElementById('awb').value || "REF");
-    fd.append("user", document.getElementById('u').value); fd.append("password", document.getElementById('p').value);
+    fd.append("amount", amt);
+    fd.append("awb", document.getElementById('awb').value || "REF");
+    fd.append("user", document.getElementById('u').value);
+    fd.append("password", document.getElementById('p').value);
+    
+    // Llamada directa al servidor para verificar pago o acceso maestro
     const r = await fetch('/create-payment', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.url) window.location.href = d.url;
+    else if (d.error) alert(d.error);
 }
