@@ -1,30 +1,28 @@
 let imgB64 = ["", "", ""];
 let role = "";
-let consultInfo = { stage: "", focus: "" };
+let consultInfo = { momento: "", queVe: "" };
 
 const i18n = {
     en: {
-        legal: "PRIVATE ADVISORY. NOT GOV. TOTAL LOGISTICS KNOWLEDGE.",
-        capture: "📷 ATTACH DOC / PHOTO",
+        legal: "PRIVATE ADVISORY. NOT GOV. TOTAL KNOWLEDGE.",
+        capture: "📷 PHOTO / DOCUMENT",
         get: "GET SOLUTION",
-        prompt: "Describe situation, regulation or document...",
-        analyzing: "MAY ROGA LLC | ANALYZING GLOBAL LOGISTICS...",
-        askStage: "Stage: PREVENTION (Avoid Errors), TRANSIT (Solving Crisis), or LEGAL (Protection)?",
-        askFocus: "Focus: Land (DOT), Air (IATA/TSA), Maritime, Customs (CBP), or Paperwork?",
-        roleAlert: "Select Role",
-        copied: "Copied",
+        prompt: "Tell me what happened or what you see...",
+        analyzing: "MAY ROGA LLC | PROCESSING SOLUTION...",
+        askMomento: "When is this happening? (1.Planning, 2.Now/Problem, 3.Already happened)",
+        askQueVe: "What's in front of you? (1.Papers, 2.Things/Boxes, 3.People/Police, 4.Not sure)",
+        roleAlert: "Please select your Role",
         clear: "NEW CONSULT"
     },
     es: {
         legal: "ASESORÍA PRIVADA. NO GOBIERNO. CONOCIMIENTO TOTAL.",
-        capture: "📷 ADJUNTAR DOC / FOTO",
+        capture: "📷 FOTO / DOCUMENTO",
         get: "OBTENER SOLUCIÓN",
-        prompt: "Describa situación, regulación o documento...",
-        analyzing: "MAY ROGA LLC | ANALIZANDO LOGÍSTICA GLOBAL...",
-        askStage: "¿Etapa: PREVENCIÓN (Evitar Errores), TRÁNSITO (Crisis), o LEGAL (Protección)?",
-        askFocus: "¿Enfoque: Terrestre (DOT), Aéreo (IATA/TSA), Marítimo, Aduana (CBP) o Papelería?",
-        roleAlert: "Seleccione Rol",
-        copied: "Copiado",
+        prompt: "Dime qué pasó o qué estás viendo...",
+        analyzing: "MAY ROGA LLC | PROCESANDO SOLUCIÓN...",
+        askMomento: "¿Cuándo está pasando esto? (1.Planeando, 2.Ahora/Problema, 3.Ya pasó)",
+        askQueVe: "¿Qué tienes enfrente? (1.Papeles, 2.Cosas/Cajas, 3.Personas/Policía, 4.No sé)",
+        roleAlert: "Por favor selecciona tu Rol",
         clear: "NUEVA CONSULTA"
     }
 };
@@ -72,7 +70,7 @@ function limpiar() {
     document.getElementById('prompt').value = "";
     document.getElementById('res').innerText = "";
     document.getElementById('res').style.display = "none";
-    consultInfo = { stage: "", focus: "" };
+    consultInfo = { momento: "", queVe: "" };
     role = "";
     document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
 }
@@ -86,8 +84,9 @@ function selRole(r, el) {
 async function preRun() {
     const l = document.getElementById('userLang').value;
     const langData = i18n[l];
-    if (!consultInfo.stage) { consultInfo.stage = prompt(langData.askStage); if (!consultInfo.stage) return; }
-    if (!consultInfo.focus) { consultInfo.focus = prompt(langData.askFocus); if (!consultInfo.focus) return; }
+    // Se eliminó la restricción de "return". Si le da OK en blanco, el proceso sigue.
+    if (!consultInfo.momento) consultInfo.momento = prompt(langData.askMomento) || "Not specified";
+    if (!consultInfo.queVe) consultInfo.queVe = prompt(langData.askQueVe) || "Not specified";
     run();
 }
 
@@ -98,13 +97,13 @@ async function run() {
     out.style.display = "block";
     out.innerText = i18n[l].analyzing;
     const fd = new FormData();
-    fd.append("prompt", `Stage: ${consultInfo.stage}. Focus: ${consultInfo.focus}. Role: ${role}. Context: ${document.getElementById('prompt').value}`);
+    fd.append("prompt", `Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}. Role: ${role}. Input: ${document.getElementById('prompt').value || "None"}`);
     fd.append("lang", l);
     try {
         const r = await fetch('/advisory', { method: 'POST', body: fd });
         const d = await r.json();
         out.innerText = d.data;
-    } catch (e) { out.innerText = "Error: Connection Timeout."; }
+    } catch (e) { out.innerText = "Error."; }
 }
 
 function activarVoz() {
@@ -125,7 +124,7 @@ function escuchar() {
 }
 
 function ws() { window.open("https://wa.me/?text=" + encodeURIComponent(document.getElementById('res').innerText)); }
-function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("Copied"); }
+function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); }
 
 async function pay(amt) {
     const fd = new FormData();
