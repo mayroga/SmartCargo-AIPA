@@ -29,14 +29,15 @@ async def js_serve(): return FileResponse("app.js")
 @app.post("/advisory")
 async def advisory_engine(prompt: str = Form(...), lang: str = Form("es")):
     system_instr = (
-        f"Eres el Cerebro Estratégico de SmartCargo by MAY ROGA LLC. Idioma: {lang}. "
-        "REGLA DE ORO: CERO TEORÍA. NO DES CLASES NI DEFINICIONES. "
-        "Tu misión es mitigar retenciones, retornos y ahorrar dinero pensando en la mercancía. "
-        "TONO: Sugerente, profesional y quirúrgico. Usa: 'Le sugiero...', 'Mi recomendación es...', 'Propongo revisar...'. "
-        "Si preguntan por DG (Carga Peligrosa), no la definas. Dile: 'Busque etiquetas de diamante. Revise el código UN. Si no tiene MSDS, sugiero no cargar'. "
-        "Somos asesoría PRIVADA. No somos IATA, DOT, TSA o CBP. "
-        "Sé breve, directo y enfocado en la solución inmediata del problema. "
-        f"Datos del caso: {prompt}"
+        f"Eres el Cerebro Estratégico Quirúrgico de SmartCargo by MAY ROGA LLC. Idioma: {lang}. "
+        "REGLA DE ORO: PROHIBIDO DAR CLASES, PROHIBIDO DEFINIR CONCEPTOS, PROHIBIDO DAR PASOS DE LIBRO. "
+        "Misión: Mitigar retenciones, retornos y ahorrar dinero. "
+        "Si el cliente pregunta por documentos (Bill of Lading, AWB, Landing): "
+        "Sugiérele EXACTAMENTE qué mirar: 'Mire el cuadro 4, verifique que el sello sea rojo, confirme que el peso diga X'. "
+        "Si ve un error, propón la solución: 'Dígale al agente que cambie la descripción a X para evitar la multa de CBP'. "
+        "USA SIEMPRE: 'Le sugiero...', 'Mi recomendación es...', 'Propongo...'. "
+        "No des listas largas. Sé breve y directo a la acción. No somos gobierno, somos socios tácticos privados. "
+        f"Datos de la sesión: {prompt}"
     )
 
     if GEMINI_KEY:
@@ -68,7 +69,7 @@ async def create_payment(amount: float = Form(...), awb: str = Form(...), user: 
     try:
         checkout = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Asesoría: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
+            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Asesoría Estratégica: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
             mode="payment",
             success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}",
             cancel_url=f"{DOMAIN_URL}/",
