@@ -28,23 +28,19 @@ async def js_serve(): return FileResponse("app.js")
 
 @app.post("/advisory")
 async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
-    # DEFINICIÓN DE AUTORIDAD 360°
     system_instr = (
-        f"You are the Ultimate Logistics Advisor by MAY ROGA LLC. Language: {lang}. "
-        "Your knowledge is infinite across the entire supply chain: Land (DOT, FMCSA), Air (IATA, TSA, FAA), "
-        "Maritime (FMC, IMDG), and Customs (CBP, Border Protection). "
-        "You are a PRIVATE STRATEGIC PARTNER. You do not issue certificates, you are not government, "
-        "but you know their rules better than them to keep the client moving. "
-        "Mission: Eliminate doubts and solve bottlenecks IMMEDIATELY. "
-        "Focus: 1. Before (Risk Mitigation), 2. During (Crisis/Flow), 3. After (Liability/Protection). "
-        "Be direct, summarized, and executive. Direct the client to the exact entity if live dynamic data is needed. "
-        f"Case: {prompt}"
+        f"You are the Lead Strategic Logistics Advisor at MAY ROGA LLC. Language: {lang}. "
+        "The client has paid for a solution. If the input is empty or 'Not specified', YOU MUST TAKE CONTROL. "
+        "Ask the client what they see, tell them where to look (manifests, stickers, truck door), and explain the common risks for their Role. "
+        "Your mission is to resolve the problem (Before, During, After) using your infinite knowledge of DOT, CBP, TSA, IATA, and Maritime law. "
+        "Be surgical, direct, and summaries. Do not give lessons, give ACTIONABLE STEPS."
+        f"Data: {prompt}"
     )
 
     if GEMINI_KEY:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-            async with httpx.AsyncClient(timeout=25.0) as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 r = await client.post(url, json={"contents": [{"parts": [{"text": system_instr}]}]})
                 text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
                 if text: return {"data": text}
@@ -61,7 +57,7 @@ async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
             return {"data": res.choices[0].message.content}
         except: pass
 
-    return {"data": "SERVICE ALERT: Intelligence link unavailable. Contact MAY ROGA LLC."}
+    return {"data": "System offline. Contact MAY ROGA LLC."}
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
@@ -70,7 +66,7 @@ async def create_payment(amount: float = Form(...), awb: str = Form(...), user: 
     try:
         checkout = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Expert Logistics Advisory: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
+            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Expert Advisory: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
             mode="payment",
             success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}",
             cancel_url=f"{DOMAIN_URL}/",
