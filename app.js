@@ -5,46 +5,50 @@ let chatHistory = "";
 
 const i18n = {
     en: {
-        legal: "PRIVATE ADVISORY. NOT GOV. TOTAL KNOWLEDGE.",
-        capture: "📷 SEND DOC / PHOTO",
-        get: "GET SOLUTION",
-        prompt: "Tell me what you see, I'm listening...",
-        analyzing: "MAY ROGA LLC | SOLVING NOW...",
-        askMomento: "When is this? 1.Starting 2.Issue now 3.Already happened",
-        askQueVe: "What's in your hand? 1.Papers 2.Cargo 3.Authority 4.Not sure",
-        roleAlert: "Select your Role",
-        clear: "NEW CONSULT"
+        legal: "INDEPENDENT PRIVATE ADVISORY. WE ARE NOT IATA, DOT, TSA, OR CBP. OUR RESPONSES ARE STRATEGIC SUGGESTIONS.",
+        promoGold: "360° STRATEGIC SOLUTIONS BY MAY ROGA LLC - PRIVATE LOGISTICS ADVISORY LEADERS - SMARTCARGO ADVISORY",
+        promoBlue: "WE MITIGATE HOLDS, RETURNS, SAVE MONEY, WE THINK AND WORK ON YOUR CARGO",
+        capture: "📷 GIVE ME THE DOC",
+        get: "RECEIVE ADVISORY",
+        prompt: "Tell me what you see, I'm listening to suggest the best path...",
+        analyzing: "MAY ROGA LLC | ANALYZING STRATEGY...",
+        askMomento: "When is this happening? \n1. Just starting \n2. I have a problem now \n3. It already happened",
+        askQueVe: "What do you have in your hand? \n1. Papers \n2. Things/Cargo \n3. A person/Officer \n4. I don't know",
+        roleAlert: "Please select your role",
+        clear: "NEW SESSION",
+        u: "Username", p: "Password", roles: ["Driver", "Agent", "Warehouse", "Owner"]
     },
     es: {
-        legal: "ASESORÍA PRIVADA. NO SOMOS IATA, DOT, TSA O CBP. NO GOBIERNO.",
-        capture: "📷 MÁNDAME EL DOC / FOTO",
+        legal: "ASESORÍA PRIVADA INDEPENDIENTE. NO SOMOS IATA, DOT, TSA O CBP. NUESTRAS RESPUESTAS SON SUGERENCIAS ESTRATÉGICAS.",
+        promoGold: "SOLUCIONES ESTRATÉGICAS 360° BY MAY ROGA LLC - LÍDERES EN ASESORÍA LOGÍSTICA PRIVADA - SMARTCARGO ADVISORY",
+        promoBlue: "MITIGAMOS RETENCIONES, RETORNOS, AHORRAMOS DINERO, PENSAMOS Y TRABAJAMOS EN TU MERCANCIA",
+        capture: "📷 MÁNDAME EL DOC",
         get: "RECIBIR ASESORÍA",
-        prompt: "Dime qué tienes ahí, te escucho...",
-        analyzing: "MAY ROGA LLC | RESOLVIENDO YA...",
-        askMomento: "¿Cuándo pasa esto? 1.Empezando 2.Problema ahora 3.Ya pasó",
-        askQueVe: "¿Qué tienes en la mano? 1.Papeles 2.Carga 3.Autoridad 4.No sé",
-        roleAlert: "Selecciona tu Rol",
-        clear: "NUEVA CONSULTA"
+        prompt: "Dime qué tienes ahí, te escucho para asesorarte...",
+        analyzing: "MAY ROGA LLC | ANALIZANDO ESTRATEGIA...",
+        askMomento: "¿Cuándo está pasando esto? \n1. Empezando \n2. Problema ahora \n3. Ya pasó el lío",
+        askQueVe: "¿Qué tienes a la mano? \n1. Papeles \n2. Carga \n3. Autoridad \n4. No sé",
+        roleAlert: "Por favor selecciona tu rol",
+        clear: "NUEVA CONSULTA",
+        u: "Usuario", p: "Clave", roles: ["Chofer", "Agente", "Bodega", "Dueño"]
     }
 };
-
-window.addEventListener('DOMContentLoaded', () => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('access') === 'granted') {
-        document.getElementById('accessSection').style.display = "none";
-        document.getElementById('mainApp').style.display = "block";
-    }
-});
 
 function changeLang(l) {
     const lang = i18n[l];
     document.getElementById('txt-legal').innerText = lang.legal;
+    document.getElementById('promoGold').innerHTML = `<span>${lang.promoGold}</span>`;
+    document.getElementById('promoBlue').innerHTML = `<span>${lang.promoBlue}</span>`;
     document.getElementById('btn-get').innerText = lang.get;
     document.getElementById('prompt').placeholder = lang.prompt;
     document.getElementById('btn-clear').innerText = lang.clear;
+    document.getElementById('u').placeholder = lang.u;
+    document.getElementById('p').placeholder = lang.p;
     for (let i = 1; i <= 3; i++) {
-        const span = document.getElementById('txt-capture' + i);
-        if (span) span.innerText = lang.capture;
+        document.getElementById('txt-capture' + i).innerText = lang.capture;
+    }
+    for (let i = 1; i <= 4; i++) {
+        document.getElementById('role' + i).innerText = lang.roles[i-1];
     }
 }
 
@@ -61,8 +65,7 @@ function scRead(e, n) {
 }
 
 function limpiar() {
-    imgB64 = ["", "", ""];
-    chatHistory = "";
+    imgB64 = ["", "", ""]; chatHistory = "";
     for (let i = 1; i <= 3; i++) {
         const img = document.getElementById('v' + i);
         const txt = document.getElementById('txt-capture' + i);
@@ -72,8 +75,7 @@ function limpiar() {
     document.getElementById('prompt').value = "";
     document.getElementById('res').innerText = "";
     document.getElementById('res').style.display = "none";
-    consultInfo = { momento: "", queVe: "" };
-    role = "";
+    consultInfo = { momento: "", queVe: "" }; role = "";
     document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
 }
 
@@ -94,12 +96,11 @@ async function run() {
     const l = document.getElementById('userLang').value;
     if (!role) return alert(i18n[l].roleAlert);
     const out = document.getElementById('res');
-    const userInput = document.getElementById('prompt').value || "Check";
-    out.style.display = "block";
-    out.innerText = i18n[l].analyzing;
+    const userInput = document.getElementById('prompt').value || "Analyze";
+    out.style.display = "block"; out.innerText = i18n[l].analyzing;
 
     const fd = new FormData();
-    fd.append("prompt", `HISTORY: ${chatHistory}. CURRENT_PROBLEM: ${userInput}. Role: ${role}. Stage: ${consultInfo.momento}. Observations: ${consultInfo.queVe}`);
+    fd.append("prompt", `HISTORY: ${chatHistory}. TASK: ${userInput}. Role: ${role}. Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}`);
     fd.append("lang", l);
 
     try {
@@ -107,7 +108,7 @@ async function run() {
         const d = await r.json();
         out.innerText = d.data;
         chatHistory += ` | User: ${userInput} | Advisor: ${d.data}`; 
-    } catch (e) { out.innerText = "Error de conexión."; }
+    } catch (e) { out.innerText = "Error."; }
 }
 
 function activarVoz() {
@@ -132,10 +133,8 @@ function copy() { navigator.clipboard.writeText(document.getElementById('res').i
 
 async function pay(amt) {
     const fd = new FormData();
-    fd.append("amount", amt);
-    fd.append("awb", document.getElementById('awb').value || "REF");
-    fd.append("user", document.getElementById('u').value);
-    fd.append("password", document.getElementById('p').value);
+    fd.append("amount", amt); fd.append("awb", document.getElementById('awb').value || "REF");
+    fd.append("user", document.getElementById('u').value); fd.append("password", document.getElementById('p').value);
     const r = await fetch('/create-payment', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.url) window.location.href = d.url;
