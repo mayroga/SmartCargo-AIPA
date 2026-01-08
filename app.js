@@ -5,17 +5,17 @@ let chatHistory = "";
 
 const i18n = {
     en: {
-        legal: "INDEPENDENT PRIVATE ADVISORY. WE ARE NOT IATA, DOT, TSA, OR CBP. OUR RESPONSES ARE STRATEGIC SUGGESTIONS.",
+        legal: "INDEPENDENT PRIVATE ADVISORY. NOT IATA, DOT, TSA, OR CBP. ALL RESPONSES ARE STRATEGIC SUGGESTIONS.",
         promoGold: "360° STRATEGIC SOLUTIONS BY MAY ROGA LLC - PRIVATE LOGISTICS ADVISORY LEADERS - SMARTCARGO ADVISORY",
-        promoBlue: "WE MITIGATE HOLDS, RETURNS, SAVE MONEY, WE THINK AND WORK ON YOUR CARGO",
+        promoBlue: "MITIGATING HOLDS, RETURNS, SAVING MONEY, WE THINK AND WORK ON YOUR CARGO",
         capture: "📷 GIVE ME THE DOC",
-        get: "RECEIVE ADVISORY",
+        get: "EXECUTE ADVISORY",
         prompt: "Tell me what you see, I'm listening to suggest the best path...",
         analyzing: "MAY ROGA LLC | ANALYZING STRATEGY...",
-        askMomento: "When is this happening? \n1. Starting \n2. I have a problem now \n3. It already happened",
-        askQueVe: "What do you have in your hand? \n1. Papers \n2. Things/Cargo \n3. A person/Officer \n4. I don't know",
+        askMomento: "When is this happening? \n1. Just starting \n2. I have a problem now \n3. It already happened",
+        askQueVe: "What do you have in your hand? \n1. Papers \n2. Things/Cargo \n3. A person/Officer \n4. Not sure",
         roleAlert: "Please select your role",
-        clear: "NEW CONSULT",
+        clear: "NEW SESSION",
         u: "Username", p: "Password", roles: ["Driver", "Agent", "Warehouse", "Owner"]
     },
     es: {
@@ -72,6 +72,32 @@ function scRead(e, n) {
     r.readAsDataURL(e.target.files[0]);
 }
 
+function selRole(r, el) {
+    role = r;
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+}
+
+function activarVoz() {
+    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Speech) return;
+    const rec = new Speech();
+    const currentLang = document.getElementById('userLang').value;
+    rec.lang = currentLang === 'es' ? 'es-US' : 'en-US'; 
+    rec.start();
+    rec.onresult = (e) => { document.getElementById('prompt').value = e.results[0][0].transcript; };
+}
+
+function escuchar() {
+    const text = document.getElementById('res').innerText;
+    if (!text || text.includes("...")) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    const currentLang = document.getElementById('userLang').value;
+    utter.lang = currentLang === 'es' ? 'es-US' : 'en-US';
+    window.speechSynthesis.speak(utter);
+}
+
 function limpiar() {
     imgB64 = ["", "", ""]; chatHistory = "";
     for (let i = 1; i <= 3; i++) {
@@ -87,12 +113,6 @@ function limpiar() {
     document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
 }
 
-function selRole(r, el) {
-    role = r;
-    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
-    el.classList.add('selected');
-}
-
 async function preRun() {
     const l = document.getElementById('userLang').value;
     if (!consultInfo.momento) consultInfo.momento = prompt(i18n[l].askMomento) || "N/A";
@@ -104,11 +124,11 @@ async function run() {
     const l = document.getElementById('userLang').value;
     if (!role) return alert(i18n[l].roleAlert);
     const out = document.getElementById('res');
-    const userInput = document.getElementById('prompt').value || "Check updates";
+    const userInput = document.getElementById('prompt').value || "Analyze update";
     out.style.display = "block"; out.innerText = i18n[l].analyzing;
 
     const fd = new FormData();
-    fd.append("prompt", `HISTORY: ${chatHistory}. TASK: ${userInput}. Role: ${role}. Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}`);
+    fd.append("prompt", `HISTORY: ${chatHistory}. CURRENT_TASK: ${userInput}. Role: ${role}. Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}`);
     fd.append("lang", l);
 
     try {
@@ -124,14 +144,9 @@ function copy() { navigator.clipboard.writeText(document.getElementById('res').i
 
 async function pay(amt) {
     const fd = new FormData();
-    fd.append("amount", amt);
-    fd.append("awb", document.getElementById('awb').value || "REF");
-    fd.append("user", document.getElementById('u').value);
-    fd.append("password", document.getElementById('p').value);
-    
-    // Llamada directa al servidor para verificar pago o acceso maestro
+    fd.append("amount", amt); fd.append("awb", document.getElementById('awb').value || "REF");
+    fd.append("user", document.getElementById('u').value); fd.append("password", document.getElementById('p').value);
     const r = await fetch('/create-payment', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.url) window.location.href = d.url;
-    else if (d.error) alert(d.error);
 }
