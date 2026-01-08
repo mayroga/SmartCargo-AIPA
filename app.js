@@ -1,28 +1,31 @@
 let imgB64 = ["", "", ""];
 let role = "";
 let consultInfo = { momento: "", queVe: "" };
+let chatHistory = "";
 
 const i18n = {
     en: {
-        legal: "PRIVATE ADVISORY. NOT GOV. TOTAL KNOWLEDGE.",
-        capture: "📷 PHOTO / DOCUMENT",
-        get: "GET SOLUTION",
-        prompt: "Tell me what happened or what you see...",
-        analyzing: "MAY ROGA LLC | PROCESSING SOLUTION...",
-        askMomento: "When is this happening? (1.Planning, 2.Now/Problem, 3.Already happened)",
-        askQueVe: "What's in front of you? (1.Papers, 2.Things/Boxes, 3.People/Police, 4.Not sure)",
-        roleAlert: "Please select your Role",
-        clear: "NEW CONSULT"
+        legal: "PRIVATE ADVISORY. MAY ROGA LLC IS NOT IATA, DOT, TSA, OR CBP. WE PROVIDE STRATEGIC SUGGESTIONS.",
+        capture: "📷 SEND DOC / PHOTO",
+        get: "RECEIVE ADVISORY",
+        prompt: "Tell me what you see, I'm here to suggest the best path...",
+        analyzing: "MAY ROGA LLC | ANALYZING STRATEGY...",
+        askMomento: "When is this happening? \n1. Just starting \n2. Current issue \n3. Post-issue adjustment",
+        askQueVe: "What do you have there? \n1. Papers (AWB, Invoices) \n2. Things (Boxes, Liquids, Smells) \n3. Authority (Police, Customs) \n4. Not sure",
+        roleAlert: "Please select your role",
+        copied: "Copied",
+        clear: "NEW SESSION"
     },
     es: {
-        legal: "ASESORÍA PRIVADA. NO GOBIERNO. CONOCIMIENTO TOTAL.",
-        capture: "📷 FOTO / DOCUMENTO",
-        get: "OBTENER SOLUCIÓN",
-        prompt: "Dime qué pasó o qué estás viendo...",
-        analyzing: "MAY ROGA LLC | PROCESANDO SOLUCIÓN...",
-        askMomento: "¿Cuándo está pasando esto? (1.Planeando, 2.Ahora/Problema, 3.Ya pasó)",
-        askQueVe: "¿Qué tienes enfrente? (1.Papeles, 2.Cosas/Cajas, 3.Personas/Policía, 4.No sé)",
-        roleAlert: "Por favor selecciona tu Rol",
+        legal: "ASESORÍA PRIVADA. MAY ROGA LLC NO ES IATA, DOT, TSA O CBP. PROVEEMOS SUGERENCIAS ESTRATÉGICAS.",
+        capture: "📷 MÁNDAME EL DOC / FOTO",
+        get: "RECIBIR ASESORÍA",
+        prompt: "Dime qué tienes ahí, te escucho para asesorarte...",
+        analyzing: "MAY ROGA LLC | ANALIZANDO ESTRATEGIA...",
+        askMomento: "¿Cuándo está pasando esto? \n1. Voy empezando apenas \n2. Tengo un problema ahora \n3. Ya pasó el lío",
+        askQueVe: "¿Qué tienes a la mano? \n1. Papeles (Guías, Facturas) \n2. Cosas (Cajas, Líquidos, Olores) \n3. Autoridad (Policía, Aduana) \n4. No sé",
+        roleAlert: "Por favor selecciona tu rol",
+        copied: "Copiado",
         clear: "NUEVA CONSULTA"
     }
 };
@@ -61,6 +64,7 @@ function scRead(e, n) {
 
 function limpiar() {
     imgB64 = ["", "", ""];
+    chatHistory = "";
     for (let i = 1; i <= 3; i++) {
         const img = document.getElementById('v' + i);
         const txt = document.getElementById('txt-capture' + i);
@@ -83,10 +87,8 @@ function selRole(r, el) {
 
 async function preRun() {
     const l = document.getElementById('userLang').value;
-    const langData = i18n[l];
-    // Se eliminó la restricción de "return". Si le da OK en blanco, el proceso sigue.
-    if (!consultInfo.momento) consultInfo.momento = prompt(langData.askMomento) || "Not specified";
-    if (!consultInfo.queVe) consultInfo.queVe = prompt(langData.askQueVe) || "Not specified";
+    if (!consultInfo.momento) consultInfo.momento = prompt(i18n[l].askMomento) || "N/A";
+    if (!consultInfo.queVe) consultInfo.queVe = prompt(i18n[l].askQueVe) || "N/A";
     run();
 }
 
@@ -94,15 +96,20 @@ async function run() {
     const l = document.getElementById('userLang').value;
     if (!role) return alert(i18n[l].roleAlert);
     const out = document.getElementById('res');
+    const userInput = document.getElementById('prompt').value || "Check";
+    
     out.style.display = "block";
     out.innerText = i18n[l].analyzing;
+
     const fd = new FormData();
-    fd.append("prompt", `Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}. Role: ${role}. Input: ${document.getElementById('prompt').value || "None"}`);
+    fd.append("prompt", `History: ${chatHistory}. Current: ${userInput}. Role: ${role}. Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}`);
     fd.append("lang", l);
+
     try {
         const r = await fetch('/advisory', { method: 'POST', body: fd });
         const d = await r.json();
         out.innerText = d.data;
+        chatHistory += ` | User: ${userInput} | Advisor: ${d.data}`; 
     } catch (e) { out.innerText = "Error."; }
 }
 
@@ -124,7 +131,7 @@ function escuchar() {
 }
 
 function ws() { window.open("https://wa.me/?text=" + encodeURIComponent(document.getElementById('res').innerText)); }
-function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); }
+function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("OK"); }
 
 async function pay(amt) {
     const fd = new FormData();
