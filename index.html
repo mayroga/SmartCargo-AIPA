@@ -10,9 +10,9 @@
     
     /* Propagandas con movimiento */
     @keyframes mover { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-    .promo-gold { background: #d4af37; color: #000; font-weight: bold; overflow: hidden; white-space: nowrap; padding: 6px; font-size: 12px; margin: -20px -20px 0 -20px; border-radius: 15px 15px 0 0; }
-    .promo-blue { background: #0056b3; color: #fff; font-weight: bold; overflow: hidden; white-space: nowrap; padding: 6px; font-size: 12px; margin: 0 -20px 15px -20px; }
-    .promo-gold span, .promo-blue span { display: inline-block; animation: mover 18s linear infinite; }
+    .promo-gold { background: #d4af37; color: #000; font-weight: bold; overflow: hidden; white-space: nowrap; padding: 6px; font-size: 12px; margin: -20px -20px 0 -20px; border-radius: 15px 15px 0 0; border-bottom: 1px solid #000; }
+    .promo-blue { background: #0056b3; color: #fff; font-weight: bold; overflow: hidden; white-space: nowrap; padding: 6px; font-size: 12px; margin: 0 -20px 15px -20px; border-bottom: 2px solid #000; }
+    .promo-gold span, .promo-blue span { display: inline-block; animation: mover 20s linear infinite; }
 
     .legal-banner { background:#111; color:#d4af37; padding:10px; font-size:9px; text-align:center; font-weight:bold; border:1px solid #d4af37; border-radius:10px; margin-bottom:15px; text-transform:uppercase; line-height: 1.2; }
     h2 { text-align:center; margin:0; color:#001d3d; font-size:24px; }
@@ -23,13 +23,13 @@
     .grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
     .role-btn { border:1px solid #001d3d; padding:12px; border-radius:8px; text-align:center; font-weight:bold; cursor:pointer; font-size:11px; background:#f8f9fa; }
     .role-btn.selected { background:#001d3d; color:white; border-color:#d4af37; }
-    #res { margin-top:10px; font-size:14px; white-space:pre-wrap; background:#f9f9f9; padding:15px; border-radius:10px; border-left:5px solid #d4af37; display:none; color:#111; line-height: 1.5; }
+    #res { margin-top:10px; font-size:14px; white-space:pre-wrap; background:#f9f9f9; padding:15px; border-radius:10px; border-left:5px solid #d4af37; display:none; color:#111; line-height: 1.5; font-weight: bold; }
     input, textarea { outline:none; border:1px solid #ccc; width:100%; box-sizing:border-box; padding:12px; border-radius:8px; }
 </style>
 </head>
 <body>
 <div class="card">
-    <div class="promo-gold"><span>SOLUCIONES ESTRATÉGICAS 360° BY MAY ROGA LLC - LÍDERES EN ASESORÍA LOGÍSTICA PRIVADA</span></div>
+    <div class="promo-gold"><span>SOLUCIONES ESTRATÉGICAS 360° BY MAY ROGA LLC - LÍDERES EN ASESORÍA LOGÍSTICA PRIVADA - SMARTCARGO ADVISORY</span></div>
     <div class="promo-blue"><span>MITIGAMOS RETENCIONES, RETORNOS, AHORRAMOS DINERO, PENSAMOS Y TRABAJAMOS EN TU MERCANCIA</span></div>
     
     <select id="userLang" onchange="changeLang(this.value)" style="width:100%; font-weight:bold; border:2px solid #001d3d; margin-bottom:10px; padding:12px; border-radius:8px;">
@@ -81,7 +81,7 @@
         </div>
 
         <div style="position:relative; margin-top:10px;">
-            <textarea id="prompt" style="height:120px; resize:none;" placeholder="Dime qué ves, te escucho..."></textarea>
+            <textarea id="prompt" style="height:120px; resize:none;" placeholder="Dime qué tienes ahí, te escucho..."></textarea>
             <button onclick="activarVoz()" style="position:absolute; right:55px; bottom:12px; border:none; background:white; font-size:24px;">🎤</button>
             <button onclick="escuchar()" style="position:absolute; right:12px; bottom:12px; border:none; background:#d4af37; border-radius:50%; width:44px; height:44px; color:white; font-size:20px;">🔊</button>
         </div>
