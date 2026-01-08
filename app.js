@@ -5,25 +5,25 @@ let chatHistory = "";
 
 const i18n = {
     en: {
-        legal: "PRIVATE ADVISORY. MAY ROGA LLC IS NOT IATA, DOT, TSA, OR CBP. STRATEGIC SUGGESTIONS.",
+        legal: "PRIVATE ADVISORY. NOT GOV. TOTAL KNOWLEDGE.",
         capture: "📷 SEND DOC / PHOTO",
-        get: "GET ADVISORY",
-        prompt: "Tell me what you see, I'm here to suggest...",
-        analyzing: "MAY ROGA LLC | ANALYZING...",
-        askMomento: "When is this? \n1. Starting \n2. Current Issue \n3. Post-issue",
-        askQueVe: "What's in your hand? \n1. Papers \n2. Cargo \n3. Authority \n4. Not sure",
-        roleAlert: "Select your role",
-        clear: "NEW SESSION"
+        get: "GET SOLUTION",
+        prompt: "Tell me what you see, I'm listening...",
+        analyzing: "MAY ROGA LLC | SOLVING NOW...",
+        askMomento: "When is this? 1.Starting 2.Issue now 3.Already happened",
+        askQueVe: "What's in your hand? 1.Papers 2.Cargo 3.Authority 4.Not sure",
+        roleAlert: "Select your Role",
+        clear: "NEW CONSULT"
     },
     es: {
-        legal: "ASESORÍA PRIVADA. MAY ROGA LLC NO ES IATA, DOT, TSA O CBP. SUGERENCIAS ESTRATÉGICAS.",
+        legal: "ASESORÍA PRIVADA. NO SOMOS IATA, DOT, TSA O CBP. NO GOBIERNO.",
         capture: "📷 MÁNDAME EL DOC / FOTO",
         get: "RECIBIR ASESORÍA",
-        prompt: "Dime qué tienes ahí, te escucho para asesorarte...",
-        analyzing: "MAY ROGA LLC | ANALIZANDO ESTRATEGIA...",
-        askMomento: "¿Cuándo pasa esto? \n1. Empezando \n2. Problema ahora \n3. Ya pasó",
-        askQueVe: "¿Qué tienes en la mano? \n1. Papeles \n2. Carga \n3. Autoridad \n4. No sé",
-        roleAlert: "Selecciona tu rol",
+        prompt: "Dime qué tienes ahí, te escucho...",
+        analyzing: "MAY ROGA LLC | RESOLVIENDO YA...",
+        askMomento: "¿Cuándo pasa esto? 1.Empezando 2.Problema ahora 3.Ya pasó",
+        askQueVe: "¿Qué tienes en la mano? 1.Papeles 2.Carga 3.Autoridad 4.No sé",
+        roleAlert: "Selecciona tu Rol",
         clear: "NUEVA CONSULTA"
     }
 };
@@ -99,7 +99,7 @@ async function run() {
     out.innerText = i18n[l].analyzing;
 
     const fd = new FormData();
-    fd.append("prompt", `HISTORIAL: ${chatHistory}. CASO ACTUAL: ${userInput}. ROL: ${role}. ETAPA: ${consultInfo.momento}. VISION: ${consultInfo.queVe}`);
+    fd.append("prompt", `HISTORY: ${chatHistory}. CURRENT_PROBLEM: ${userInput}. Role: ${role}. Stage: ${consultInfo.momento}. Observations: ${consultInfo.queVe}`);
     fd.append("lang", l);
 
     try {
