@@ -9,9 +9,12 @@ load_dotenv()
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-GEMINI_KEY = os.getenv("GEMINI_API_KEY"); OPENAI_KEY = os.getenv("OPENAI_API_KEY")
-ADMIN_USER = os.getenv("ADMIN_USERNAME"); ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY"); DOMAIN_URL = os.getenv("DOMAIN_URL")
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+ADMIN_USER = os.getenv("ADMIN_USERNAME")
+ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+DOMAIN_URL = os.getenv("DOMAIN_URL")
 
 @app.get("/")
 async def home(): return FileResponse("index.html")
@@ -23,12 +26,12 @@ async def js_serve(): return FileResponse("app.js")
 async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
     system_instr = (
         f"You are the Surgical Strategic Brain of SmartCargo by MAY ROGA LLC. Official Language: {lang}. "
-        "MISSION: Mitigate holds, returns, and save money by thinking about the customer's cargo. "
+        "MISSION: Mitigate holds, returns, and save money. "
         "IDENTITY: Independent Private Advisory. NOT IATA, DOT, TSA, OR CBP. "
-        "TONE: Suggestive and professional. Use: 'I suggest...', 'My recommendation is...', 'I propose...'. "
-        "RULE: NO TEACHING, NO BOOK DEFINITIONS. If they ask about docs, suggest exactly what to look for (box X, stamp Y). "
-        "Always follow the thread (History) and solve the problem during the paid time. "
-        f"Session Context: {prompt}"
+        "TONE: Always suggestive. Use: 'I suggest...', 'My recommendation is...', 'I propose...'. "
+        "RULE: NO TEACHING, NO DEFINITIONS. If they ask about docs, suggest exactly what to look for. "
+        "Follow the conversation History and solve the problem during paid time."
+        f"Session Data: {prompt}"
     )
 
     if GEMINI_KEY:
@@ -51,14 +54,22 @@ async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
-    if user == ADMIN_USER and password == ADMIN_PASS:
-        return {"url": f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"}
+    # VERIFICACIÓN MAESTRA: Asegura que el servidor lea bien ADMIN_USER y ADMIN_PASS
+    if user and password and user == ADMIN_USER and password == ADMIN_PASS:
+        success_url = f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"
+        return {"url": success_url}
+    
+    if amount <= 0:
+        return JSONResponse({"error": "Invalid amount for master access"}, status_code=401)
+
     try:
         checkout = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Strategic Advisory: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
             mode="payment",
-            success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}", cancel_url=f"{DOMAIN_URL}/",
+            success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}",
+            cancel_url=f"{DOMAIN_URL}/",
         )
         return {"url": checkout.url}
-    except Exception as e: return JSONResponse({"error": str(e)}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
