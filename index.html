@@ -23,20 +23,20 @@
     .role-btn { border:1px solid #001d3d; padding:12px; border-radius:8px; text-align:center; font-weight:bold; cursor:pointer; font-size:11px; background:#f8f9fa; }
     .role-btn.selected { background:#001d3d; color:white; border-color:#d4af37; }
     #res { margin-top:10px; font-size:14px; white-space:pre-wrap; background:#f9f9f9; padding:15px; border-radius:10px; border-left:5px solid #d4af37; display:none; color:#111; line-height: 1.5; font-weight: bold; }
-    input, textarea { outline:none; border:1px solid #ccc; width:100%; box-sizing:border-box; padding:12px; border-radius:8px; }
+    input, textarea { outline:none; border:1px solid #ccc; width:100%; box-sizing:border-box; padding:12px; border-radius:8px; font-family: inherit; }
 </style>
 </head>
 <body>
 <div class="card">
     <div class="promo-gold" id="promoGold"><span>360° STRATEGIC SOLUTIONS BY MAY ROGA LLC - PRIVATE LOGISTICS ADVISORY LEADERS - SMARTCARGO ADVISORY</span></div>
-    <div class="promo-blue" id="promoBlue"><span>WE MITIGATE HOLDS, RETURNS, SAVE MONEY, WE THINK AND WORK ON YOUR CARGO</span></div>
+    <div class="promo-blue" id="promoBlue"><span>MITIGATING HOLDS, RETURNS, SAVING MONEY, WE THINK AND WORK ON YOUR CARGO</span></div>
     
     <select id="userLang" onchange="changeLang(this.value)" style="width:100%; font-weight:bold; border:2px solid #001d3d; margin-bottom:10px; padding:12px; border-radius:8px;">
         <option value="en">🇺🇸 ENGLISH SYSTEM</option>
         <option value="es">🇪🇸 SISTEMA ESPAÑOL</option>
     </select>
 
-    <div class="legal-banner" id="txt-legal">INDEPENDENT PRIVATE ADVISORY. WE ARE NOT IATA, DOT, TSA, OR CBP. OUR RESPONSES ARE STRATEGIC SUGGESTIONS.</div>
+    <div class="legal-banner" id="txt-legal">INDEPENDENT PRIVATE ADVISORY. NOT IATA, DOT, TSA, OR CBP. ALL RESPONSES ARE STRATEGIC SUGGESTIONS.</div>
 
     <h2>SmartCargo ADVISORY</h2>
     <h3>BY MAY ROGA LLC</h3>
@@ -80,12 +80,12 @@
         </div>
 
         <div style="position:relative; margin-top:10px;">
-            <textarea id="prompt" style="height:120px; resize:none;" placeholder="Tell me what you see, I'm listening..."></textarea>
-            <button onclick="activarVoz()" style="position:absolute; right:55px; bottom:12px; border:none; background:white; font-size:24px;">🎤</button>
-            <button onclick="escuchar()" style="position:absolute; right:12px; bottom:12px; border:none; background:#d4af37; border-radius:50%; width:44px; height:44px; color:white; font-size:20px;">🔊</button>
+            <textarea id="prompt" style="height:120px; resize:none; padding-right:100px;" placeholder="Tell me what you see, I'm listening..."></textarea>
+            <button onclick="activarVoz()" style="position:absolute; right:55px; bottom:12px; border:none; background:white; font-size:28px; cursor:pointer;">🎤</button>
+            <button onclick="escuchar()" style="position:absolute; right:12px; bottom:12px; border:none; background:#d4af37; border-radius:50%; width:44px; height:44px; color:white; font-size:20px; cursor:pointer;">🔊</button>
         </div>
 
-        <button id="btn-get" class="btn-main" style="background:#1b5e20; color:white; font-size:18px;" onclick="preRun()">RECEIVE ADVISORY</button>
+        <button id="btn-get" class="btn-main" style="background:#1b5e20; color:white; font-size:18px;" onclick="preRun()">EXECUTE ADVISORY</button>
         <div id="res"></div>
 
         <div class="grid" style="margin-top:15px;">
