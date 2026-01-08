@@ -21,7 +21,7 @@ h3 { text-align:center; margin:5px 0; font-size:13px; color:#d4af37; }
 .role-btn.selected { background:#001d3d; color:white; }
 #res { margin-top:10px; font-size:13px; white-space:pre-wrap; background:#f4f4f4; padding:10px; border-radius:10px; border-left:5px solid #d4af37; display:none; }
 #timer { background:#a8071a; color:white; text-align:center; font-weight:bold; padding:6px; border-radius:8px; display:none; margin-bottom:10px; font-size:12px; letter-spacing:1px; }
-input, textarea { outline:none; transition:0.3s; }
+input, textarea { outline:none; transition:0.3s; border:1px solid #ccc; }
 input:focus, textarea:focus { border:1px solid #d4af37; }
 </style>
 </head>
@@ -37,22 +37,21 @@ input:focus, textarea:focus { border:1px solid #d4af37; }
 <h2>SmartCargo ADVISORY</h2>
 <h3>BY MAY ROGA LLC</h3>
 <div id="subtitle">Protect your money, avoid holds, return merchandise, prevent fines & delays</div>
-<div id="ad">Protect your money and avoid holds.</div>
 <div id="timer">TIME: --:--</div>
 
 <div id="accessSection">
 <div class="grid">
-<button class="btn-main" style="background:#0056b3;font-size:10px;" onclick="pay(5)">Courier $5</button>
-<button class="btn-main" style="background:#0056b3;font-size:10px;" onclick="pay(15)">Standard $15</button>
-<button class="btn-main" style="background:#0056b3;font-size:10px;" onclick="pay(35)">Critical $35</button>
-<button class="btn-main" style="background:#0056b3;font-size:10px;" onclick="pay(95)">Project $95</button>
+<button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="pay(5)">Courier $5</button>
+<button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="pay(15)">Standard $15</button>
+<button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="pay(35)">Critical $35</button>
+<button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="pay(95)">Project $95</button>
 </div>
-<input type="text" id="awb" placeholder="Reference / AWB" style="width:100%; margin-top:5px; padding:10px; border-radius:8px; border:1px solid #ccc;">
+<input type="text" id="awb" placeholder="Reference / AWB" style="width:100%; margin-top:5px; padding:10px; border-radius:8px;">
 <div style="display:flex; gap:5px; margin-top:5px;">
-<input type="text" id="u" placeholder="User" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ccc;">
-<input type="password" id="p" placeholder="Pass" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ccc;">
+<input type="text" id="u" placeholder="User" style="flex:1; padding:10px; border-radius:8px;">
+<input type="password" id="p" placeholder="Pass" style="flex:1; padding:10px; border-radius:8px;">
 </div>
-<button class="btn-main" style="background:#333;" onclick="pay(0)">MASTER ACCESS</button>
+<button class="btn-main" style="background:#333;color:white;" onclick="pay(0)">MASTER ACCESS</button>
 </div>
 
 <div id="mainApp" style="display:none;">
@@ -73,25 +72,21 @@ input:focus, textarea:focus { border:1px solid #d4af37; }
 <span id="txt-capture2" style="color:white; font-size:12px;">📷 Upload Photo 2</span>
 <input type="file" id="f2" accept="image/*" style="display:none;" onchange="scRead(event,2)">
 </div>
-<div class="photo-box" onclick="document.getElementById('f3').click()">
-<img id="v3">
-<span id="txt-capture3" style="color:white; font-size:12px;">📷 Upload Photo 3</span>
-<input type="file" id="f3" accept="image/*" style="display:none;" onchange="scRead(event,3)">
-</div>
 
 <div style="position:relative; margin-top:10px;">
-<textarea id="prompt" style="width:100%; height:90px; padding:10px; border-radius:10px; border:1px solid #ccc; resize:none;" placeholder="Describe your case..."></textarea>
-<button onclick="activarVoz()" style="position:absolute; right:50px; bottom:10px; border:none; background:white; cursor:pointer; font-size:22px; border-radius:50%; width:40px; height:40px; box-shadow:0 2px 5px rgba(0,0,0,0.2);">🎤</button>
-<button onclick="escuchar()" style="position:absolute; right:10px; bottom:10px; border:none; background:#d4af37; cursor:pointer; font-size:22px; border-radius:50%; width:40px; height:40px; box-shadow:0 2px 5px rgba(0,0,0,0.2);">🔊</button>
+<textarea id="prompt" style="width:100%; height:90px; padding:10px; border-radius:10px; resize:none;" placeholder="Describe your case..."></textarea>
+<button onclick="activarVoz()" style="position:absolute; right:50px; bottom:10px; border:none; background:white; cursor:pointer; font-size:22px;">🎤</button>
+<button onclick="escuchar()" style="position:absolute; right:10px; bottom:10px; border:none; background:#d4af37; cursor:pointer; font-size:22px;">🔊</button>
 </div>
 
-<button class="btn-main" style="background:#1b5e20;" onclick="preRun()">GET SOLUTION</button>
+<button class="btn-main" style="background:#1b5e20;color:white;" onclick="preRun()">GET SOLUTION</button>
 <div id="res"></div>
 
 <div class="grid">
-<button class="btn-main" style="background:#25D366;font-size:9px;" onclick="ws()">WhatsApp</button>
-<button class="btn-main" style="background:#0056b3;font-size:9px;" onclick="copy()">Copy</button>
-<button class="btn-main" style="background:#a8071a;font-size:9px;" onclick="limpiar()">Clear</button>
+<button class="btn-main" style="background:#25D366;color:white;font-size:9px;" onclick="ws()">WhatsApp</button>
+<button class="btn-main" style="background:#0056b3;color:white;font-size:9px;" onclick="copy()">Copy</button>
+<button class="btn-main" style="background:#a8071a;color:white;font-size:9px;" onclick="limpiar()">Clear</button>
+</div>
 </div>
 </div>
 <script src="app.js"></script>
