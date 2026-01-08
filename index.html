@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,11 +8,10 @@
     body { background: #000b1a; font-family: sans-serif; padding:10px; margin:0; overflow-x:hidden; }
     .card { max-width: 500px; margin:auto; background:white; border-radius:20px; padding:20px; border-top:10px solid #d4af37; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
     
-    /* Propagandas con movimiento */
     @keyframes mover { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
     .promo-gold { background: #d4af37; color: #000; font-weight: bold; overflow: hidden; white-space: nowrap; padding: 6px; font-size: 12px; margin: -20px -20px 0 -20px; border-radius: 15px 15px 0 0; border-bottom: 1px solid #000; }
     .promo-blue { background: #0056b3; color: #fff; font-weight: bold; overflow: hidden; white-space: nowrap; padding: 6px; font-size: 12px; margin: 0 -20px 15px -20px; border-bottom: 2px solid #000; }
-    .promo-gold span, .promo-blue span { display: inline-block; animation: mover 20s linear infinite; }
+    .promo-gold span, .promo-blue span { display: inline-block; animation: mover 18s linear infinite; }
 
     .legal-banner { background:#111; color:#d4af37; padding:10px; font-size:9px; text-align:center; font-weight:bold; border:1px solid #d4af37; border-radius:10px; margin-bottom:15px; text-transform:uppercase; line-height: 1.2; }
     h2 { text-align:center; margin:0; color:#001d3d; font-size:24px; }
@@ -29,15 +28,15 @@
 </head>
 <body>
 <div class="card">
-    <div class="promo-gold"><span>SOLUCIONES ESTRATÉGICAS 360° BY MAY ROGA LLC - LÍDERES EN ASESORÍA LOGÍSTICA PRIVADA - SMARTCARGO ADVISORY</span></div>
-    <div class="promo-blue"><span>MITIGAMOS RETENCIONES, RETORNOS, AHORRAMOS DINERO, PENSAMOS Y TRABAJAMOS EN TU MERCANCIA</span></div>
+    <div class="promo-gold" id="promoGold"><span>360° STRATEGIC SOLUTIONS BY MAY ROGA LLC - PRIVATE LOGISTICS ADVISORY LEADERS - SMARTCARGO ADVISORY</span></div>
+    <div class="promo-blue" id="promoBlue"><span>WE MITIGATE HOLDS, RETURNS, SAVE MONEY, WE THINK AND WORK ON YOUR CARGO</span></div>
     
     <select id="userLang" onchange="changeLang(this.value)" style="width:100%; font-weight:bold; border:2px solid #001d3d; margin-bottom:10px; padding:12px; border-radius:8px;">
-        <option value="es">🇪🇸 SISTEMA ESPAÑOL</option>
         <option value="en">🇺🇸 ENGLISH SYSTEM</option>
+        <option value="es">🇪🇸 SISTEMA ESPAÑOL</option>
     </select>
 
-    <div class="legal-banner" id="txt-legal">ASESORÍA PRIVADA INDEPENDIENTE. NO SOMOS IATA, DOT, TSA O CBP. NUESTRAS RESPUESTAS SON SUGERENCIAS ESTRATÉGICAS.</div>
+    <div class="legal-banner" id="txt-legal">INDEPENDENT PRIVATE ADVISORY. WE ARE NOT IATA, DOT, TSA, OR CBP. OUR RESPONSES ARE STRATEGIC SUGGESTIONS.</div>
 
     <h2>SmartCargo ADVISORY</h2>
     <h3>BY MAY ROGA LLC</h3>
@@ -51,48 +50,48 @@
         </div>
         <input type="text" id="awb" placeholder="REF # / AWB / B/L" style="margin-top:5px;">
         <div style="display:flex; gap:5px; margin-top:5px;">
-            <input type="text" id="u" placeholder="Usuario">
-            <input type="password" id="p" placeholder="Clave">
+            <input type="text" id="u" placeholder="Username">
+            <input type="password" id="p" placeholder="Password">
         </div>
-        <button id="btn-master" class="btn-main" style="background:#333;color:white;" onclick="pay(0)">ACCESO MASTER</button>
+        <button id="btn-master" class="btn-main" style="background:#333;color:white;" onclick="pay(0)">MASTER ACCESS</button>
     </div>
 
     <div id="mainApp" style="display:none;">
         <div class="grid">
-            <div class="role-btn" onclick="selRole('Driver',this)">Chofer</div>
-            <div class="role-btn" onclick="selRole('Agent',this)">Agente</div>
-            <div class="role-btn" onclick="selRole('Warehouse',this)">Bodega</div>
-            <div class="role-btn" onclick="selRole('Owner',this)">Dueño</div>
+            <div class="role-btn" id="role1" onclick="selRole('Driver',this)">Driver</div>
+            <div class="role-btn" id="role2" onclick="selRole('Agent',this)">Agent</div>
+            <div class="role-btn" id="role3" onclick="selRole('Warehouse',this)">Warehouse</div>
+            <div class="role-btn" id="role4" onclick="selRole('Owner',this)">Owner</div>
         </div>
 
         <div class="grid">
             <div class="photo-box" onclick="document.getElementById('f1').click()">
-                <img id="v1"><span id="txt-capture1" style="color:#d4af37; font-size:11px; font-weight:bold;">📷 DAME EL DOC 1</span>
+                <img id="v1"><span id="txt-capture1" style="color:#d4af37; font-size:11px; font-weight:bold;">📷 GIVE ME DOC 1</span>
                 <input type="file" id="f1" accept="image/*" style="display:none;" onchange="scRead(event,1)">
             </div>
             <div class="photo-box" onclick="document.getElementById('f2').click()">
-                <img id="v2"><span id="txt-capture2" style="color:#d4af37; font-size:11px; font-weight:bold;">📷 DAME EL DOC 2</span>
+                <img id="v2"><span id="txt-capture2" style="color:#d4af37; font-size:11px; font-weight:bold;">📷 GIVE ME DOC 2</span>
                 <input type="file" id="f2" accept="image/*" style="display:none;" onchange="scRead(event,2)">
             </div>
             <div class="photo-box" onclick="document.getElementById('f3').click()">
-                <img id="v3"><span id="txt-capture3" style="color:#d4af37; font-size:11px; font-weight:bold;">📷 DAME EL DOC 3</span>
+                <img id="v3"><span id="txt-capture3" style="color:#d4af37; font-size:11px; font-weight:bold;">📷 GIVE ME DOC 3</span>
                 <input type="file" id="f3" accept="image/*" style="display:none;" onchange="scRead(event,3)">
             </div>
         </div>
 
         <div style="position:relative; margin-top:10px;">
-            <textarea id="prompt" style="height:120px; resize:none;" placeholder="Dime qué tienes ahí, te escucho..."></textarea>
+            <textarea id="prompt" style="height:120px; resize:none;" placeholder="Tell me what you see, I'm listening..."></textarea>
             <button onclick="activarVoz()" style="position:absolute; right:55px; bottom:12px; border:none; background:white; font-size:24px;">🎤</button>
             <button onclick="escuchar()" style="position:absolute; right:12px; bottom:12px; border:none; background:#d4af37; border-radius:50%; width:44px; height:44px; color:white; font-size:20px;">🔊</button>
         </div>
 
-        <button id="btn-get" class="btn-main" style="background:#1b5e20; color:white; font-size:18px;" onclick="preRun()">RECIBIR ASESORÍA</button>
+        <button id="btn-get" class="btn-main" style="background:#1b5e20; color:white; font-size:18px;" onclick="preRun()">RECEIVE ADVISORY</button>
         <div id="res"></div>
 
         <div class="grid" style="margin-top:15px;">
             <button class="btn-main" style="background:#25D366;color:white;font-size:10px;" onclick="ws()">WhatsApp</button>
-            <button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="copy()">Copiar</button>
-            <button id="btn-clear" class="btn-main" style="background:#a8071a;color:white;font-size:10px;" onclick="limpiar()">NUEVA CONSULTA</button>
+            <button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="copy()">Copy</button>
+            <button id="btn-clear" class="btn-main" style="background:#a8071a;color:white;font-size:10px;" onclick="limpiar()">NEW CONSULTATION</button>
         </div>
     </div>
 </div>
