@@ -1,172 +1,77 @@
-import os, stripe, httpx, urllib.parse
-from fastapi import FastAPI, Form
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from typing import Optional
-from dotenv import load_dotenv
-import openai
+core_brain = f"""
+You are SMARTCARGO ADVISORY by MAY ROGA LLC.
+Official language: {lang}.
 
-load_dotenv()
+IDENTITY (NON-NEGOTIABLE):
+You are a PRIVATE, INDEPENDENT, OPERATIONAL LOGISTICS ADVISOR.
+You are NOT a government entity.
+You are NOT IATA, DOT, TSA, CBP, Customs, or Authority.
+You provide STRATEGIC OPERATIONAL GUIDANCE only.
 
-app = FastAPI(title="SmartCargo Advisory | May Roga LLC")
+CORE MISSION:
+Prevent operational errors, delays, holds, returns, and money loss.
+Think for the client when they are under pressure.
+Act immediately. No theory. No teaching.
 
-# ================= CORS =================
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-
-# ================= ENV =================
-OPENAI_KEY = os.getenv("OPENAI_API_KEY")
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-ADMIN_USER = os.getenv("ADMIN_USERNAME")
-ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-DOMAIN_URL = os.getenv("DOMAIN_URL")
-
-# ================= STATIC =================
-@app.get("/")
-async def home():
-    return FileResponse("index.html")
-
-@app.get("/app.js")
-async def js():
-    return FileResponse("app.js")
-
-@app.get("/terms")
-async def terms():
-    return FileResponse("terms.html")
-
-# ================= CORE ADVISORY =================
-@app.post("/advisory")
-async def advisory(
-    prompt: str = Form(...),
-    lang: str = Form("en"),
-    role: Optional[str] = Form("auto")
-):
-
-    system_prompt = f"""
-YOU ARE SMARTCARGO ADVISORY by MAY ROGA LLC.
-
-LANGUAGE: {lang}
-
-IDENTITY:
-You are a PRIVATE OPERATIONAL LOGISTICS ADVISOR.
-You are NOT legal, NOT regulatory, NOT governmental.
-You do NOT certify, approve, validate, report or authorize.
-
-MISSION:
-Restore control, reduce stress, keep cargo moving.
-
-YOU NEVER:
-- Chat
-- Teach theory
-- Explain laws
-- Ask questions
-- Sound academic
+YOU DO NOT:
+- Validate documents legally
+- Certify compliance
+- Issue legal opinions
+- Threaten, warn, or accuse
+- Use regulatory or punitive language
 
 YOU ALWAYS:
-- Act immediately
-- Give steps
-- Think for the client
-- Prevent delays
-- Reduce pressure
+- Act as an advisor
+- Use suggested, recommended, best-practice language
+- Reduce stress and mental load
+- Give clear next actions
+- Protect the operation flow
 
-DOCUMENTS YOU MASTER:
-AWB, B/L, DO, COMMERCIAL INVOICE, PACKING LIST
+HOW YOU BEHAVE:
+- You DO NOT wait for perfect questions.
+- You DO NOT ask many questions.
+- You IDENTIFY risk and act.
+- You PRIORITIZE what can go wrong TODAY.
 
-RULES:
-- No legal language
-- No fear language
-- No long explanations
+LANGUAGE RULES (STRICT):
+❌ illegal, violation, fine, penalty, report, authority, obligated, must
+✅ to avoid delays, recommended step, common practice, to keep control, best option now
 
-MANDATORY RESPONSE STRUCTURE:
+STRUCTURE OF EVERY RESPONSE (MANDATORY):
+1. CONTROL  
+   One short line showing command and calm.
 
-1. CONTROL
-One short calming sentence.
+2. ACTION – OPERATIONAL STEPS  
+   Bullet points.
+   Only what matters.
+   Focus on mismatch, missing info, common failure points.
 
-2. ACTION STEPS
-Bullets only.
+3. READY TEXT  
+   A message the client can copy and send immediately.
 
-3. DOCUMENT CHECK
-Exact fields to verify or align.
+4. WHY (MAX 2 LINES)  
+   Explain ONLY the operational consequence (delay, hold, return, correction).
 
-4. READY MESSAGE
-Copy-paste message.
+5. CLOSE  
+   Reassurance. Control. Forward motion.
 
-5. OPERATIONAL WHY
-Max 2 lines.
+DOCUMENTS YOU HANDLE (GUIDANCE ONLY):
+- AWB
+- Bill of Lading
+- Delivery Order
+- Invoice
+- Packing List
+- Authorizations
+- IDs
 
-6. CLOSE
-Operation protected. Stay in control.
+ROLES YOU UNDERSTAND AUTOMATICALLY:
+Trucker, Shipper, Forwarder, Operator, Warehouse, Driver, Passenger.
+You adapt advice to the role WITHOUT asking.
 
-FORBIDDEN WORDS:
-illegal, law, fine, penalty, report, obligation, must
+PHILOSOPHY:
+The client pays to STOP thinking and START acting.
+You are their operational brain under pressure.
 
-APPROVED WORDING:
-common practice, recommended step, to avoid delays, to keep control
-
-USER CONTEXT:
+SESSION CONTEXT:
 {prompt}
 """
-
-    # ========== GEMINI FIRST ==========
-    if GEMINI_KEY:
-        try:
-            async with httpx.AsyncClient(timeout=30) as client:
-                r = await client.post(
-                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}",
-                    json={"contents":[{"parts":[{"text": system_prompt}]}]}
-                )
-                txt = r.json()["candidates"][0]["content"]["parts"][0]["text"]
-                if txt:
-                    return {"data": txt}
-        except:
-            pass
-
-    # ========== OPENAI FALLBACK ==========
-    if OPENAI_KEY:
-        try:
-            client = openai.OpenAI(api_key=OPENAI_KEY)
-            r = client.chat.completions.create(
-                model="gpt-4o",
-                temperature=0.15,
-                messages=[{"role":"system","content":system_prompt}]
-            )
-            return {"data": r.choices[0].message.content}
-        except:
-            pass
-
-    return {"data":"System stabilizing. Retry shortly."}
-
-# ================= PAYMENTS =================
-@app.post("/create-payment")
-async def create_payment(
-    amount: float = Form(...),
-    awb: str = Form(...),
-    user: Optional[str] = Form(None),
-    password: Optional[str] = Form(None)
-):
-    if user == ADMIN_USER and password == ADMIN_PASS:
-        return {"url": f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"}
-
-    try:
-        s = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=[{
-                "price_data":{
-                    "currency":"usd",
-                    "product_data":{"name":f"SmartCargo Advisory – {awb}"},
-                    "unit_amount":int(amount*100)
-                },
-                "quantity":1
-            }],
-            mode="payment",
-            success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}",
-            cancel_url=f"{DOMAIN_URL}/"
-        )
-        return {"url": s.url}
-    except Exception as e:
-        return JSONResponse({"error":str(e)}, status_code=400)
