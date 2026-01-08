@@ -5,27 +5,25 @@ let chatHistory = "";
 
 const i18n = {
     en: {
-        legal: "PRIVATE ADVISORY. MAY ROGA LLC IS NOT IATA, DOT, TSA, OR CBP. WE PROVIDE STRATEGIC SUGGESTIONS.",
+        legal: "PRIVATE ADVISORY. MAY ROGA LLC IS NOT IATA, DOT, TSA, OR CBP. STRATEGIC SUGGESTIONS.",
         capture: "📷 SEND DOC / PHOTO",
-        get: "RECEIVE ADVISORY",
-        prompt: "Tell me what you see, I'm here to suggest the best path...",
-        analyzing: "MAY ROGA LLC | ANALYZING STRATEGY...",
-        askMomento: "When is this happening? \n1. Just starting \n2. Current issue \n3. Post-issue adjustment",
-        askQueVe: "What do you have there? \n1. Papers (AWB, Invoices) \n2. Things (Boxes, Liquids, Smells) \n3. Authority (Police, Customs) \n4. Not sure",
-        roleAlert: "Please select your role",
-        copied: "Copied",
+        get: "GET ADVISORY",
+        prompt: "Tell me what you see, I'm here to suggest...",
+        analyzing: "MAY ROGA LLC | ANALYZING...",
+        askMomento: "When is this? \n1. Starting \n2. Current Issue \n3. Post-issue",
+        askQueVe: "What's in your hand? \n1. Papers \n2. Cargo \n3. Authority \n4. Not sure",
+        roleAlert: "Select your role",
         clear: "NEW SESSION"
     },
     es: {
-        legal: "ASESORÍA PRIVADA. MAY ROGA LLC NO ES IATA, DOT, TSA O CBP. PROVEEMOS SUGERENCIAS ESTRATÉGICAS.",
+        legal: "ASESORÍA PRIVADA. MAY ROGA LLC NO ES IATA, DOT, TSA O CBP. SUGERENCIAS ESTRATÉGICAS.",
         capture: "📷 MÁNDAME EL DOC / FOTO",
         get: "RECIBIR ASESORÍA",
         prompt: "Dime qué tienes ahí, te escucho para asesorarte...",
         analyzing: "MAY ROGA LLC | ANALIZANDO ESTRATEGIA...",
-        askMomento: "¿Cuándo está pasando esto? \n1. Voy empezando apenas \n2. Tengo un problema ahora \n3. Ya pasó el lío",
-        askQueVe: "¿Qué tienes a la mano? \n1. Papeles (Guías, Facturas) \n2. Cosas (Cajas, Líquidos, Olores) \n3. Autoridad (Policía, Aduana) \n4. No sé",
-        roleAlert: "Por favor selecciona tu rol",
-        copied: "Copiado",
+        askMomento: "¿Cuándo pasa esto? \n1. Empezando \n2. Problema ahora \n3. Ya pasó",
+        askQueVe: "¿Qué tienes en la mano? \n1. Papeles \n2. Carga \n3. Autoridad \n4. No sé",
+        roleAlert: "Selecciona tu rol",
         clear: "NUEVA CONSULTA"
     }
 };
@@ -97,12 +95,11 @@ async function run() {
     if (!role) return alert(i18n[l].roleAlert);
     const out = document.getElementById('res');
     const userInput = document.getElementById('prompt').value || "Check";
-    
     out.style.display = "block";
     out.innerText = i18n[l].analyzing;
 
     const fd = new FormData();
-    fd.append("prompt", `History: ${chatHistory}. Current: ${userInput}. Role: ${role}. Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}`);
+    fd.append("prompt", `HISTORIAL: ${chatHistory}. CASO ACTUAL: ${userInput}. ROL: ${role}. ETAPA: ${consultInfo.momento}. VISION: ${consultInfo.queVe}`);
     fd.append("lang", l);
 
     try {
@@ -110,7 +107,7 @@ async function run() {
         const d = await r.json();
         out.innerText = d.data;
         chatHistory += ` | User: ${userInput} | Advisor: ${d.data}`; 
-    } catch (e) { out.innerText = "Error."; }
+    } catch (e) { out.innerText = "Error de conexión."; }
 }
 
 function activarVoz() {
