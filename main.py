@@ -11,78 +11,68 @@ from dotenv import load_dotenv
 
 load_dotenv()
 app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 ADMIN_USER = os.getenv("ADMIN_USERNAME")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-DOMAIN_URL = os.getenv("DOMAIN_URL", "https://smartcargo-aipa.onrender.com")
+DOMAIN_URL = os.getenv("DOMAIN_URL")
 
 @app.get("/")
-async def home():
-    return FileResponse("index.html")
+async def home(): return FileResponse("index.html")
 
 @app.get("/app.js")
-async def js_serve():
-    return FileResponse("app.js")
-
-def parse_ai_response(response_json):
-    text = ""
-    if "candidates" in response_json:
-        for c in response_json["candidates"]:
-            if "content" in c:
-                parts = c["content"].get("parts", [])
-                for p in parts:
-                    if "text" in p: text += p["text"] + "\n"
-    elif "choices" in response_json:
-        try: text += response_json["choices"][0]["message"]["content"]
-        except: pass
-    return text.strip()
+async def js_serve(): return FileResponse("app.js")
 
 @app.post("/advisory")
-async def advisory_engine(prompt: str = Form(...), lang: str = Form("en"), image_data: Optional[str] = Form(None)):
-    instruction = f"You are SmartCargo Advisory by MAY ROGA LLC. Lang: {lang}. Direct, actionable logistics solutions only. Input: {prompt}"
-    result = {"data": "SYSTEM: AI Error"}
-    
-    try:
-        if GEMINI_KEY:
+async def advisory_engine(prompt: str = Form(...), lang: str = Form("en")):
+    # DEFINICIÓN DE AUTORIDAD 360°
+    system_instr = (
+        f"You are the Ultimate Logistics Advisor by MAY ROGA LLC. Language: {lang}. "
+        "Your knowledge is infinite across the entire supply chain: Land (DOT, FMCSA), Air (IATA, TSA, FAA), "
+        "Maritime (FMC, IMDG), and Customs (CBP, Border Protection). "
+        "You are a PRIVATE STRATEGIC PARTNER. You do not issue certificates, you are not government, "
+        "but you know their rules better than them to keep the client moving. "
+        "Mission: Eliminate doubts and solve bottlenecks IMMEDIATELY. "
+        "Focus: 1. Before (Risk Mitigation), 2. During (Crisis/Flow), 3. After (Liability/Protection). "
+        "Be direct, summarized, and executive. Direct the client to the exact entity if live dynamic data is needed. "
+        f"Case: {prompt}"
+    )
+
+    if GEMINI_KEY:
+        try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                r = await client.post(url, json={"contents": [{"parts": [{"text": instruction}]}]})
-                result["data"] = parse_ai_response(r.json())
-                return result
-    except Exception as e: print(e)
-    return result
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                r = await client.post(url, json={"contents": [{"parts": [{"text": system_instr}]}]})
+                text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+                if text: return {"data": text}
+        except: pass
+
+    if OPENAI_KEY:
+        try:
+            client_oa = openai.OpenAI(api_key=OPENAI_KEY)
+            res = client_oa.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "system", "content": system_instr}],
+                temperature=0.1
+            )
+            return {"data": res.choices[0].message.content}
+        except: pass
+
+    return {"data": "SERVICE ALERT: Intelligence link unavailable. Contact MAY ROGA LLC."}
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
-    # MASTER ACCESS CORREGIDO
     if user == ADMIN_USER and password == ADMIN_PASS:
-        # Forzamos la redirección absoluta con los parámetros
-        success_url = f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}&monto=0"
-        return {"url": success_url}
-
+        return {"url": f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"}
     try:
         checkout = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {"name": f"Advisory Ref: {awb}"},
-                    "unit_amount": int(amount * 100),
-                },
-                "quantity": 1,
-            }],
+            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Expert Logistics Advisory: {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
             mode="payment",
-            success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}&monto={amount}",
+            success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}",
             cancel_url=f"{DOMAIN_URL}/",
         )
         return {"url": checkout.url}
