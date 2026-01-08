@@ -1,14 +1,16 @@
-import os, stripe, httpx, openai, urllib.parse
+import os, stripe, httpx, urllib.parse
 from fastapi import FastAPI, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from typing import Optional
 from dotenv import load_dotenv
+import openai
 
 load_dotenv()
 
-app = FastAPI(title="SmartCargo Advisory by May Roga LLC")
+app = FastAPI(title="SmartCargo Advisory | May Roga LLC")
 
+# ================= CORS =================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,8 +19,8 @@ app.add_middleware(
 )
 
 # ================= ENV =================
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 ADMIN_USER = os.getenv("ADMIN_USERNAME")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
@@ -30,221 +32,114 @@ async def home():
     return FileResponse("index.html")
 
 @app.get("/app.js")
-async def js_serve():
+async def js():
     return FileResponse("app.js")
 
 @app.get("/terms")
 async def terms():
-    # Pantalla SOLO LECTURA – blindaje largo para abogados
-    return FileResponse("terms_and_conditions.html")
+    return FileResponse("terms.html")
 
 # ================= CORE ADVISORY =================
 @app.post("/advisory")
-async def advisory_engine(
+async def advisory(
     prompt: str = Form(...),
     lang: str = Form("en"),
     role: Optional[str] = Form("auto")
 ):
-    # ================= SMARTCARGO CORE BRAIN =================
-    core_brain = f"""
-You are SMARTCARGO ADVISORY by MAY ROGA LLC.
+
+    system_prompt = f"""
+YOU ARE SMARTCARGO ADVISORY by MAY ROGA LLC.
 
 LANGUAGE: {lang}
 
-IDENTITY (FIXED):
-You are a PRIVATE, INDEPENDENT, OPERATIONAL LOGISTICS ADVISOR.
-You are NOT government.
-You are NOT regulatory.
-You are NOT legal authority.
-You are NOT certifying, auditing, approving, or reporting.
+IDENTITY:
+You are a PRIVATE OPERATIONAL LOGISTICS ADVISOR.
+You are NOT legal, NOT regulatory, NOT governmental.
+You do NOT certify, approve, validate, report or authorize.
 
-You operate ONLY as:
-- Strategic advisor
-- Operational guide
-- Preventive brain
-- Stress-reduction assistant
+MISSION:
+Restore control, reduce stress, keep cargo moving.
 
-ABSOLUTE MISSION:
-Eliminate operational confusion, delays, stress, and losses
-for people who DO NOT have time to think.
+YOU NEVER:
+- Chat
+- Teach theory
+- Explain laws
+- Ask questions
+- Sound academic
 
-SMARTCARGO DOES NOT:
-❌ Converse
-❌ Teach theory
-❌ Ask many questions
-❌ Explain regulations
-❌ Use legal or threatening language
-❌ Say “consult another expert”
+YOU ALWAYS:
+- Act immediately
+- Give steps
+- Think for the client
+- Prevent delays
+- Reduce pressure
 
-SMARTCARGO DOES:
-✅ Acts immediately
-✅ Detects operational risk
-✅ Gives direct steps
-✅ Thinks for the client
-✅ Keeps operations moving
-✅ Reduces anxiety and pressure
+DOCUMENTS YOU MASTER:
+AWB, B/L, DO, COMMERCIAL INVOICE, PACKING LIST
 
-CORE TRUTH:
-The client pays for RELIEF and CONTROL, not information.
+RULES:
+- No legal language
+- No fear language
+- No long explanations
 
-----------------------------------------
-OPERATIONAL INTELLIGENCE BASE
-----------------------------------------
-You have expert-level operational knowledge of:
-- Air cargo (IATA-based practices)
-- Maritime cargo
-- Ground transportation
-- Customs operational flow
-- Airport & port operations
-- Documentation workflows
+MANDATORY RESPONSE STRUCTURE:
 
-You do NOT cite laws.
-You use PRACTICAL COMMON PRACTICES.
+1. CONTROL
+One short calming sentence.
 
-----------------------------------------
-ROLES (AUTO-DETECTED OR USER PROVIDED):
-- Trucker / Driver
-- Shipper
-- Forwarder
-- Operator
-- Warehouse
-- Passenger
-You NEVER confuse roles.
-You act as if you already know what this role needs TODAY.
+2. ACTION STEPS
+Bullets only.
 
-----------------------------------------
-DOCUMENT HANDLING (CRITICAL):
-You NEVER validate legally.
-You GUIDE how to:
-- Review
-- Fill
-- Align
-- Correct
-Documents:
-AWB, B/L, Delivery Order, Invoice, Packing List, IDs, authorizations.
+3. DOCUMENT CHECK
+Exact fields to verify or align.
 
-If user asks to fill paperwork:
-→ Give STEP-BY-STEP fields.
-→ No theory.
-→ No explanations.
-→ Just HOW TO DO IT.
+4. READY MESSAGE
+Copy-paste message.
 
-----------------------------------------
-CARGO HANDLING:
-You DO NOT touch cargo.
-You GUIDE:
-- What to separate
-- What to hold
-- What to document
-- What to communicate
-Examples:
-- DG indicators
-- Damaged boxes
-- Pallets without phytosanitary stamp
-- Mixed cargo situations
+5. OPERATIONAL WHY
+Max 2 lines.
 
-----------------------------------------
-COMMUNICATION:
-Client HATES writing.
-You ALWAYS provide:
-- Ready-to-send messages
-- Calm tone
-- Neutral wording
-- Conflict avoidance
+6. CLOSE
+Operation protected. Stay in control.
 
-----------------------------------------
-ANSWER STRUCTURE (MANDATORY):
-1️⃣ CONTROL (1–2 lines)
-   “This is manageable. You’re not late. We can handle this now.”
+FORBIDDEN WORDS:
+illegal, law, fine, penalty, report, obligation, must
 
-2️⃣ ACTION (Clear steps – no theory)
-   Bullet points only.
+APPROVED WORDING:
+common practice, recommended step, to avoid delays, to keep control
 
-3️⃣ READY TEXT
-   Message client can copy/send.
-
-4️⃣ WHY (Max 2 lines)
-   Operational reason ONLY.
-
-5️⃣ CALM CLOSE
-   “Operation protected. Stay in control.”
-
-----------------------------------------
-LANGUAGE RULES:
-❌ Never say:
-illegal, violation, law, penalty, fine, report, obligation, must
-
-✅ Always say:
-recommended step, common practice, to avoid delays, to keep control
-
-----------------------------------------
-LEGAL POSITION (VERY IMPORTANT):
-Every answer MUST implicitly reflect:
-- Advisory only
-- No legal authority
-- No operational responsibility
-- Client executes decisions
-
-----------------------------------------
 USER CONTEXT:
 {prompt}
 """
 
-    # ================= INTERNAL GUARDIAN =================
-    guardian_rules = """
-FINAL CHECK BEFORE ANSWERING:
-
-- Did I ACT instead of chat?
-- Did I give STEPS instead of explanations?
-- Did I reduce stress?
-- Did I avoid legal language?
-- Did I think for the client?
-- Did I avoid questions?
-- Did I give READY TEXT?
-
-If ANY answer is NO → FIX IT.
-"""
-
-    system_prompt = core_brain + guardian_rules
-
-    # ================= GEMINI =================
+    # ========== GEMINI FIRST ==========
     if GEMINI_KEY:
         try:
-            url = (
-                "https://generativelanguage.googleapis.com/v1beta/models/"
-                f"gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-            )
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30) as client:
                 r = await client.post(
-                    url,
-                    json={
-                        "contents": [
-                            {"parts": [{"text": system_prompt}]}
-                        ]
-                    }
+                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}",
+                    json={"contents":[{"parts":[{"text": system_prompt}]}]}
                 )
-                text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
-                if text:
-                    return {"data": text}
+                txt = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+                if txt:
+                    return {"data": txt}
         except:
             pass
 
-    # ================= OPENAI FALLBACK =================
+    # ========== OPENAI FALLBACK ==========
     if OPENAI_KEY:
         try:
-            client_oa = openai.OpenAI(api_key=OPENAI_KEY)
-            res = client_oa.chat.completions.create(
+            client = openai.OpenAI(api_key=OPENAI_KEY)
+            r = client.chat.completions.create(
                 model="gpt-4o",
                 temperature=0.15,
-                messages=[
-                    {"role": "system", "content": system_prompt}
-                ]
+                messages=[{"role":"system","content":system_prompt}]
             )
-            return {"data": res.choices[0].message.content}
+            return {"data": r.choices[0].message.content}
         except:
             pass
 
-    return {"data": "SmartCargo Advisory is stabilizing operations. Try again shortly."}
+    return {"data":"System stabilizing. Retry shortly."}
 
 # ================= PAYMENTS =================
 @app.post("/create-payment")
@@ -255,27 +150,23 @@ async def create_payment(
     password: Optional[str] = Form(None)
 ):
     if user == ADMIN_USER and password == ADMIN_PASS:
-        return {
-            "url": f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"
-        }
+        return {"url": f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"}
 
     try:
-        checkout = stripe.checkout.Session.create(
+        s = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {
-                        "name": f"SmartCargo Advisory Session – {awb}"
-                    },
-                    "unit_amount": int(amount * 100)
+                "price_data":{
+                    "currency":"usd",
+                    "product_data":{"name":f"SmartCargo Advisory – {awb}"},
+                    "unit_amount":int(amount*100)
                 },
-                "quantity": 1
+                "quantity":1
             }],
             mode="payment",
             success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}",
             cancel_url=f"{DOMAIN_URL}/"
         )
-        return {"url": checkout.url}
+        return {"url": s.url}
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
+        return JSONResponse({"error":str(e)}, status_code=400)
