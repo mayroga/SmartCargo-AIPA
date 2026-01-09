@@ -1,17 +1,22 @@
-import os, stripe, httpx, openai, urllib.parse
+import os, stripe, httpx, openai, urllib.parse, logging
 from fastapi import FastAPI, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from typing import Optional
 from dotenv import load_dotenv
 
+# Configuración de Logs para producción
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 
 app = FastAPI(title="SmartCargo Advisory by May Roga LLC")
 
+# ================= CORS =================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Cambiar por dominio real en producción
     allow_methods=["*"],
     allow_headers=["*"]
 )
@@ -46,61 +51,65 @@ async def advisory_engine(
 ):
     """
     SMARTCARGO ADVISORY by May Roga LLC - Brain Core
-    - SESOR privado: documentación logística, borradores, preguntas estratégicas.
-    - Blindaje legal: No autoridad, no certificación, no gobierno.
+    - Genera borradores completos y preguntas estratégicas.
+    - Cubre múltiples escenarios: DG, Dry Ice, TSA, IATA, DOT, Aduanas.
+    - Calcula peso cobrable automáticamente si se proporcionan dimensiones.
     """
 
+    # ================= Brain Core =================
     core_brain = f"""
 SMARTCARGO ADVISORY by May Roga LLC
 Official language: {lang}
 
-IDENTIDAD (NO NEGOCIABLE):
-- Asesoría logística privada e independiente (SESOR).
+IDENTIDAD SESOR (NO NEGOCIABLE):
+- Asesoría logística privada e independiente.
 - No somos autoridad (DOT, TSA, CBP, IATA). No certificamos.
 - Generamos borradores y guías operativas.
+
+CAMPOS CRÍTICOS POR DOCUMENTO:
+AWB: Shipper/Consignee, Airport Codes, Weight/Volume, Handling Info (Dry Ice, DG)
+Invoice: Incoterm 2020, Currency, Description, Unit Price, HS Code sugerido
+Packing List: Net/Gross Weight, Dimensions, Type of Packing, Marks & Numbers
+
+RESUMEN DE CUMPLIMIENTO SESOR:
+1. SmartCargo proyecta el documento (Draft).
+2. Cliente revisa y valida.
+3. Cliente firma y oficializa.
+> Esta división protege de confusión con entidad certificadora o gubernamental.
+
+LÓGICA DE PAGO Y CÁLCULO DE PESO:
+- Si el usuario provee dimensiones (LxWxH en cm) y peso bruto:
+  1️⃣ Calcular Peso Volumétrico = (L * W * H)/6000
+  2️⃣ Comparar Peso Bruto vs Volumétrico
+  3️⃣ Mayor valor = PESO COBRABLE
+  4️⃣ Incluir siempre en 2️⃣ ACTION
 
 MISIÓN CENTRAL:
 - Detectar documentos, mercancías y riesgos.
 - Generar borradores listos de AWB, B/L, Invoice, Packing List, SLI, etc.
 - Formular preguntas abiertas estratégicas si faltan datos.
-- Cubrir cualquier escenario: DG, TSA, IATA, DOT, aduanas, mercancías especiales.
-- Evitar retrasos y pérdidas.
-
-DOCUMENTOS Y CAMPOS CRÍTICOS:
-AWB: Shipper/Consignee, Airport Codes, Weight/Volume, Handling Info (Dry Ice, DG)
-Invoice: Incoterm, Currency, Description, Unit Price, HS Code sugerido
-Packing List: Net/Gross Weight, Dimensions, Type of Packing, Marks & Numbers
-
-RESUMEN DE CUMPLIMIENTO SESOR:
-- SmartCargo proyecta el documento (Draft)
-- El cliente revisa y valida
-- El cliente firma y oficializa
-Esto protege de ser confundido con autoridad o certificador.
+- Cubrir escenarios: DG, Hielo Seco, TSA, IATA, DOT, Aduanas.
+- Adaptarse a cualquier cargo, cliente o regulación que aparezca.
 
 REGLAS DE RESPUESTA:
-1️⃣ CONTROL – Una línea de calma y dirección
-2️⃣ ACTION – Pasos operativos estratégicos
-3️⃣ READY TEXT / DRAFT – Borrador completo o mensaje listo
-4️⃣ WHY – Impacto operativo (evitar retenciones, retrasos, errores)
-5️⃣ CLOSE – Reaseguro de flujo y operación
-
-PREGUNTAS ABIERTAS SI FALTAN DATOS:
-- Shipper / Consignee completo
-- Airport Codes de origen y destino
-- Peso y dimensiones exactas
-- ¿Se usa Dry Ice o DG? Indicar cantidad y UN Number / Class
-- Clasificación DG si aplica
-- Documentos faltantes (AWB, Invoice, Packing List, SLI)
-- Requerimientos aduaneros especiales
-- Observaciones de transporte (TSA, IATA, DOT, aduanas)
-- ¿Alguna instrucción especial de handling o carga?
+1️⃣ CONTROL – Línea de calma y dirección técnica.
+2️⃣ ACTION – Pasos operativos + Cálculos + Preguntas estratégicas resaltadas.
+3️⃣ READY TEXT / DRAFT – Borrador completo o mensaje listo para enviar.
+4️⃣ WHY – Impacto operativo (evitar costos, retrasos o conflictos).
+5️⃣ CLOSE – Reaseguro de flujo.
 
 REGLAS DE LENGUAJE:
 ❌ illegal, violation, fine, penalty, report, authority, must
-✅ recommended step, operational risk, document mismatch, flow optimization, to avoid delays
+✅ recommended step, operational risk, document mismatch, to avoid delays
 
-PHILOSOFÍA:
-El cliente paga para que SMARTCARGO piense y actúe. Generamos borradores y preguntas estratégicas, incluso si faltan datos.
+PREGUNTAS ESTRATÉGICAS CLARAS:
+- ¿Shipper y Consignee completos?
+- ¿Airport Codes correctos?
+- ¿Peso Bruto y dimensiones disponibles?
+- ¿Uso de Dry Ice? Indicar cantidad y UN Number.
+- ¿Tipo de mercancía peligrosa (DG)? Clase y número UN.
+- ¿Incoterm, moneda y descripción de la Invoice?
+- ¿Packing List: Net/Gross, dimensiones, tipo de packing, marks & numbers?
 
 CONTEXTO DE SESIÓN:
 {prompt}
@@ -108,9 +117,9 @@ CONTEXTO DE SESIÓN:
 
     guardian_rules = """
 FINAL CHECK:
-- ¿Generé borradores completos o con placeholders visibles si faltan datos?
-- ¿Formulé todas las preguntas estratégicas abiertas necesarias?
-- ¿Evité lenguaje legal y de autoridad?
+- ¿Calculé el peso cobrable si hay dimensiones?
+- ¿Generé borrador de todos los documentos solicitados?
+- ¿Hice todas las preguntas estratégicas necesarias para claridad total?
 """
 
     disclaimer = "\n\nLEGAL NOTE: SmartCargo Advisory by May Roga LLC provides operational drafts and strategic guidance. This is not a legal certification. Final compliance and signatures are the responsibility of the Shipper/User."
@@ -124,7 +133,7 @@ FINAL CHECK:
                 "https://generativelanguage.googleapis.com/v1beta/models/"
                 f"gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
             )
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 r = await client.post(
                     url,
                     json={"contents": [{"parts": [{"text": system_prompt}]}]}
@@ -132,8 +141,8 @@ FINAL CHECK:
                 text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
                 if text:
                     return {"data": text}
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Gemini Error: {e}")
 
     # ================= OPENAI FALLBACK =================
     if OPENAI_KEY:
@@ -143,14 +152,14 @@ FINAL CHECK:
             res = await client_oa.chat.completions.create(
                 model="gpt-4o",
                 temperature=0.15,
-                messages=[{"role": "system", "content": system_prompt}]
+                messages=[{"role": "system", "content": system_prompt}],
+                timeout=60.0
             )
             return {"data": res.choices[0].message.content}
         except Exception as e:
-            print(f"OpenAI Error: {e}")
-            pass
+            logger.error(f"OpenAI Error: {e}")
 
-    return {"data": "SMARTCARGO ADVISORY by May Roga LLC is analyzing the situation. Please retry shortly."}
+    return {"data": "SMARTCARGO ADVISORY is analyzing a complex request. Please retry in a few seconds."}
 
 # ================= PAYMENTS =================
 @app.post("/create-payment")
@@ -160,7 +169,7 @@ async def create_payment(
     user: Optional[str] = Form(None),
     password: Optional[str] = Form(None)
 ):
-    # Bypass para administración
+    # Bypass administrativo
     if user == ADMIN_USER and password == ADMIN_PASS:
         return {"url": f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"}
 
@@ -181,4 +190,5 @@ async def create_payment(
         )
         return {"url": checkout.url}
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
+        logger.error(f"Stripe Error: {e}")
+        return JSONResponse({"error": "Payment gateway error"}, status_code=400)
