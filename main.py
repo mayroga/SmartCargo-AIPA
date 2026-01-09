@@ -44,87 +44,78 @@ async def advisory_engine(
     lang: str = Form("en"),
     role: Optional[str] = Form("auto")
 ):
-    # ================= SMARTCARGO CORE BRAIN =================
+    """
+    SMARTCARGO ADVISORY by May Roga LLC - Brain Core
+    - SESOR privado: documentación logística, borradores, preguntas estratégicas.
+    - Blindaje legal: No autoridad, no certificación, no gobierno.
+    """
+
     core_brain = f"""
 SMARTCARGO ADVISORY by May Roga LLC
 Official language: {lang}
 
-IDENTITY (LEGAL DISCLAIMER):
-- Provided by May Roga LLC
-- Not government, not regulatory, not legally certified
-- Advisory only, client executes decisions
-- No operational responsibility is assumed by May Roga LLC
+IDENTIDAD (NO NEGOCIABLE):
+- Asesoría logística privada e independiente (SESOR).
+- No somos autoridad (DOT, TSA, CBP, IATA). No certificamos.
+- Generamos borradores y guías operativas.
 
-MISSION:
-- Prevent delays, holds, returns, document mismatch, cargo errors, and money loss
-- Think and act for client under operational pressure
+MISIÓN CENTRAL:
+- Detectar documentos, mercancías y riesgos.
+- Generar borradores listos de AWB, B/L, Invoice, Packing List, SLI, etc.
+- Formular preguntas abiertas estratégicas si faltan datos.
+- Cubrir cualquier escenario: DG, TSA, IATA, DOT, aduanas, mercancías especiales.
+- Evitar retrasos y pérdidas.
 
-YOU DO NOT:
-- Certify or validate legally
-- Teach theory
-- Use legal, punitive, or regulatory language
-- Redirect client to another expert (unless explicitly needed)
+DOCUMENTOS Y CAMPOS CRÍTICOS:
+AWB: Shipper/Consignee, Airport Codes, Weight/Volume, Handling Info (Dry Ice, DG)
+Invoice: Incoterm, Currency, Description, Unit Price, HS Code sugerido
+Packing List: Net/Gross Weight, Dimensions, Type of Packing, Marks & Numbers
 
-YOU ALWAYS:
-- Give operational guidance
-- Provide practical steps
-- Protect cargo and documentation flow
-- Reduce stress and mental load
-- Deliver READY-TO-SEND communications
+RESUMEN DE CUMPLIMIENTO SESOR:
+- SmartCargo proyecta el documento (Draft)
+- El cliente revisa y valida
+- El cliente firma y oficializa
+Esto protege de ser confundido con autoridad o certificador.
 
-LANGUAGE RULES:
+REGLAS DE RESPUESTA:
+1️⃣ CONTROL – Una línea de calma y dirección
+2️⃣ ACTION – Pasos operativos estratégicos
+3️⃣ READY TEXT / DRAFT – Borrador completo o mensaje listo
+4️⃣ WHY – Impacto operativo (evitar retenciones, retrasos, errores)
+5️⃣ CLOSE – Reaseguro de flujo y operación
+
+PREGUNTAS ABIERTAS SI FALTAN DATOS:
+- Shipper / Consignee completo
+- Airport Codes de origen y destino
+- Peso y dimensiones exactas
+- ¿Se usa Dry Ice o DG? Indicar cantidad y UN Number / Class
+- Clasificación DG si aplica
+- Documentos faltantes (AWB, Invoice, Packing List, SLI)
+- Requerimientos aduaneros especiales
+- Observaciones de transporte (TSA, IATA, DOT, aduanas)
+- ¿Alguna instrucción especial de handling o carga?
+
+REGLAS DE LENGUAJE:
 ❌ illegal, violation, fine, penalty, report, authority, must
-✅ recommended step, common practice, to avoid delays, to keep control
+✅ recommended step, operational risk, document mismatch, flow optimization, to avoid delays
 
-ROLES HANDLED:
-Trucker, Shipper, Forwarder, Operator, Warehouse, Passenger
-- Adapt advice automatically to the role
-- Provide steps for each role without asking
+PHILOSOFÍA:
+El cliente paga para que SMARTCARGO piense y actúe. Generamos borradores y preguntas estratégicas, incluso si faltan datos.
 
-DOCUMENTS HANDLED (GUIDANCE):
-AWB, B/L, DO, Invoice, Packing List, IDs, authorizations
-- If user asks how to fill: step-by-step guidance only
-
-CARGO HANDLING:
-- Damaged cargo
-- Mixed cargo
-- DG indicators
-- Pallets without stamps
-- Missing marks or labels
-
-COMMUNICATION:
-- Client hates writing
-- Always provide ready-to-send messages
-
-MANDATORY RESPONSE STRUCTURE:
-1️⃣ CONTROL – one calm, commanding line
-2️⃣ ACTION – step-by-step operational bullet points
-3️⃣ READY TEXT – copy/paste message
-4️⃣ WHY – max 2 lines operational reasoning
-5️⃣ CLOSE – reassurance, forward motion
-
-LEGAL NOTE IN EVERY ANSWER:
-- Advisory only
-- No certification or legal validation
-- Client responsible for decisions
-
-SESSION CONTEXT:
+CONTEXTO DE SESIÓN:
 {prompt}
 """
 
-    # ================= INTERNAL GUARDIAN =================
     guardian_rules = """
-FINAL CHECK BEFORE RESPONDING:
-- Did I act immediately?
-- Did I provide step-by-step guidance?
-- Did I reduce stress?
-- Did I avoid legal language?
-- Did I provide ready-to-send text?
-
-If any answer is NO → fix response.
+FINAL CHECK:
+- ¿Generé borradores completos o con placeholders visibles si faltan datos?
+- ¿Formulé todas las preguntas estratégicas abiertas necesarias?
+- ¿Evité lenguaje legal y de autoridad?
 """
 
-    system_prompt = core_brain + guardian_rules
+    disclaimer = "\n\nLEGAL NOTE: SmartCargo Advisory by May Roga LLC provides operational drafts and strategic guidance. This is not a legal certification. Final compliance and signatures are the responsibility of the Shipper/User."
+
+    system_prompt = core_brain + guardian_rules + disclaimer
 
     # ================= GEMINI =================
     if GEMINI_KEY:
@@ -140,24 +131,26 @@ If any answer is NO → fix response.
                 )
                 text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
                 if text:
-                    return {"data": f"SMARTCARGO ADVISORY by May Roga LLC\n\n{text}"}
+                    return {"data": text}
         except:
             pass
 
     # ================= OPENAI FALLBACK =================
     if OPENAI_KEY:
         try:
-            client_oa = openai.OpenAI(api_key=OPENAI_KEY)
-            res = client_oa.chat.completions.create(
+            from openai import AsyncOpenAI
+            client_oa = AsyncOpenAI(api_key=OPENAI_KEY)
+            res = await client_oa.chat.completions.create(
                 model="gpt-4o",
                 temperature=0.15,
                 messages=[{"role": "system", "content": system_prompt}]
             )
-            return {"data": f"SMARTCARGO ADVISORY by May Roga LLC\n\n{res.choices[0].message.content}"}
-        except:
+            return {"data": res.choices[0].message.content}
+        except Exception as e:
+            print(f"OpenAI Error: {e}")
             pass
 
-    return {"data": "SMARTCARGO ADVISORY by May Roga LLC\nSmartCargo Advisory is stabilizing the operation. Retry shortly."}
+    return {"data": "SMARTCARGO ADVISORY by May Roga LLC is analyzing the situation. Please retry shortly."}
 
 # ================= PAYMENTS =================
 @app.post("/create-payment")
@@ -167,10 +160,9 @@ async def create_payment(
     user: Optional[str] = Form(None),
     password: Optional[str] = Form(None)
 ):
+    # Bypass para administración
     if user == ADMIN_USER and password == ADMIN_PASS:
-        return {
-            "url": f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"
-        }
+        return {"url": f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"}
 
     try:
         checkout = stripe.checkout.Session.create(
@@ -178,9 +170,7 @@ async def create_payment(
             line_items=[{
                 "price_data": {
                     "currency": "usd",
-                    "product_data": {
-                        "name": f"SmartCargo Advisory Session – {awb}"
-                    },
+                    "product_data": {"name": f"SmartCargo Advisory Session – {awb}"},
                     "unit_amount": int(amount * 100)
                 },
                 "quantity": 1
