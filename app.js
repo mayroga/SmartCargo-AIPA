@@ -16,7 +16,8 @@ const i18n = {
         askQueVe: "What do you have in your hand? \n1. Papers \n2. Things/Cargo \n3. A person/Officer \n4. Not sure",
         roleAlert: "Please select your role",
         clear: "NEW SESSION",
-        u: "Username", p: "Password", roles: ["Driver", "Agent", "Warehouse", "Owner"]
+        u: "Username", p: "Password",
+        roles: ["Driver", "Agent", "Warehouse", "Owner"]
     },
     es: {
         legal: "SMARTCARGO ADVISORY by May Roga LLC | ASESORÍA PRIVADA INDEPENDIENTE. NO SOMOS IATA, DOT, TSA O CBP. TODAS LAS RESPUESTAS SON SUGERENCIAS ESTRATÉGICAS.",
@@ -30,7 +31,8 @@ const i18n = {
         askQueVe: "¿Qué tienes a la mano? \n1. Papeles \n2. Carga \n3. Autoridad \n4. No sé",
         roleAlert: "Por favor selecciona tu rol",
         clear: "NUEVA CONSULTA",
-        u: "Usuario", p: "Clave", roles: ["Chofer", "Agente", "Bodega", "Dueño"]
+        u: "Usuario", p: "Clave",
+        roles: ["Chofer", "Agente", "Bodega", "Dueño"]
     }
 };
 
@@ -121,7 +123,7 @@ async function run() {
     if (!role) return alert(i18n[l].roleAlert);
     const out = document.getElementById('res');
     const userInput = document.getElementById('prompt').value || "Analyze update";
-    out.style.display = "block"; 
+    out.style.display = "block";
     out.innerText = i18n[l].analyzing;
 
     const fd = new FormData();
@@ -132,24 +134,28 @@ async function run() {
         const r = await fetch('/advisory', { method: 'POST', body: fd });
         const d = await r.json();
         out.innerText = `SMARTCARGO ADVISORY by May Roga LLC\n\n${d.data}`;
-        chatHistory += ` | User: ${userInput} | Advisor: ${d.data}`; 
-    } catch (e) { out.innerText = "Error."; }
+        chatHistory += ` | User: ${userInput} | Advisor: ${d.data}`;
+    } catch (e) { out.innerText = "Error contacting advisory."; }
 }
 
-function ws() { window.open("https://wa.me/?text=" + encodeURIComponent(document.getElementById('res').innerText)); }
+function ws() {
+    const text = document.getElementById('res').innerText;
+    if (text) window.open("https://wa.me/?text=" + encodeURIComponent(text));
+}
 
-function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("Copied"); }
-
-function email() {
-    const body = encodeURIComponent(document.getElementById('res').innerText);
-    window.location.href = `mailto:?subject=SmartCargo Advisory&body=${body}`;
+function copy() {
+    const text = document.getElementById('res').innerText;
+    if (text) {
+        navigator.clipboard.writeText(text);
+        alert("Copied!");
+    }
 }
 
 async function pay(amt) {
     const fd = new FormData();
-    fd.append("amount", amt); 
+    fd.append("amount", amt);
     fd.append("awb", document.getElementById('awb').value || "REF");
-    fd.append("user", document.getElementById('u').value); 
+    fd.append("user", document.getElementById('u').value);
     fd.append("password", document.getElementById('p').value);
     const r = await fetch('/create-payment', { method: 'POST', body: fd });
     const d = await r.json();
