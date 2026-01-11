@@ -33,31 +33,32 @@ async def js_serve():
 @app.post("/advisory")
 async def advisory_engine(prompt: str = Form(...), lang: str = Form("es"), role: Optional[str] = Form("auto")):
     
-    # ORDEN DE MANDO: EL PROFESOR QUE RESUELVE
+    # NUEVA ORDEN DE MANDO: EDUCACIÓN, PREVENCIÓN Y ESTUDIO
     system_instruction = f"""
-ACTÚA COMO EL PROFESOR TITULAR DE OPERACIONES DE SMARTCARGO ADVISORY BY MAY ROGA LLC.
-Tu enfoque es: "Educación basada en la Solución". Enseñas resolviendo problemas reales.
+ACTÚA COMO EL CEREBRO DE ESTUDIO Y PREVENCIÓN DE SMARTCARGO ADVISORY BY MAY ROGA LLC.
+
+OBJETIVO PEDAGÓGICO: Instruir al usuario en el cumplimiento de normativas (IATA, DOT, TSA, CBP) para la prevención de errores logísticos. Esta es una herramienta de consulta técnica y académica.
 
 REGLAS DE MANDO (ESTRICTAS):
-1. RESPUESTA RESOLUTIVA: Un profesor no pregunta, un profesor ENSEÑA LA SOLUCIÓN. Si el usuario plantea un escenario, da el dictamen técnico final de inmediato.
-2. EL EJERCICIO RESUELTO: Entrega siempre el borrador (DRAFT) exacto. Es el "ejemplo perfecto" que el usuario debe imitar para cumplir con IATA, TSA, DOT o CBP.
-3. CÁLCULO MAGISTRAL: No pidas medidas sin antes dar la fórmula y un ejemplo resuelto. Calcula el Peso Cobrable (/6000 Aire, /1000 Mar/Tierra) y dictamina cuál es el peso de facturación.
-4. LENGUAJE PROFESIONAL: Usa "Como solución técnica de estudio se dictamina", "El borrador de práctica para este caso es", "Siga este estándar preventivo".
-5. SEGURIDAD Y PREVENCIÓN: Si detectas un error (ej. DG mal declarado), detén la operación pedagógicamente y muestra cómo se hace correctamente para evitar la multa.
+1. ENFOQUE PREVENTIVO: Si el usuario plantea un error (ej. DG no declarado), explícale pedagógicamente por qué es una falta y cómo se corrige según el manual.
+2. CÁLCULO DIDÁCTICO: Muestra siempre la fórmula. No des solo el resultado. Enseña al usuario a calcular el Peso Cobrable (/6000 Aire, /1000 Mar/Tierra).
+3. EL "DRAFT" COMO EJERCICIO: Provee borradores técnicos de documentos (AWB, DGD, BL) como ejemplos de "Mejor Práctica" para estudio.
+4. LENGUAJE DE ASESOR EDUCATIVO: Usa "Como medida preventiva", "El estándar de estudio sugiere", "Para fines de cumplimiento técnico se recomienda".
+5. NO INTERFERENCIA LEGAL: Deja claro que la solución es educativa. El usuario debe validar siempre con sus manuales oficiales antes de firmar.
 
 ESTRUCTURA DE RESPUESTA:
-[CLASE MAGISTRAL] SmartCargo Advisory | Educación Resolutiva.
-[DIAGNÓSTICO TÉCNICO] Identificación del problema bajo normativas internacionales.
-[CALCULADORA SMARTCARGO] Ejercicio matemático con solución de peso y volumen.
-[SOLUCIÓN TÉCNICA (EL DRAFT)] Pasos de ejecución + TEXTO EXACTO para documentos (AWB/DGD/BL).
-[POR QUÉ SE HACE ASÍ] Explicación del riesgo de multas y seguridad (IATA/DOT).
-[ESTÁNDAR DE EXAMEN] Qué revisará el oficial de aduana o counter para aprobar su carga.
-[CONCLUSIÓN DEL PROFESOR] Paso final para el éxito de la operación.
+[AVISO DE CONSULTA TÉCNICA] SmartCargo Advisory | Educación y Prevención.
+[CONTROL - DIAGNÓSTICO ACADÉMICO] Identificación del error u omisión según reglamentos.
+[CALCULADORA PREVENTIVA] Ejercicio matemático de pesos y dimensiones.
+[ACTION - GUÍA DE CORRECCIÓN] Pasos instructivos + DRAFT SUGERIDO para práctica documental.
+[ESTÁNDAR DE COUNTER] Qué busca el inspector para rechazar una carga y cómo evitarlo.
+[WHY - RIESGOS DE ERROR] Explicación de las consecuencias de seguridad y multas por incumplimiento.
+[CLOSE] Conclusión pedagógica.
 
 Idioma: {lang}. Rol: {role}. ENTRADA: {prompt}
 """
 
-    # --- DOBLE MOTOR (REDUNDANCIA TOTAL) ---
+    # --- LÓGICA DE DOBLE MOTOR (REDUNDANCIA) ---
     if GEMINI_KEY:
         try:
             url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
@@ -68,7 +69,7 @@ Idioma: {lang}. Rol: {role}. ENTRADA: {prompt}
                     res = r.json()
                     if "candidates" in res:
                         return {"data": res["candidates"][0]["content"]["parts"][0]["text"]}
-        except Exception as e: logger.error(f"Falla Gemini: {e}")
+        except Exception as e: logger.error(f"Gemini falló: {e}")
 
     if OPENAI_KEY:
         try:
@@ -76,8 +77,14 @@ Idioma: {lang}. Rol: {role}. ENTRADA: {prompt}
             oa = AsyncOpenAI(api_key=OPENAI_KEY)
             res = await oa.chat.completions.create(model="gpt-4o", temperature=0.1, messages=[{"role": "system", "content": system_instruction}])
             return {"data": res.choices[0].message.content}
-        except Exception as e: logger.error(f"Falla OpenAI: {e}")
+        except Exception as e: logger.error(f"OpenAI falló: {e}")
 
-    return {"data": "El Profesor de SmartCargo está preparando el material. Reintente en 10 segundos."}
+    return {"data": "El aula virtual de SmartCargo está en mantenimiento. Intente en breve."}
 
-# ... (Endpoints de email y pago se mantienen iguales)
+@app.post("/send-email")
+async def send_email(email: str = Form(...), content: str = Form(...)):
+    return {"status": "success"}
+
+@app.post("/create-payment")
+async def create_payment(amount: float = Form(...), awb: str = Form(...)):
+    return {"url": f"/?access=granted&awb={urllib.parse.quote(awb)}"}
