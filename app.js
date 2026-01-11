@@ -131,14 +131,19 @@ async function run() {
     try {
         const r = await fetch('/advisory', { method: 'POST', body: fd });
         const d = await r.json();
-        // REFLEJAR SIEMPRE EL SLOGAN Y BLINDAJE
         out.innerText = `SMARTCARGO ADVISORY by May Roga LLC\n\n${d.data}`;
         chatHistory += ` | User: ${userInput} | Advisor: ${d.data}`; 
     } catch (e) { out.innerText = "Error."; }
 }
 
 function ws() { window.open("https://wa.me/?text=" + encodeURIComponent(document.getElementById('res').innerText)); }
-function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("OK"); }
+
+function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("Copied"); }
+
+function email() {
+    const body = encodeURIComponent(document.getElementById('res').innerText);
+    window.location.href = `mailto:?subject=SmartCargo Advisory&body=${body}`;
+}
 
 async function pay(amt) {
     const fd = new FormData();
