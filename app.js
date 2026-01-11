@@ -52,8 +52,12 @@ function changeLang(l) {
     document.getElementById('btn-clear').innerText = lang.clear;
     document.getElementById('u').placeholder = lang.u;
     document.getElementById('p').placeholder = lang.p;
-    for (let i = 1; i <= 3; i++) document.getElementById('txt-capture' + i).innerText = lang.capture;
-    for (let i = 1; i <= 4; i++) document.getElementById('role' + i).innerText = lang.roles[i - 1];
+    for (let i = 1; i <= 3; i++) {
+        let txt = document.getElementById('txt-capture' + i);
+        if (txt && imgB64[i-1] === "") txt.innerText = lang.capture;
+    }
+    const roleBtns = document.querySelectorAll('.role-btn');
+    roleBtns.forEach((btn, idx) => { if(idx < lang.roles.length) btn.innerText = lang.roles[idx]; });
 }
 
 function scRead(e, n) {
@@ -83,39 +87,55 @@ function activarVoz() {
 }
 
 function escuchar() {
-    const text = document.getElementById('res').innerText;
+    let text = document.getElementById('res').innerText;
     if (!text || text.includes("...")) return;
+    text = text.replace(/[*#\\_]/g, "").replace(/\[.*?\]/g, "").replace(/-/g, " "); 
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = document.getElementById('userLang').value === 'es' ? 'es-US' : 'en-US';
+    utter.rate = 0.95; 
     window.speechSynthesis.speak(utter);
 }
 
-// NUEVAS FUNCIONES PROFESIONALES
 function imprimirPDF() {
     const contenido = document.getElementById('res').innerText;
     if (!contenido) return;
     const v = window.open('', '', 'height=700,width=900');
     v.document.write('<html><head><title>SmartCargo Report</title><style>body{font-family:sans-serif;padding:40px;line-height:1.6;}pre{white-space:pre-wrap;background:#f9f9f9;padding:20px;border-left:5px solid #d4af37;}</style></head><body>');
-    v.document.write('<h1>SMARTCARGO ADVISORY by May Roga LLC</h1><hr>');
-    v.document.write('<pre>' + contenido + '</pre></body></html>');
+    v.document.write('<h1>SMARTCARGO ADVISORY by May Roga LLC</h1><hr><pre>' + contenido + '</pre></body></html>');
     v.document.close();
     v.print();
 }
 
 async function enviarEmail() {
-    const email = prompt("Ingrese Email del Cliente:");
+    const contenido = document.getElementById('res').innerText;
+    if (!contenido) return;
+    const email = prompt("Email:");
     if (!email) return;
     const fd = new FormData();
     fd.append("email", email);
-    fd.append("content", document.getElementById('res').innerText);
-    try {
-        await fetch('/send-email', { method: 'POST', body: fd });
-        alert("Enviado correctamente.");
-    } catch (e) { alert("Error de envío."); }
+    fd.append("content", contenido);
+    try { await fetch('/send-email', { method: 'POST', body: fd }); alert("OK"); } catch (e) { alert("Error"); }
 }
 
-function limpiar() { location.href = "/"; }
+// CORRECCIÓN: Limpia la pantalla SIN recargar la página para no perder el acceso
+function limpiar() {
+    imgB64 = ["", "", ""];
+    chatHistory = "";
+    consultInfo = { momento: "", queVe: "" };
+    role = "";
+    document.getElementById('prompt').value = "";
+    document.getElementById('res').innerText = "";
+    document.getElementById('res').style.display = "none";
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
+    for (let i = 1; i <= 3; i++) {
+        const img = document.getElementById('v' + i);
+        const txt = document.getElementById('txt-capture' + i);
+        img.src = "";
+        img.style.display = "none";
+        txt.style.display = "block";
+    }
+}
 
 async function preRun() {
     const l = document.getElementById('userLang').value;
@@ -128,24 +148,22 @@ async function run() {
     const l = document.getElementById('userLang').value;
     if (!role) return alert(i18n[l].roleAlert);
     const out = document.getElementById('res');
-    const userInput = document.getElementById('prompt').value || "Analyze update";
+    const userInput = document.getElementById('prompt').value || "Analyze";
     out.style.display = "block";
     out.innerText = i18n[l].analyzing;
-
     const fd = new FormData();
-    fd.append("prompt", `HISTORY: ${chatHistory}. CURRENT_TASK: ${userInput}. Role: ${role}. Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}`);
+    fd.append("prompt", `HISTORY: ${chatHistory}. TASK: ${userInput}. Role: ${role}. Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}`);
     fd.append("lang", l);
-
     try {
         const r = await fetch('/advisory', { method: 'POST', body: fd });
         const d = await r.json();
-        out.innerText = `SMARTCARGO ADVISORY by May Roga LLC\n\n${d.data}`;
+        out.innerText = d.data;
         chatHistory += ` | User: ${userInput} | Advisor: ${d.data}`;
-    } catch (e) { out.innerText = "Error de conexión con el Cerebro."; }
+    } catch (e) { out.innerText = "Error."; }
 }
 
 function ws() { window.open("https://wa.me/?text=" + encodeURIComponent(document.getElementById('res').innerText)); }
-function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("OK"); }
+function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("Copiado"); }
 
 async function pay(amt) {
     const fd = new FormData();
