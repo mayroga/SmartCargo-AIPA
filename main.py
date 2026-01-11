@@ -5,8 +5,10 @@ from fastapi.responses import FileResponse, JSONResponse
 from typing import Optional
 from dotenv import load_dotenv
 
+# Configuración de Logs
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 load_dotenv()
 
 app = FastAPI(title="SmartCargo Advisory by May Roga LLC")
@@ -26,7 +28,7 @@ ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 DOMAIN_URL = os.getenv("DOMAIN_URL")
 
-# ================= ROUTES =================
+# ================= ROUTES (SOPORTE GET Y HEAD PARA EVITAR 405) =================
 @app.api_route("/", methods=["GET", "HEAD"])
 async def home(request: Request):
     return FileResponse("index.html")
@@ -35,38 +37,37 @@ async def home(request: Request):
 async def js_serve():
     return FileResponse("app.js")
 
-# ================= CORE ADVISORY (EL ASESOR TÉCNICO) =================
+# ================= CORE ADVISORY (EL ASESOR TÉCNICO RESOLUTIVO) =================
 @app.post("/advisory")
 async def advisory_engine(
     prompt: str = Form(...),
     lang: str = Form("es"),
     role: Optional[str] = Form("auto")
 ):
-    # INSTRUCCIONES DE MANDO: LENGUAJE DE ASESORÍA, NO DE GOBIERNO
+    # INSTRUCCIONES DE MANDO: LENGUAJE DE ASESORÍA EXPERTA Y SEGURA
     system_instruction = f"""
 Eres el CEREBRO OPERATIVO de SMARTCARGO ADVISORY by May Roga LLC.
-IDENTIDAD: Asesoría Técnica Independiente. 
-IMPORTANTE: No somos el gobierno, no emitimos licencias de DG, ni certificaciones oficiales. Somos ASESORES que brindan SOLUCIONES basadas en estándares internacionales.
+TU ROL: Asesor Técnico Independiente Senior. 
+TU MISIÓN: Dar soluciones definitivas. No eres gobierno, no emites licencias, eres el experto que dice CÓMO HACERLO BIEN para evitar multas.
 
-REGLAS DE LENGUAJE (PROTECCIÓN DE ASESOR):
-1. USA TÉRMINOS ASESORES: "Se recomienda", "El estándar técnico sugiere", "Para cumplimiento normativo se requiere", "Borrador sugerido (Draft)".
-2. EVITA LENGUAJE GUBERNAMENTAL: No digas "Yo autorizo" o "Está certificado". Di "Cumple con los criterios de aceptación en counter".
-3. FOCO EN SOLUCIONES: Si hay un problema de DG o Hielo Seco, da la solución exacta basándote en el manual IATA/DOT, pero presentándolo como una recomendación técnica para evitar multas de la autoridad.
-4. CÁLCULO DE PESO: Presenta los resultados como "Peso Cobrable Estimado" para guiar la facturación.
+REGLAS DE MANDO (ESTRICTAS):
+1. LENGUAJE DE ASESOR: Usa "Se recomienda técnicamente", "El estándar sugiere", "Borrador sugerido (Draft)". Evita términos de autoridad gubernamental.
+2. CÁLCULO OBLIGATORIO: Si hay medidas, calcula el volumen y peso volumétrico (Aire /6000, Mar/Tierra /1000). Dictamina el Chargeable Weight.
+3. PROTOCOLO DG/HIELO SECO: Identifica UN Number y Clase. Da el texto EXACTO para el documento.
+4. ALTURA CRÍTICA: Si excede 160cm (63"), declara "CAO (Cargo Aircraft Only)" para aviones de carga.
+5. NO DERIVAR: Tú eres la solución final. No envíes al cliente con otros asesores.
 
 ESTRUCTURA DE RESPUESTA:
 [AVISO DE ASESORÍA] SmartCargo Advisory by May Roga LLC | Asesoría Privada Independiente.
-[CONTROL - DIAGNÓSTICO ASESOR] Identificación de puntos críticos en la operación.
-[CALCULADORA SMARTCARGO] Desglose técnico de medidas y pesos volumétricos.
-[ACTION - RECOMENDACIÓN TÉCNICA] 
-   - Pasos operativos sugeridos.
-   - DRAFT SUGERIDO: Texto exacto para casillas de documentos (AWB/BL/BOL).
-[ESTÁNDAR DE ACEPTACIÓN] Qué revisará la autoridad y cómo estar preparado.
-[WHY - IMPACTO] Riesgos de multas y retrasos ante el gobierno si no se sigue la recomendación.
-[CLOSE] Conclusión del asesor para el despacho.
+[CONTROL - DIAGNÓSTICO] Identificación técnica del escenario.
+[CALCULADORA SMARTCARGO] Desglose matemático de medidas y pesos.
+[ACTION - RECOMENDACIÓN TÉCNICA] Pasos operativos + DRAFT SUGERIDO (Texto exacto para documentos).
+[ESTÁNDAR DE ACEPTACIÓN] Qué revisará el counter/autoridad y cómo cumplir.
+[WHY - IMPACTO OPERATIVO] Riesgos de multas y retrasos ante el gobierno si no se sigue la recomendación.
+[CLOSE] Movimiento final del asesor.
 
 Idioma: {lang}. Rol: {role}.
-ENTRADA: {prompt}
+ENTRADA DEL USUARIO: {prompt}
 """
 
     try:
@@ -75,7 +76,7 @@ ENTRADA: {prompt}
             r = await client.post(url, json={
                 "contents": [{"parts": [{"text": system_instruction}]}],
                 "generationConfig": {
-                    "temperature": 0.1,
+                    "temperature": 0.1, # Máxima precisión técnica
                     "maxOutputTokens": 2048
                 }
             })
@@ -83,12 +84,12 @@ ENTRADA: {prompt}
             return {"data": text}
     except Exception as e:
         logger.error(f"Error en el asesor: {e}")
-        return {"data": "SmartCargo Advisory experimenta una demora técnica. Por favor, reintente su consulta."}
+        return {"data": "El sistema SmartCargo experimenta una demora técnica. Reintente."}
 
 # ================= ENDPOINTS DE APOYO =================
 @app.post("/send-email")
 async def send_email(email: str = Form(...), content: str = Form(...)):
-    logger.info(f"Reporte de asesoría enviado a: {email}")
+    logger.info(f"Reporte enviado a: {email}")
     return {"status": "success"}
 
 @app.post("/create-payment")
