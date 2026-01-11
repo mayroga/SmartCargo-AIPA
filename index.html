@@ -21,19 +21,10 @@
     .role-btn { border:1px solid #001d3d; padding:12px; border-radius:8px; text-align:center; font-weight:bold; cursor:pointer; font-size:11px; background:#f8f9fa; }
     .role-btn.selected { background:#001d3d; color:white; border-color:#d4af37; }
     
-    /* RESPUESTA EN AZUL PROFESIONAL */
+    /* RESPUESTA AZUL CLASIFICADA */
     #res { 
-        margin-top:10px; 
-        font-size:14px; 
-        white-space:pre-wrap; 
-        background:#f0f7ff; 
-        padding:15px; 
-        border-radius:10px; 
-        border:2px solid #0056b3; 
-        display:none; 
-        color:#003366; 
-        line-height:1.5; 
-        font-weight:bold; 
+        margin-top:10px; font-size:14px; white-space:pre-wrap; background:#f0f7ff; padding:15px; border-radius:10px; 
+        border:2px solid #0056b3; display:none; color:#003366; line-height:1.5; font-weight:bold; 
     }
     
     input, textarea { outline:none; border:1px solid #ccc; width:100%; box-sizing:border-box; padding:12px; border-radius:8px; font-family:inherit; }
@@ -53,7 +44,7 @@
         <option value="es"> SISTEMA ESPAÑOL</option>
     </select>
 
-    <div class="legal-banner" id="txt-legal">SMARTCARGO ADVISORY by May Roga LLC | INDEPENDENT PRIVATE ADVISORY. NOT IATA, DOT, TSA, OR CBP. ALL RESPONSES ARE STRATEGIC SUGGESTIONS ONLY.</div>
+    <div class="legal-banner" id="txt-legal">SMARTCARGO ADVISORY by May Roga LLC | ASESORÍA PRIVADA INDEPENDIENTE.</div>
 
     <h2>SMARTCARGO ADVISORY</h2>
     <h3>BY MAY ROGA LLC</h3>
@@ -97,7 +88,7 @@
         </div>
 
         <div style="position:relative; margin-top:10px;">
-            <textarea id="prompt" style="height:120px; resize:none; padding-right:100px;" placeholder="Tell me what you see..."></textarea>
+            <textarea id="prompt" style="height:120px; resize:none; padding-right:100px;" placeholder="Dime qué ves..."></textarea>
             <button onclick="activarVoz()" style="position:absolute; right:55px; bottom:12px; border:none; background:white; font-size:28px;">🎤</button>
             <button onclick="escuchar()" style="position:absolute; right:12px; bottom:12px; border:none; background:#d4af37; border-radius:50%; width:44px; height:44px; color:white; font-size:20px;">🔊</button>
         </div>
@@ -111,7 +102,7 @@
             <button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="enviarEmail()">Email</button>
             <button class="btn-main" style="background:#333;color:white;font-size:10px;" onclick="imprimirPDF()">Print/PDF</button>
             <button class="btn-main" style="background:#555;color:white;font-size:10px;" onclick="copy()">Copy</button>
-            <button id="btn-clear" class="btn-main" style="background:#a8071a;color:white;font-size:10px; grid-column: span 2;" onclick="limpiar()">NEW SESSION</button>
+            <button id="btn-clear" class="btn-main" style="background:#a8071a;color:white;font-size:10px; grid-column: span 2;" onclick="limpiar()">NUEVA CONSULTA</button>
         </div>
     </div>
 </div>
