@@ -1,91 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SMARTCARGO ADVISORY by MAY ROGA LLC</title>
+<title>SMARTCARGO ADVISORY - MAY ROGA LLC</title>
 <style>
-    body { background: #000b1a; font-family: sans-serif; padding:10px; margin:0; }
-    .card { max-width: 500px; margin:auto; background:white; border-radius:20px; padding:20px; border-top:10px solid #d4af37; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
-    @keyframes mover { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-    .promo-gold { background: #d4af37; color: #000; font-weight: bold; overflow: hidden; white-space: nowrap; padding: 6px; font-size: 11px; margin: -20px -20px 0 -20px; border-radius: 15px 15px 0 0; }
-    .promo-blue { background: #0056b3; color: #fff; font-weight: bold; overflow: hidden; white-space: nowrap; padding: 6px; font-size: 11px; margin: 0 -20px 15px -20px; }
-    .promo-gold span, .promo-blue span { display: inline-block; animation: mover 15s linear infinite; }
-    .legal-banner { background:#fdfae6; color:#856404; padding:10px; font-size:10px; text-align:center; border:1px solid #ffeeba; border-radius:8px; margin-bottom:15px; }
-    h2 { text-align:center; color:#001d3d; font-size:22px; margin-bottom:0; }
-    h3 { text-align:center; color:#d4af37; font-size:10px; margin-top:5px; letter-spacing:1px; }
-    .btn-main { width:100%; padding:14px; border:none; border-radius:10px; cursor:pointer; font-weight:bold; margin-top:8px; text-transform:uppercase; }
-    .photo-box { width:100%; height:100px; background:#f0f2f5; border:1px dashed #d4af37; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; }
-    .photo-box img { max-width:100%; max-height:100%; display:none; }
-    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap:8px; margin-top:10px; }
-    .role-btn { border:1px solid #ccc; padding:10px; border-radius:8px; text-align:center; font-size:11px; cursor:pointer; background:#fff; font-weight:bold; }
-    .role-btn.selected { background:#001d3d; color:white; border-color:#d4af37; }
-    #res { margin-top:15px; font-size:14px; white-space:pre-wrap; background:#f8f9fa; padding:15px; border-left:5px solid #d4af37; border-radius:8px; color:#1a1a1a; display:none; }
-    input, textarea { width:100%; box-sizing:border-box; padding:12px; border-radius:8px; border:1px solid #ccc; margin-top:5px; outline:none; font-family:inherit; }
+    body { background: #000b1a; font-family: sans-serif; padding: 10px; color: #fff; }
+    .card { max-width: 500px; margin: auto; background: #fff; color: #111; border-radius: 15px; padding: 20px; border-top: 10px solid #d4af37; }
+    .legal-banner { background: #fff8e1; color: #b7791f; font-size: 10px; padding: 10px; text-align: center; border-radius: 5px; font-weight: bold; border: 1px solid #ffe082; margin-bottom: 15px; }
+    .promo-bar { background: #003366; color: #fff; padding: 5px; font-size: 10px; text-align: center; border-radius: 4px; margin-bottom: 10px; }
+    .role-btn { border: 1px solid #003366; padding: 10px; border-radius: 5px; text-align: center; cursor: pointer; font-size: 12px; font-weight: bold; background: #f8f9fa; }
+    .role-btn.selected { background: #003366; color: #fff; }
+    .btn-exec { width: 100%; padding: 15px; background: #006400; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    textarea { width: 100%; height: 120px; border-radius: 8px; padding: 10px; border: 1px solid #ccc; margin-top: 10px; box-sizing: border-box; }
+    #res { background: #f4f7f9; padding: 15px; border-radius: 8px; border-left: 5px solid #d4af37; margin-top: 20px; white-space: pre-wrap; display: none; font-size: 14px; color: #000; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 </style>
 </head>
 <body>
 
 <div class="card">
-    <div class="promo-gold" id="promoGold"><span>360° STRATEGIC LOGISTICS SOLUTIONS - MAY ROGA LLC</span></div>
-    <div class="promo-blue" id="promoBlue"><span>MITIGATING RISKS, SAVING MONEY, PREVENTING REJECTIONS.</span></div>
+    <div class="promo-bar">PREVENIMOS ERRORES, MITIGAMOS RIESGOS, SOLUCIONAMOS LOGÍSTICA</div>
+    <div class="legal-banner">SMARTCARGO ADVISORY | ASESORÍA PRIVADA INDEPENDIENTE | NO SOMOS IATA, DOT, TSA O CBP</div>
 
-    <select id="userLang" onchange="changeLang(this.value)" style="width:100%; padding:10px; margin-bottom:10px; font-weight:bold; border-radius:8px;">
-        <option value="en">ENGLISH SYSTEM</option>
+    <select id="userLang" style="width:100%; padding:8px; border-radius:5px; font-weight:bold;">
         <option value="es">SISTEMA ESPAÑOL</option>
+        <option value="en">ENGLISH SYSTEM</option>
     </select>
 
-    <div class="legal-banner" id="txt-legal">
-        SMARTCARGO ADVISORY by May Roga LLC | INDEPENDENT PRIVATE ADVISORY. NOT A GOVERNMENT ENTITY.
+    <h2 style="text-align:center; color:#003366; margin:15px 0 0 0;">SMARTCARGO ADVISORY</h2>
+    <p style="text-align:center; color:#d4af37; font-weight:bold; font-size:12px; margin:0;">BY MAY ROGA LLC</p>
+
+    <div class="grid">
+        <div class="role-btn" onclick="selRole('Driver',this)">Chofer</div>
+        <div class="role-btn" onclick="selRole('Agent',this)">Agente</div>
+        <div class="role-btn" onclick="selRole('Warehouse',this)">Bodega</div>
+        <div class="role-btn" onclick="selRole('Owner',this)">Dueño</div>
     </div>
 
-    <h2>SMARTCARGO ADVISORY</h2>
-    <h3>BY MAY ROGA LLC</h3>
+    <textarea id="prompt" placeholder="Pega medidas (cm), peso (kg) o describe el problema técnico de la carga..."></textarea>
+    
+    <button class="btn-exec" onclick="run()">EJECUTAR ASESORÍA EXPERTA</button>
 
-    <div id="accessSection">
-        <div class="grid">
-            <button class="btn-main" style="background:#0056b3;color:white;" onclick="pay(5)">$5</button>
-            <button class="btn-main" style="background:#0056b3;color:white;" onclick="pay(15)">$15</button>
-            <button class="btn-main" style="background:#0056b3;color:white;" onclick="pay(35)">$35</button>
-        </div>
-        <input type="text" id="awb" placeholder="REF # / AWB / B/L">
-        <div style="display:flex; gap:5px;">
-            <input type="text" id="u" placeholder="User">
-            <input type="password" id="p" placeholder="Pass">
-        </div>
-        <button class="btn-main" style="background:#333;color:white;" onclick="pay(0)">MASTER ACCESS</button>
+    <div id="res"></div>
+
+    <div class="grid" style="margin-top:20px;">
+        <button class="role-btn" style="background:#25D366; color:white; border:none;" onclick="ws()">WhatsApp</button>
+        <button class="role-btn" style="background:#0056b3; color:white; border:none;" onclick="enviarEmail()">Enviar Email</button>
+        <button class="role-btn" style="background:#333; color:white; border:none;" onclick="imprimirResultado()">Imprimir PDF</button>
+        <button class="role-btn" style="background:#555; color:white; border:none;" onclick="copy()">Copiar</button>
     </div>
-
-    <div id="mainApp" style="display:none;">
-        <div class="grid">
-            <div class="role-btn" id="role1" onclick="selRole('Driver',this)">Driver</div>
-            <div class="role-btn" id="role2" onclick="selRole('Agent',this)">Agent</div>
-            <div class="role-btn" id="role3" onclick="selRole('Warehouse',this)">Warehouse</div>
-            <div class="role-btn" id="role4" onclick="selRole('Owner',this)">Owner</div>
-        </div>
-
-        <div class="grid">
-            <div class="photo-box" onclick="document.getElementById('f1').click()">
-                <img id="v1"><span id="txt-capture1" style="font-size:10px;color:#888;">GIVE ME DOC</span>
-                <input type="file" id="f1" accept="image/*" style="display:none;" onchange="scRead(event,1)">
-            </div>
-            <div class="photo-box" onclick="document.getElementById('f2').click()">
-                <img id="v2"><span id="txt-capture2" style="font-size:10px;color:#888;">GIVE ME DOC</span>
-                <input type="file" id="f2" accept="image/*" style="display:none;" onchange="scRead(event,2)">
-            </div>
-        </div>
-
-        <textarea id="prompt" placeholder="Tell me what you see..."></textarea>
-        <button class="btn-main" id="btn-get" style="background:#1b5e20; color:white; font-size:16px;" onclick="preRun()">EXECUTE ADVISORY</button>
-
-        <div id="res"></div>
-
-        <div class="grid">
-            <button class="btn-main" style="background:#25D366;color:white;" onclick="ws()">WhatsApp</button>
-            <button class="btn-main" style="background:#0056b3;color:white;" onclick="copy()">Copy</button>
-            <button id="btn-clear" class="btn-main" style="background:#7b1d1d;color:white;" onclick="limpiar()">NEW SESSION</button>
-        </div>
-    </div>
+    
+    <button style="width:100%; background:none; border:none; color:red; margin-top:15px; cursor:pointer; font-weight:bold;" onclick="limpiar()">NUEVA CONSULTA</button>
 </div>
 
 <script src="app.js"></script>
