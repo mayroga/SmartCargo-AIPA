@@ -61,8 +61,7 @@ function scRead(e, n) {
     r.onload = () => {
         imgB64[n - 1] = r.result;
         const img = document.getElementById('v' + n);
-        img.src = r.result;
-        img.style.display = "block";
+        img.src = r.result; img.style.display = "block";
         document.getElementById('txt-capture' + n).style.display = "none";
     };
     r.readAsDataURL(e.target.files[0]);
@@ -78,8 +77,7 @@ function activarVoz() {
     const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Speech) return;
     const rec = new Speech();
-    const currentLang = document.getElementById('userLang').value;
-    rec.lang = currentLang === 'es' ? 'es-US' : 'en-US';
+    rec.lang = document.getElementById('userLang').value === 'es' ? 'es-US' : 'en-US';
     rec.start();
     rec.onresult = (e) => { document.getElementById('prompt').value = e.results[0][0].transcript; };
 }
@@ -89,55 +87,35 @@ function escuchar() {
     if (!text || text.includes("...")) return;
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
-    const currentLang = document.getElementById('userLang').value;
-    utter.lang = currentLang === 'es' ? 'es-US' : 'en-US';
+    utter.lang = document.getElementById('userLang').value === 'es' ? 'es-US' : 'en-US';
     window.speechSynthesis.speak(utter);
 }
 
-// ================= NUEVAS FUNCIONES DE SALIDA (PEDIDAS) =================
+// NUEVAS FUNCIONES PROFESIONALES
 function imprimirPDF() {
     const contenido = document.getElementById('res').innerText;
     if (!contenido) return;
     const v = window.open('', '', 'height=700,width=900');
-    v.document.write('<html><head><title>SmartCargo Advisory Report</title>');
-    v.document.write('<style>body{font-family:sans-serif;padding:40px;line-height:1.5;}pre{white-space:pre-wrap;background:#f9f9f9;padding:20px;border-left:5px solid #d4af37;}</style></head><body>');
-    v.document.write('<h1>SMARTCARGO ADVISORY REPORT</h1><h3>by May Roga LLC</h3>');
+    v.document.write('<html><head><title>SmartCargo Report</title><style>body{font-family:sans-serif;padding:40px;line-height:1.6;}pre{white-space:pre-wrap;background:#f9f9f9;padding:20px;border-left:5px solid #d4af37;}</style></head><body>');
+    v.document.write('<h1>SMARTCARGO ADVISORY by May Roga LLC</h1><hr>');
     v.document.write('<pre>' + contenido + '</pre></body></html>');
     v.document.close();
     v.print();
 }
 
 async function enviarEmail() {
-    const contenido = document.getElementById('res').innerText;
-    if (!contenido) return;
-    const email = prompt("Enter Client Email / Ingrese Correo del Cliente:");
+    const email = prompt("Ingrese Email del Cliente:");
     if (!email) return;
-
     const fd = new FormData();
     fd.append("email", email);
-    fd.append("content", contenido);
-
+    fd.append("content", document.getElementById('res').innerText);
     try {
-        const r = await fetch('/send-email', { method: 'POST', body: fd });
-        if (r.ok) alert("Report sent to email / Reporte enviado al correo.");
-    } catch (e) { alert("Error sending email / Error enviando correo."); }
+        await fetch('/send-email', { method: 'POST', body: fd });
+        alert("Enviado correctamente.");
+    } catch (e) { alert("Error de envío."); }
 }
-// ========================================================================
 
-function limpiar() {
-    imgB64 = ["", "", ""]; chatHistory = "";
-    for (let i = 1; i <= 3; i++) {
-        const img = document.getElementById('v' + i);
-        const txt = document.getElementById('txt-capture' + i);
-        if (img) { img.src = ""; img.style.display = "none"; }
-        if (txt) txt.style.display = "block";
-    }
-    document.getElementById('prompt').value = "";
-    document.getElementById('res').innerText = "";
-    document.getElementById('res').style.display = "none";
-    consultInfo = { momento: "", queVe: "" }; role = "";
-    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
-}
+function limpiar() { location.href = "/"; }
 
 async function preRun() {
     const l = document.getElementById('userLang').value;
@@ -163,7 +141,7 @@ async function run() {
         const d = await r.json();
         out.innerText = `SMARTCARGO ADVISORY by May Roga LLC\n\n${d.data}`;
         chatHistory += ` | User: ${userInput} | Advisor: ${d.data}`;
-    } catch (e) { out.innerText = "Error."; }
+    } catch (e) { out.innerText = "Error de conexión con el Cerebro."; }
 }
 
 function ws() { window.open("https://wa.me/?text=" + encodeURIComponent(document.getElementById('res').innerText)); }
