@@ -5,15 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SMARTCARGO ADVISORY - MAY ROGA LLC</title>
 <style>
-    body { background: #000b1a; font-family: 'Segoe UI', sans-serif; padding: 10px; color: #fff; }
-    .card { max-width: 500px; margin: auto; background: #fff; color: #111; border-radius: 15px; padding: 20px; border-top: 10px solid #d4af37; }
+    body { background: #000b1a; font-family: sans-serif; padding: 10px; color: #fff; }
+    .card { max-width: 500px; margin: auto; background: #fff; color: #111; border-radius: 15px; padding: 20px; border-top: 8px solid #d4af37; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     .legal-banner { background: #fff8e1; color: #b7791f; font-size: 10px; padding: 10px; text-align: center; border-radius: 5px; font-weight: bold; margin-bottom: 15px; }
     .role-btn { border: 1px solid #003366; padding: 12px; border-radius: 8px; text-align: center; cursor: pointer; font-size: 11px; background: #f8f9fa; font-weight: bold; }
     .role-btn.selected { background: #003366; color: white; }
     .btn-exec { width: 100%; padding: 16px; background: #006400; color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-    .voice-controls { display: flex; gap: 10px; margin-top: 10px; justify-content: flex-end; }
-    .btn-voice { background: #d4af37; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    textarea { width: 100%; height: 120px; border-radius: 10px; padding: 12px; border: 1px solid #ccc; margin-top: 5px; box-sizing: border-box; }
+    .voice-btn { background: #d4af37; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    textarea { width: 100%; height: 100px; border-radius: 10px; padding: 12px; border: 1px solid #ccc; margin-top: 5px; box-sizing: border-box; }
     #res { background: #f4f7f9; padding: 15px; border-radius: 8px; border-left: 6px solid #d4af37; margin-top: 20px; white-space: pre-wrap; display: none; font-size: 14px; color: #000; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 </style>
@@ -23,53 +22,49 @@
 <div class="card">
     <div class="legal-banner">SMARTCARGO ADVISORY | ASESORÍA PRIVADA INDEPENDIENTE | NO SOMOS GOBIERNO</div>
     
-    <select id="userLang" onchange="changeLang(this.value)" style="width:100%; padding:10px; border-radius:8px; font-weight:bold;">
+    <select id="userLang" style="width:100%; padding:10px; border-radius:8px; font-weight:bold; margin-bottom:10px;">
         <option value="es">SISTEMA ESPAÑOL</option>
         <option value="en">ENGLISH SYSTEM</option>
     </select>
 
-    <h2 style="text-align:center; color:#003366; margin:15px 0 0 0;">SMARTCARGO ADVISORY</h2>
+    <h2 style="text-align:center; color:#003366; margin:0;">SMARTCARGO ADVISORY</h2>
     <p style="text-align:center; color:#d4af37; font-weight:bold; font-size:11px; margin:0 0 15px 0;">BY MAY ROGA LLC</p>
 
-    <div class="grid">
-        <div class="role-btn" onclick="selRole('Driver',this)">Chofer</div>
-        <div class="role-btn" onclick="selRole('Agent',this)">Agente</div>
-        <div class="role-btn" onclick="selRole('Warehouse',this)">Bodega</div>
-        <div class="role-btn" onclick="selRole('Owner',this)">Dueño</div>
+    <div id="accessSection">
+        <input type="text" id="awb" placeholder="AWB / B/L / REF #" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc; box-sizing:border-box;">
+        <button class="btn-exec" style="background:#333;" onclick="pay(0)">ENTRAR AL CEREBRO</button>
     </div>
 
-    <div style="position: relative;">
-        <textarea id="prompt" placeholder="Hable o escriba medidas, pesos o dudas técnicas..."></textarea>
-        <div class="voice-controls">
-            <button class="btn-voice" onclick="activarVoz()" title="Dictar">🎤</button>
+    <div id="mainApp" style="display:none;">
+        <div class="grid">
+            <div class="role-btn" onclick="selRole('Driver',this)">Chofer</div>
+            <div class="role-btn" onclick="selRole('Agent',this)">Agente</div>
+            <div class="role-btn" onclick="selRole('Warehouse',this)">Bodega</div>
+            <div class="role-btn" onclick="selRole('Owner',this)">Dueño</div>
         </div>
-    </div>
-    
-    <button class="btn-exec" onclick="run()">EJECUTAR ASESORÍA EXPERTA</button>
 
-    <div id="res"></div>
-    
-    <div class="voice-controls" id="speak-area" style="display:none; margin-top:10px;">
-        <button class="btn-voice" style="background:#003366;" onclick="escucharRespuesta()" title="Escuchar">🔊</button>
-    </div>
+        <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+            <textarea id="prompt" placeholder="Hable o escriba medidas, pesos o dudas..."></textarea>
+            <button class="voice-btn" onclick="activarVoz()">🎤</button>
+        </div>
+        
+        <button class="btn-exec" onclick="run()">EJECUTAR ASESORÍA EXPERTA</button>
 
-    <div class="grid" style="margin-top:20px;">
-        <button class="role-btn" style="background:#25D366; color:white; border:none;" onclick="ws()">WhatsApp</button>
-        <button class="role-btn" style="background:#0056b3; color:white; border:none;" onclick="enviarEmail()">Email</button>
-        <button class="role-btn" style="background:#333; color:white; border:none;" onclick="imprimirResultado()">PDF/Print</button>
-        <button class="role-btn" style="background:#555; color:white; border:none;" onclick="copyToClipboard()">Copiar</button>
+        <div id="res"></div>
+        
+        <div id="voice-out" style="display:none; text-align:center; margin-top:10px;">
+            <button class="voice-btn" style="background:#003366; margin:auto;" onclick="escucharRespuesta()">🔊</button>
+        </div>
+
+        <div class="grid" style="margin-top:20px;">
+            <button class="role-btn" style="background:#25D366; color:white; border:none;" onclick="ws()">WhatsApp</button>
+            <button class="role-btn" style="background:#333; color:white; border:none;" onclick="imprimirResultado()">PDF/Print</button>
+            <button class="role-btn" style="background:#555; color:white; border:none;" onclick="copyToClipboard()">Copiar</button>
+        </div>
+        <button style="width:100%; background:none; border:none; color:red; margin-top:15px; cursor:pointer; font-weight:bold;" onclick="limpiar()">NUEVA CONSULTA</button>
     </div>
-    
-    <button style="width:100%; background:none; border:none; color:red; margin-top:15px; cursor:pointer; font-weight:bold;" onclick="limpiar()">NUEVA CONSULTA</button>
 </div>
 
 <script src="app.js"></script>
-<script>
-    // Mostrar bocina cuando haya resultado
-    const observer = new MutationObserver(() => {
-        document.getElementById('speak-area').style.display = document.getElementById('res').innerText ? 'flex' : 'none';
-    });
-    observer.observe(document.getElementById('res'), { childList: true });
-</script>
 </body>
 </html>
