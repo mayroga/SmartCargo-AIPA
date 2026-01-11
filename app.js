@@ -10,10 +10,10 @@ const i18n = {
         promoBlue: "MITIGATING HOLDS, RETURNS, SAVING MONEY. WE THINK AND WORK ON YOUR CARGO.",
         capture: " GIVE ME THE DOC",
         get: "EXECUTE ADVISORY",
-        prompt: "Tell me what you see, I'm listening...",
+        prompt: "Tell me what you see, I'm listening to suggest the best path...",
         analyzing: "SMARTCARGO ADVISORY by May Roga LLC | ANALYZING STRATEGY...",
-        askMomento: "When is this happening? \n1. Starting \n2. Problem \n3. Post",
-        askQueVe: "What do you have? \n1. Papers \n2. Cargo \n3. Authority \n4. Not sure",
+        askMomento: "When is this happening? \n1. Just starting \n2. I have a problem now \n3. It already happened",
+        askQueVe: "What do you have in your hand? \n1. Papers \n2. Things/Cargo \n3. A person/Officer \n4. Not sure",
         roleAlert: "Please select your role",
         clear: "NEW SESSION",
         u: "Username", p: "Password", roles: ["Driver", "Agent", "Warehouse", "Owner"]
@@ -24,10 +24,10 @@ const i18n = {
         promoBlue: "MITIGAMOS RETENCIONES, RETORNOS, AHORRAMOS DINERO. PENSAMOS Y TRABAJAMOS EN TU MERCANCÍA.",
         capture: " MÁNDAME EL DOC",
         get: "RECIBIR ASESORÍA",
-        prompt: "Dime qué tienes ahí, te escucho...",
+        prompt: "Dime qué tienes ahí, te escucho para asesorarte...",
         analyzing: "SMARTCARGO ADVISORY by May Roga LLC | ANALIZANDO ESTRATEGIA...",
-        askMomento: "¿Cuándo pasa esto? \n1. Inicio \n2. Problema \n3. Ya pasó",
-        askQueVe: "¿Qué tienes? \n1. Papeles \n2. Carga \n3. Autoridad \n4. No sé",
+        askMomento: "¿Cuándo está pasando esto? \n1. Empezando \n2. Problema ahora \n3. Ya pasó el lío",
+        askQueVe: "¿Qué tienes a la mano? \n1. Papeles \n2. Carga \n3. Autoridad \n4. No sé",
         roleAlert: "Por favor selecciona tu rol",
         clear: "NUEVA CONSULTA",
         u: "Usuario", p: "Clave", roles: ["Chofer", "Agente", "Bodega", "Dueño"]
@@ -61,7 +61,8 @@ function scRead(e, n) {
     r.onload = () => {
         imgB64[n - 1] = r.result;
         const img = document.getElementById('v' + n);
-        img.src = r.result; img.style.display = "block";
+        img.src = r.result;
+        img.style.display = "block";
         document.getElementById('txt-capture' + n).style.display = "none";
     };
     r.readAsDataURL(e.target.files[0]);
@@ -77,21 +78,66 @@ function activarVoz() {
     const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Speech) return;
     const rec = new Speech();
-    rec.lang = document.getElementById('userLang').value === 'es' ? 'es-US' : 'en-US';
+    const currentLang = document.getElementById('userLang').value;
+    rec.lang = currentLang === 'es' ? 'es-US' : 'en-US';
     rec.start();
     rec.onresult = (e) => { document.getElementById('prompt').value = e.results[0][0].transcript; };
 }
 
 function escuchar() {
     const text = document.getElementById('res').innerText;
-    if (!text) return;
+    if (!text || text.includes("...")) return;
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = document.getElementById('userLang').value === 'es' ? 'es-US' : 'en-US';
+    const currentLang = document.getElementById('userLang').value;
+    utter.lang = currentLang === 'es' ? 'es-US' : 'en-US';
     window.speechSynthesis.speak(utter);
 }
 
-function limpiar() { location.href = "/"; }
+// ================= NUEVAS FUNCIONES DE SALIDA (PEDIDAS) =================
+function imprimirPDF() {
+    const contenido = document.getElementById('res').innerText;
+    if (!contenido) return;
+    const v = window.open('', '', 'height=700,width=900');
+    v.document.write('<html><head><title>SmartCargo Advisory Report</title>');
+    v.document.write('<style>body{font-family:sans-serif;padding:40px;line-height:1.5;}pre{white-space:pre-wrap;background:#f9f9f9;padding:20px;border-left:5px solid #d4af37;}</style></head><body>');
+    v.document.write('<h1>SMARTCARGO ADVISORY REPORT</h1><h3>by May Roga LLC</h3>');
+    v.document.write('<pre>' + contenido + '</pre></body></html>');
+    v.document.close();
+    v.print();
+}
+
+async function enviarEmail() {
+    const contenido = document.getElementById('res').innerText;
+    if (!contenido) return;
+    const email = prompt("Enter Client Email / Ingrese Correo del Cliente:");
+    if (!email) return;
+
+    const fd = new FormData();
+    fd.append("email", email);
+    fd.append("content", contenido);
+
+    try {
+        const r = await fetch('/send-email', { method: 'POST', body: fd });
+        if (r.ok) alert("Report sent to email / Reporte enviado al correo.");
+    } catch (e) { alert("Error sending email / Error enviando correo."); }
+}
+// ========================================================================
+
+function limpiar() {
+    imgB64 = ["", "", ""]; chatHistory = "";
+    for (let i = 1; i <= 3; i++) {
+        const img = document.getElementById('v' + i);
+        const txt = document.getElementById('txt-capture' + i);
+        if (img) { img.src = ""; img.style.display = "none"; }
+        if (txt) txt.style.display = "block";
+    }
+    document.getElementById('prompt').value = "";
+    document.getElementById('res').innerText = "";
+    document.getElementById('res').style.display = "none";
+    consultInfo = { momento: "", queVe: "" }; role = "";
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
+}
 
 async function preRun() {
     const l = document.getElementById('userLang').value;
@@ -104,17 +150,19 @@ async function run() {
     const l = document.getElementById('userLang').value;
     if (!role) return alert(i18n[l].roleAlert);
     const out = document.getElementById('res');
+    const userInput = document.getElementById('prompt').value || "Analyze update";
     out.style.display = "block";
     out.innerText = i18n[l].analyzing;
 
     const fd = new FormData();
-    fd.append("prompt", `Role: ${role}. Stage: ${consultInfo.momento}. Input: ${document.getElementById('prompt').value}`);
+    fd.append("prompt", `HISTORY: ${chatHistory}. CURRENT_TASK: ${userInput}. Role: ${role}. Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}`);
     fd.append("lang", l);
 
     try {
         const r = await fetch('/advisory', { method: 'POST', body: fd });
         const d = await r.json();
-        out.innerText = d.data;
+        out.innerText = `SMARTCARGO ADVISORY by May Roga LLC\n\n${d.data}`;
+        chatHistory += ` | User: ${userInput} | Advisor: ${d.data}`;
     } catch (e) { out.innerText = "Error."; }
 }
 
