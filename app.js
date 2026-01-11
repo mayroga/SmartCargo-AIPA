@@ -89,6 +89,7 @@ function activarVoz() {
 function escuchar() {
     let text = document.getElementById('res').innerText;
     if (!text || text.includes("...")) return;
+    // LIMPIEZA DE VOZ HUMANA
     text = text.replace(/[*#\\_]/g, "").replace(/\[.*?\]/g, "").replace(/-/g, " "); 
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
@@ -101,7 +102,7 @@ function imprimirPDF() {
     const contenido = document.getElementById('res').innerText;
     if (!contenido) return;
     const v = window.open('', '', 'height=700,width=900');
-    v.document.write('<html><head><title>SmartCargo Report</title><style>body{font-family:sans-serif;padding:40px;line-height:1.6;}pre{white-space:pre-wrap;background:#f9f9f9;padding:20px;border-left:5px solid #d4af37;}</style></head><body>');
+    v.document.write('<html><head><title>SmartCargo Report</title><style>body{font-family:sans-serif;padding:40px;line-height:1.6;}pre{white-space:pre-wrap;background:#f0f7ff;padding:20px;border-left:5px solid #0056b3;color:#003366;font-weight:bold;}</style></head><body>');
     v.document.write('<h1>SMARTCARGO ADVISORY by May Roga LLC</h1><hr><pre>' + contenido + '</pre></body></html>');
     v.document.close();
     v.print();
@@ -118,7 +119,7 @@ async function enviarEmail() {
     try { await fetch('/send-email', { method: 'POST', body: fd }); alert("OK"); } catch (e) { alert("Error"); }
 }
 
-// CORRECCIÓN: Limpia la pantalla SIN recargar la página para no perder el acceso
+// CORRECCIÓN FINAL: Borra solo la consulta y respuesta sin salir de la sesión
 function limpiar() {
     imgB64 = ["", "", ""];
     chatHistory = "";
@@ -134,6 +135,8 @@ function limpiar() {
         img.src = "";
         img.style.display = "none";
         txt.style.display = "block";
+        const l = document.getElementById('userLang').value;
+        txt.innerText = i18n[l].capture;
     }
 }
 
