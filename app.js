@@ -5,34 +5,32 @@ let chatHistory = "";
 
 const i18n = {
     en: {
-        legal: "SMARTCARGO ADVISORY by May Roga LLC | INDEPENDENT PRIVATE ADVISORY. NOT IATA, DOT, TSA, OR CBP. ALL RESPONSES ARE STRATEGIC SUGGESTIONS ONLY.",
-        promoGold: "360° STRATEGIC LOGISTICS SOLUTIONS - SMARTCARGO ADVISORY BY MAY ROGA LLC",
-        promoBlue: "MITIGATING HOLDS, RETURNS, SAVING MONEY. WE THINK AND WORK ON YOUR CARGO.",
-        capture: "📷 GIVE ME THE DOC",
+        legal: "SMARTCARGO ADVISORY by May Roga LLC | INDEPENDENT PRIVATE ADVISORY. NOT A GOVERNMENT ENTITY. SUGGESTIONS ONLY.",
+        promoGold: "360° STRATEGIC LOGISTICS SOLUTIONS - MAY ROGA LLC",
+        promoBlue: "MITIGATING RISKS, SAVING MONEY, PREVENTING REJECTIONS.",
+        capture: " GIVE ME DOC",
         get: "EXECUTE ADVISORY",
-        prompt: "Tell me what you see, I'm listening to suggest the best path...",
-        analyzing: "SMARTCARGO ADVISORY by May Roga LLC | ANALYZING STRATEGY...",
-        askMomento: "When is this happening? \n1. Just starting \n2. I have a problem now \n3. It already happened",
-        askQueVe: "What do you have in your hand? \n1. Papers \n2. Things/Cargo \n3. A person/Officer \n4. Not sure",
+        prompt: "Describe what you see or need help with...",
+        analyzing: "ANALYZING STRATEGY...",
+        askMomento: "When is this happening? \n1. Pre-shipment \n2. Active Problem \n3. Post-incident",
+        askQueVe: "What are you looking at? \n1. Docs \n2. Cargo \n3. Port/Authority \n4. Not sure",
         roleAlert: "Please select your role",
         clear: "NEW SESSION",
-        u: "Username", p: "Password",
-        roles: ["Driver", "Agent", "Warehouse", "Owner"]
+        u: "User", p: "Pass", roles: ["Driver", "Agent", "Warehouse", "Owner"]
     },
     es: {
-        legal: "SMARTCARGO ADVISORY by May Roga LLC | ASESORÍA PRIVADA INDEPENDIENTE. NO SOMOS IATA, DOT, TSA O CBP. TODAS LAS RESPUESTAS SON SUGERENCIAS ESTRATÉGICAS.",
-        promoGold: "SOLUCIONES LOGÍSTICAS ESTRATÉGICAS 360° - SMARTCARGO ADVISORY BY MAY ROGA LLC",
-        promoBlue: "MITIGAMOS RETENCIONES, RETORNOS, AHORRAMOS DINERO. PENSAMOS Y TRABAJAMOS EN TU MERCANCÍA.",
-        capture: "📷 MÁNDAME EL DOC",
+        legal: "SMARTCARGO ADVISORY by May Roga LLC | ASESORÍA PRIVADA INDEPENDIENTE. NO SOMOS ENTIDAD GUBERNAMENTAL.",
+        promoGold: "SOLUCIONES LOGÍSTICAS ESTRATÉGICAS 360° - MAY ROGA LLC",
+        promoBlue: "MITIGAMOS RIESGOS, AHORRAMOS DINERO, EVITAMOS RECHAZOS.",
+        capture: " MÁNDAME EL DOC",
         get: "RECIBIR ASESORÍA",
-        prompt: "Dime qué tienes ahí, te escucho para asesorarte...",
-        analyzing: "SMARTCARGO ADVISORY by May Roga LLC | ANALIZANDO ESTRATEGIA...",
-        askMomento: "¿Cuándo está pasando esto? \n1. Empezando \n2. Problema ahora \n3. Ya pasó el lío",
+        prompt: "Dime qué tienes a la mano para asesorarte...",
+        analyzing: "ANALIZANDO ESTRATEGIA...",
+        askMomento: "¿Cuándo está pasando esto? \n1. Pre-embarque \n2. Problema ahora \n3. Ya pasó",
         askQueVe: "¿Qué tienes a la mano? \n1. Papeles \n2. Carga \n3. Autoridad \n4. No sé",
-        roleAlert: "Por favor selecciona tu rol",
+        roleAlert: "Selecciona tu rol",
         clear: "NUEVA CONSULTA",
-        u: "Usuario", p: "Clave",
-        roles: ["Chofer", "Agente", "Bodega", "Dueño"]
+        u: "Usuario", p: "Clave", roles: ["Chofer", "Agente", "Bodega", "Dueño"]
     }
 };
 
@@ -63,8 +61,7 @@ function scRead(e, n) {
     r.onload = () => {
         imgB64[n - 1] = r.result;
         const img = document.getElementById('v' + n);
-        img.src = r.result;
-        img.style.display = "block";
+        img.src = r.result; img.style.display = "block";
         document.getElementById('txt-capture' + n).style.display = "none";
     };
     r.readAsDataURL(e.target.files[0]);
@@ -74,41 +71,6 @@ function selRole(r, el) {
     role = r;
     document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
     el.classList.add('selected');
-}
-
-function activarVoz() {
-    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Speech) return;
-    const rec = new Speech();
-    const currentLang = document.getElementById('userLang').value;
-    rec.lang = currentLang === 'es' ? 'es-US' : 'en-US';
-    rec.start();
-    rec.onresult = (e) => { document.getElementById('prompt').value = e.results[0][0].transcript; };
-}
-
-function escuchar() {
-    const text = document.getElementById('res').innerText;
-    if (!text || text.includes("...")) return;
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    const currentLang = document.getElementById('userLang').value;
-    utter.lang = currentLang === 'es' ? 'es-US' : 'en-US';
-    window.speechSynthesis.speak(utter);
-}
-
-function limpiar() {
-    imgB64 = ["", "", ""]; chatHistory = "";
-    for (let i = 1; i <= 3; i++) {
-        const img = document.getElementById('v' + i);
-        const txt = document.getElementById('txt-capture' + i);
-        if (img) { img.src = ""; img.style.display = "none"; }
-        if (txt) txt.style.display = "block";
-    }
-    document.getElementById('prompt').value = "";
-    document.getElementById('res').innerText = "";
-    document.getElementById('res').style.display = "none";
-    consultInfo = { momento: "", queVe: "" }; role = "";
-    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
 }
 
 async function preRun() {
@@ -127,7 +89,7 @@ async function run() {
     out.innerText = i18n[l].analyzing;
 
     const fd = new FormData();
-    fd.append("prompt", `HISTORY: ${chatHistory}. CURRENT_TASK: ${userInput}. Role: ${role}. Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}`);
+    fd.append("prompt", `HISTORY: ${chatHistory}. TASK: ${userInput}. Role: ${role}. Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}`);
     fd.append("lang", l);
 
     try {
@@ -135,20 +97,15 @@ async function run() {
         const d = await r.json();
         out.innerText = `SMARTCARGO ADVISORY by May Roga LLC\n\n${d.data}`;
         chatHistory += ` | User: ${userInput} | Advisor: ${d.data}`;
-    } catch (e) { out.innerText = "Error contacting advisory."; }
+    } catch (e) { out.innerText = "Connection Error."; }
 }
 
-function ws() {
-    const text = document.getElementById('res').innerText;
-    if (text) window.open("https://wa.me/?text=" + encodeURIComponent(text));
-}
+function ws() { window.open("https://wa.me/?text=" + encodeURIComponent(document.getElementById('res').innerText)); }
+function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("Copied"); }
 
-function copy() {
-    const text = document.getElementById('res').innerText;
-    if (text) {
-        navigator.clipboard.writeText(text);
-        alert("Copied!");
-    }
+function limpiar() {
+    imgB64 = ["", "", ""]; chatHistory = "";
+    location.reload();
 }
 
 async function pay(amt) {
