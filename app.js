@@ -11,9 +11,9 @@ const i18n = {
         capture: " GIVE ME THE DOC",
         get: "EXECUTE ADVISORY",
         prompt: "Tell me what you see, I'm listening to suggest the best path...",
-        analyzing: "SMARTCARGO ADVISORY by May Roga LLC | ANALYZING STRATEGY...",
-        askMomento: "When is this happening? \n1. Just starting \n2. I have a problem now \n3. It already happened",
-        askQueVe: "What do you have in your hand? \n1. Papers \n2. Things/Cargo \n3. A person/Officer \n4. Not sure",
+        analyzing: "SMARTCARGO ADVISORY | ANALYZING FOR AVIANCA COMPLIANCE...",
+        askMomento: "Status? \n1. Starting \n2. Current Problem \n3. Post-Incident",
+        askQueVe: "Evidence? \n1. Papers \n2. Cargo \n3. Officer \n4. Unknown",
         roleAlert: "Please select your role",
         clear: "NEW SESSION",
         u: "Username", p: "Password", roles: ["Driver", "Agent", "Warehouse", "Owner"]
@@ -24,9 +24,9 @@ const i18n = {
         promoBlue: "MITIGAMOS RETENCIONES, RETORNOS, AHORRAMOS DINERO. PENSAMOS Y TRABAJAMOS EN TU MERCANCÍA.",
         capture: " MÁNDAME EL DOC",
         get: "RECIBIR ASESORÍA",
-        prompt: "Dime qué tienes ahí, te escucho para asesorarte...",
-        analyzing: "SMARTCARGO ADVISORY by May Roga LLC | ANALIZANDO ESTRATEGIA...",
-        askMomento: "¿Cuándo está pasando esto? \n1. Empezando \n2. Problema ahora \n3. Ya pasó el lío",
+        prompt: "Describe el escenario para asesoría inmediata...",
+        analyzing: "SMARTCARGO ADVISORY | ANALIZANDO CUMPLIMIENTO AVIANCA...",
+        askMomento: "¿Estado actual? \n1. Empezando \n2. Problema ahora \n3. Post-incidente",
         askQueVe: "¿Qué tienes a la mano? \n1. Papeles \n2. Carga \n3. Autoridad \n4. No sé",
         roleAlert: "Por favor selecciona tu rol",
         clear: "NUEVA CONSULTA",
@@ -50,12 +50,6 @@ function changeLang(l) {
     document.getElementById('btn-get').innerText = lang.get;
     document.getElementById('prompt').placeholder = lang.prompt;
     document.getElementById('btn-clear').innerText = lang.clear;
-    document.getElementById('u').placeholder = lang.u;
-    document.getElementById('p').placeholder = lang.p;
-    for (let i = 1; i <= 3; i++) {
-        let txt = document.getElementById('txt-capture' + i);
-        if (txt && imgB64[i-1] === "") txt.innerText = lang.capture;
-    }
     const roleBtns = document.querySelectorAll('.role-btn');
     roleBtns.forEach((btn, idx) => { if(idx < lang.roles.length) btn.innerText = lang.roles[idx]; });
 }
@@ -89,7 +83,7 @@ function activarVoz() {
 function escuchar() {
     let text = document.getElementById('res').innerText;
     if (!text || text.includes("...")) return;
-    // LIMPIEZA DE VOZ HUMANA
+    // Limpieza humana de voz
     text = text.replace(/[*#\\_]/g, "").replace(/\[.*?\]/g, "").replace(/-/g, " "); 
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
@@ -102,41 +96,27 @@ function imprimirPDF() {
     const contenido = document.getElementById('res').innerText;
     if (!contenido) return;
     const v = window.open('', '', 'height=700,width=900');
-    v.document.write('<html><head><title>SmartCargo Report</title><style>body{font-family:sans-serif;padding:40px;line-height:1.6;}pre{white-space:pre-wrap;background:#f0f7ff;padding:20px;border-left:5px solid #0056b3;color:#003366;font-weight:bold;}</style></head><body>');
+    v.document.write('<html><head><title>Reporte SmartCargo</title><style>body{font-family:sans-serif;padding:40px;line-height:1.6;}pre{white-space:pre-wrap;background:#f0f7ff;padding:20px;border-left:5px solid #0056b3;color:#003366;font-weight:bold;}</style></head><body>');
     v.document.write('<h1>SMARTCARGO ADVISORY by May Roga LLC</h1><hr><pre>' + contenido + '</pre></body></html>');
     v.document.close();
     v.print();
 }
 
-async function enviarEmail() {
-    const contenido = document.getElementById('res').innerText;
-    if (!contenido) return;
-    const email = prompt("Email:");
-    if (!email) return;
-    const fd = new FormData();
-    fd.append("email", email);
-    fd.append("content", contenido);
-    try { await fetch('/send-email', { method: 'POST', body: fd }); alert("OK"); } catch (e) { alert("Error"); }
-}
-
-// CORRECCIÓN FINAL: Borra solo la consulta y respuesta sin salir de la sesión
 function limpiar() {
     imgB64 = ["", "", ""];
     chatHistory = "";
     consultInfo = { momento: "", queVe: "" };
     role = "";
     document.getElementById('prompt').value = "";
-    document.getElementById('res').innerText = "";
-    document.getElementById('res').style.display = "none";
+    const out = document.getElementById('res');
+    out.innerText = "";
+    out.style.display = "none";
     document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
     for (let i = 1; i <= 3; i++) {
         const img = document.getElementById('v' + i);
         const txt = document.getElementById('txt-capture' + i);
-        img.src = "";
-        img.style.display = "none";
-        txt.style.display = "block";
-        const l = document.getElementById('userLang').value;
-        txt.innerText = i18n[l].capture;
+        img.src = ""; img.style.display = "none";
+        if (txt) txt.style.display = "block";
     }
 }
 
@@ -151,22 +131,21 @@ async function run() {
     const l = document.getElementById('userLang').value;
     if (!role) return alert(i18n[l].roleAlert);
     const out = document.getElementById('res');
-    const userInput = document.getElementById('prompt').value || "Analyze";
     out.style.display = "block";
     out.innerText = i18n[l].analyzing;
     const fd = new FormData();
-    fd.append("prompt", `HISTORY: ${chatHistory}. TASK: ${userInput}. Role: ${role}. Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}`);
+    fd.append("prompt", `HISTORY: ${chatHistory}. TASK: ${document.getElementById('prompt').value}. Role: ${role}. Stage: ${consultInfo.momento}. Focus: ${consultInfo.queVe}`);
     fd.append("lang", l);
     try {
         const r = await fetch('/advisory', { method: 'POST', body: fd });
         const d = await r.json();
         out.innerText = d.data;
-        chatHistory += ` | User: ${userInput} | Advisor: ${d.data}`;
+        chatHistory += ` | User query: ${document.getElementById('prompt').value} | Result: ${d.data}`;
     } catch (e) { out.innerText = "Error."; }
 }
 
 function ws() { window.open("https://wa.me/?text=" + encodeURIComponent(document.getElementById('res').innerText)); }
-function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("Copiado"); }
+function copy() { navigator.clipboard.writeText(document.getElementById('res').innerText); alert("OK"); }
 
 async function pay(amt) {
     const fd = new FormData();
