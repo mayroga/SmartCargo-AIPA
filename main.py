@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from typing import Optional
 from dotenv import load_dotenv
 
-# Configuración de Logs para producción
+# Configuración de Logs
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -13,10 +13,9 @@ load_dotenv()
 
 app = FastAPI(title="SmartCargo Advisory by May Roga LLC")
 
-# ================= CORS =================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Cambiar por dominio real en producción
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"]
 )
@@ -24,13 +23,13 @@ app.add_middleware(
 # ================= ENV =================
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+STRIPE_KEY = os.getenv("STRIPE_SECRET_KEY")
+DOMAIN_URL = os.getenv("DOMAIN_URL")
 ADMIN_USER = os.getenv("ADMIN_USERNAME")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-DOMAIN_URL = os.getenv("DOMAIN_URL")
+stripe.api_key = STRIPE_KEY
 
-# ================= STATIC =================
-# Ajustado para permitir HEAD (Render Health Check) y evitar Error 405
+# ================= ROUTES =================
 @app.api_route("/", methods=["GET", "HEAD"])
 async def home(request: Request):
     return FileResponse("index.html")
@@ -39,113 +38,78 @@ async def home(request: Request):
 async def js_serve():
     return FileResponse("app.js")
 
-@app.get("/terms")
-async def terms():
-    return FileResponse("terms_and_conditions.html")
-
-# ================= CORE ADVISORY =================
+# ================= CORE ADVISORY (CEREBRO DOBLE MOTOR) =================
 @app.post("/advisory")
 async def advisory_engine(
     prompt: str = Form(...),
-    lang: str = Form("en"),
+    lang: str = Form("es"),
     role: Optional[str] = Form("auto")
 ):
-    """
-    SMARTCARGO ADVISORY by May Roga LLC - Brain Core
-    """
+    # ORDEN DE MANDO MAESTRA PARA AMBAS IAs
+    system_instruction = f"""
+ACTÚA COMO EL CEREBRO OPERATIVO DE SMARTCARGO ADVISORY BY MAY ROGA LLC.
+1. IDENTIDAD: Asesor Senior Multimodal. No eres gobierno. 
+2. LENGUAJE TÉCNICO: Usa "Se recomienda técnicamente", "Borrador sugerido (Draft)".
+3. CÁLCULO OBLIGATORIO: Si hay medidas, calcula Volumen y Peso Cobrable (/6000 Aire, /1000 Mar). Altura > 160cm = "CAO - Cargo Aircraft Only".
+4. DG & RIESGOS: Identifica UN Numbers y Clases. Detén la operación si hay "Undeclared DG".
+5. SOLUCIÓN TOTAL: No derives al cliente. TÚ ERES LA SOLUCIÓN FINAL.
 
-    # ================= Brain Core (INSTRUCCIONES ENDURECIDAS) =================
-    core_brain = f"""
-SMARTCARGO ADVISORY by May Roga LLC
-Official language: {lang}
-
-IDENTIDAD ASESOR (NO NEGOCIABLE):
-- Eres un Experto Resolutivo. Tu lenguaje es técnico y directo.
-- No eres gobierno. Eres asesoría privada (IATA, TSA, DOT, Aduana).
-- Si hay un riesgo (ej. DG no declarado), DETÉN la operación y da la solución.
-
-MISION DE SOLUCIÓN:
-- CÁLCULOS: Si hay medidas, calcula Volumen y Peso Cobrable de inmediato.
-- DG/DRY ICE: Identifica UN Number, Clase y texto exacto para el AWB.
-- RECHAZOS: Advierte sobre ilegibilidad, falta de copias sueltas o falta de sellos ISPM-15.
-- ASISTENCIA TOTAL: No envíes al cliente con otros. Tú das la respuesta técnica.
-
-REGLAS DE RESPUESTA:
- CONTROL – Diagnóstico técnico del riesgo.
- ACTION – Pasos operativos + Cálculos + DRAFT (Texto exacto para copiar).
- READY TEXT / DRAFT – Mensaje listo para enviar o poner en el documento.
- WHY – Impacto de multas federales o retrasos.
- CLOSE – Instrucción final de despacho.
-
-REGLAS DE LENGUAJE:
-- Se recomienda técnicamente, Borrador sugerido, Bajo estándar normativo.
-
-CONTEXTO DE SESIÓN:
-{prompt}
+ESTRUCTURA: [AVISO LEGAL], [CONTROL], [CALCULADORA], [ACTION + DRAFT], [ESTÁNDAR COUNTER], [WHY], [CLOSE].
+Idioma: {lang}. Rol: {role}. ENTRADA: {prompt}
 """
 
-    guardian_rules = """
-FINAL CHECK:
-- ¿Calculé el peso cobrable? ¿Di el texto exacto para el borrador? 
-- ¿Asistí al cliente con una solución definitiva?
-"""
-
-    disclaimer = "\n\nLEGAL NOTE: SmartCargo Advisory by May Roga LLC provides strategic operational drafts. This is not a legal certification. Final compliance is responsibility of the user."
-
-    system_prompt = core_brain + guardian_rules + disclaimer
-
-    # ================= MOTOR DE IA =================
+    # --- INTENTO 1: GEMINI ---
     if GEMINI_KEY:
         try:
+            # URL actualizada para evitar el 404
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                r = await client.post(
-                    url,
-                    json={
-                        "contents": [{"parts": [{"text": system_prompt}]}],
-                        "generationConfig": {"temperature": 0.1} # Máxima precisión técnica
-                    }
-                )
-                text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
-                return {"data": text}
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                payload = {
+                    "contents": [{"parts": [{"text": system_instruction}]}],
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                }
+                r = await client.post(url, json=payload)
+                if r.status_code == 200:
+                    res_data = r.json()
+                    if "candidates" in res_data:
+                        return {"data": res_data["candidates"][0]["content"]["parts"][0]["text"]}
+            logger.warning("Gemini falló, intentando Fallback con OpenAI...")
         except Exception as e:
-            logger.error(f"Gemini Error: {e}")
+            logger.error(f"Error Gemini: {e}")
 
-    return {"data": "SMARTCARGO ADVISORY is processing. Please retry."}
+    # --- INTENTO 2: OPENAI (FALLBACK) ---
+    if OPENAI_KEY:
+        try:
+            from openai import AsyncOpenAI
+            client_oa = AsyncOpenAI(api_key=OPENAI_KEY)
+            res = await client_oa.chat.completions.create(
+                model="gpt-4o",
+                temperature=0.1,
+                messages=[{"role": "system", "content": system_instruction}],
+                timeout=45.0
+            )
+            return {"data": res.choices[0].message.content}
+        except Exception as e:
+            logger.error(f"Error OpenAI Fallback: {e}")
 
-# ================= EMAIL ENDPOINT =================
+    return {"data": "SISTEMA SMARTCARGO EN SOBRECARGA. Ni Gemini ni OpenAI respondieron. Reintente en 10 segundos."}
+
+# ================= OTROS ENDPOINTS =================
 @app.post("/send-email")
 async def send_email(email: str = Form(...), content: str = Form(...)):
-    logger.info(f"Reporte enviado a: {email}")
     return {"status": "success"}
 
-# ================= PAYMENTS (ORIGINAL) =================
 @app.post("/create-payment")
-async def create_payment(
-    amount: float = Form(...),
-    awb: str = Form(...),
-    user: Optional[str] = Form(None),
-    password: Optional[str] = Form(None)
-):
+async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
     if user == ADMIN_USER and password == ADMIN_PASS:
         return {"url": f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"}
-
     try:
         checkout = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {"name": f"SmartCargo Advisory Session – {awb}"},
-                    "unit_amount": int(amount * 100)
-                },
-                "quantity": 1
-            }],
+            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Session {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
             mode="payment",
             success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}",
             cancel_url=f"{DOMAIN_URL}/"
         )
         return {"url": checkout.url}
-    except Exception as e:
-        logger.error(f"Stripe Error: {e}")
-        return JSONResponse({"error": "Payment gateway error"}, status_code=400)
+    except: return JSONResponse({"error": "Error de Pago"}, status_code=400)
