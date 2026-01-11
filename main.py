@@ -1,23 +1,22 @@
-import os, stripe, httpx, openai, urllib.parse, logging, smtplib
+import os, stripe, httpx, openai, urllib.parse, logging
 from fastapi import FastAPI, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from typing import Optional
 from dotenv import load_dotenv
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 # Configuración de Logs
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 load_dotenv()
+
 app = FastAPI(title="SmartCargo Advisory by May Roga LLC")
 
 # ================= CORS =================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Cambiar en producción
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"]
 )
@@ -27,17 +26,10 @@ GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 ADMIN_USER = os.getenv("ADMIN_USERNAME")
 ADMIN_PASS = os.getenv("ADMIN_PASSWORD")
-STRIPE_KEY = os.getenv("STRIPE_SECRET_KEY")
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 DOMAIN_URL = os.getenv("DOMAIN_URL")
 
-EMAIL_USER = os.getenv("EMAIL_USER")
-EMAIL_PASS = os.getenv("EMAIL_PASS")
-EMAIL_HOST = os.getenv("EMAIL_HOST")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
-
-stripe.api_key = STRIPE_KEY
-
-# ================= STATIC =================
+# ================= ROUTES =================
 @app.get("/")
 async def home():
     return FileResponse("index.html")
@@ -46,153 +38,95 @@ async def home():
 async def js_serve():
     return FileResponse("app.js")
 
-@app.get("/terms")
-async def terms():
-    return FileResponse("terms_and_conditions.html")
-
-# ================= CORE ADVISORY =================
+# ================= CORE ADVISORY ENGINE =================
 @app.post("/advisory")
 async def advisory_engine(
     prompt: str = Form(...),
     lang: str = Form("en"),
-    role: Optional[str] = Form("auto"),
-    send_email: Optional[str] = Form(None),
-    send_whatsapp: Optional[str] = Form(None)
+    role: Optional[str] = Form("auto")
 ):
     """
-    SMARTCARGO ADVISORY by May Roga LLC - Brain Core
-    Genera borradores completos, cálculos y alternativas estratégicas.
+    SMARTCARGO ADVISORY - Brain Core Unificado (Aire, Mar, Tierra)
+    Asesoría técnica para mitigar riesgos, demoras y costos operativos.
     """
 
-    # ================= Brain Core =================
-    core_brain = f"""
-SMARTCARGO ADVISORY by May Roga LLC
-Language: {lang}
+    system_logic = f"""
+IDENTIDAD: SmartCargo Advisory by May Roga LLC.
+ROL: Asesor técnico privado e independiente. NO somos autoridad gubernamental (TSA, CBP, DOT, IATA).
+OBJETIVO: Prevenir errores operativos antes de que la carga llegue al counter o puerto.
 
-IDENTIDAD ASESOR:
-- Privado e independiente.
-- No certificamos. Generamos borradores y estrategias.
+PRINCIPIOS MADRE:
+1. "Si no está claro, no entra. Si no está ordenado, no pasa."
+2. Semáforo de Riesgo: 
+   - VERDE: Alineado con estándares. 
+   - AMARILLO: Sugerencia de corrección necesaria. 
+   - ROJO: Inconsistencia crítica detectada.
 
-DOCUMENTOS CLAVE:
-Aéreo: AWB, HAWB, MAWB, DG Declaration, Dry Ice, Manifest, TSA Known Shipper, Invoice, Packing List
-Marítimo: Bill of Lading, House B/L, Manifest, Invoice, Packing, ISF, Shipper Letter
-Terrestre: BOL, Delivery Order, Invoice, Packing, Hazmat
+INTELIGENCIA MULTIMODAL:
+- AÉREO: Validar MAWB/HAWB, TSA Known Shipper, DG IATA, Dry Ice (UN1845).
+- MARÍTIMO: Validar MBL/HBL, VGM (Peso Verificado), ISPM-15, IMO (IMDG Code).
+- TERRESTRE: BOL, Pesos por eje, Sujeción de carga, Horas de servicio.
 
-REGULACIONES:
-- TSA, IATA, CBP, DOT
-- Prevención de errores, retrasos o multas
-- Estrategias para cargas sobredimensionadas y peligrosas
+LÓGICA DE CÁLCULO (Peso Cobrable):
+- Aéreo: (L*W*H)/6000 | Marítimo: (L*W*H)/1000.
+- El mayor entre Peso Bruto y Volumétrico es el SUGGESTED CHARGEABLE WEIGHT.
 
-PESO COBRABLE:
-- Si se proporcionan dimensiones (cm):
-  Peso Volumétrico = (L*W*H)/6000
-  Mayor entre peso bruto y volumétrico = Peso cobrable
+REGLAS DE LENGUAJE SEGURO:
+- Prohibido usar: "Illegal", "Violation", "Fine", "Must", "Authority".
+- Usar siempre: "Operational risk", "Document mismatch", "Suggested step", "Non-standard".
 
-MISIÓN:
-- Detectar documentos, mercancías y riesgos
-- Generar borradores completos
-- Formular preguntas estratégicas si faltan datos
-- Ofrecer alternativas y soluciones operativas
+ESTRUCTURA DE RESPUESTA:
+- [CONTROL] Diagnóstico técnico.
+- [ACTION] Pasos operativos sugeridos + Cálculos + Borradores (Drafts).
+- [WHY] Riesgo de demora o costo extra si no se corrige.
+- [CLOSE] Reaseguro del flujo operativo.
 
-REGLAS DE RESPUESTA:
-1️⃣ CONTROL – Línea de calma y dirección técnica
-2️⃣ ACTION – Pasos operativos + Cálculos + Preguntas estratégicas
-3️⃣ READY TEXT – Borrador listo para enviar
-4️⃣ WHY – Impacto operativo y mitigación de riesgos
-5️⃣ CLOSE – Reaseguro de flujo
-
-ESCENARIO CLIENTE:
-{prompt}
+Idioma: {lang}
+Contexto: {prompt}
 """
 
-    guardian_rules = """
-FINAL CHECK:
-- ¿Calculé peso cobrable si hay dimensiones?
-- ¿Generé borrador de todos los documentos?
-- ¿Formulé preguntas estratégicas necesarias?
-"""
+    disclaimer = "\n\nLEGAL NOTE: SmartCargo Advisory by May Roga LLC provides operational drafts and strategic guidance. Final compliance, signatures, and legal responsibility are of the Shipper/User."
+    full_prompt = system_logic + disclaimer
 
-    disclaimer = "\n\nLEGAL NOTE: This advisory is guidance only. Compliance and signatures remain responsibility of Shipper/User."
-
-    system_prompt = core_brain + guardian_rules + disclaimer
-
-    # ================= GEMINI =================
-    response_text = ""
+    # --- GEMINI EXECUTION ---
     if GEMINI_KEY:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
             async with httpx.AsyncClient(timeout=60.0) as client:
-                r = await client.post(url, json={"contents": [{"parts": [{"text": system_prompt}]}]})
-                response_text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+                r = await client.post(url, json={"contents": [{"parts": [{"text": full_prompt}]}]})
+                return {"data": r.json()["candidates"][0]["content"]["parts"][0]["text"]}
         except Exception as e:
             logger.error(f"Gemini Error: {e}")
 
-    # ================= OPENAI FALLBACK =================
-    if not response_text and OPENAI_KEY:
+    # --- OPENAI FALLBACK ---
+    if OPENAI_KEY:
         try:
             from openai import AsyncOpenAI
             client_oa = AsyncOpenAI(api_key=OPENAI_KEY)
             res = await client_oa.chat.completions.create(
                 model="gpt-4o",
-                temperature=0.15,
-                messages=[{"role": "system", "content": system_prompt}],
-                timeout=60.0
+                temperature=0.2,
+                messages=[{"role": "system", "content": full_prompt}]
             )
-            response_text = res.choices[0].message.content
+            return {"data": res.choices[0].message.content}
         except Exception as e:
             logger.error(f"OpenAI Error: {e}")
 
-    # ================= ENVIAR EMAIL =================
-    if send_email and EMAIL_USER and EMAIL_PASS:
-        try:
-            msg = MIMEMultipart()
-            msg['From'] = EMAIL_USER
-            msg['To'] = send_email
-            msg['Subject'] = f"SMARTCARGO Advisory Response"
-            msg.attach(MIMEText(response_text, 'plain'))
-            server = smtplib.SMTP(EMAIL_HOST, EMAIL_PORT)
-            server.starttls()
-            server.login(EMAIL_USER, EMAIL_PASS)
-            server.sendmail(EMAIL_USER, send_email, msg.as_string())
-            server.quit()
-        except Exception as e:
-            logger.error(f"Email sending error: {e}")
-
-    # ================= ENVIAR WHATSAPP =================
-    if send_whatsapp:
-        whatsapp_url = f"https://wa.me/?text={urllib.parse.quote(response_text)}"
-        response_text += f"\n\nSend via WhatsApp: {whatsapp_url}"
-
-    return {"data": response_text or "SMARTCARGO Advisory analyzing complex request. Retry in a few seconds."}
+    return {"data": "Advisory System temporarily busy. Please retry."}
 
 # ================= PAYMENTS =================
 @app.post("/create-payment")
-async def create_payment(
-    amount: float = Form(...),
-    awb: str = Form(...),
-    user: Optional[str] = Form(None),
-    password: Optional[str] = Form(None)
-):
-    # Bypass administrativo
+async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
     if user == ADMIN_USER and password == ADMIN_PASS:
         return {"url": f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"}
-
     try:
         checkout = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {"name": f"SmartCargo Advisory Session – {awb}"},
-                    "unit_amount": int(amount * 100)
-                },
-                "quantity": 1
-            }],
+            line_items=[{"price_data": {"currency": "usd", "product_data": {"name": f"Session {awb}"}, "unit_amount": int(amount * 100)}, "quantity": 1}],
             mode="payment",
             success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}",
             cancel_url=f"{DOMAIN_URL}/"
         )
         return {"url": checkout.url}
     except Exception as e:
-        logger.error(f"Stripe Error: {e}")
-        return JSONResponse({"error": "Payment gateway error"}, status_code=400)
+        return JSONResponse({"error": "Gateway Error"}, status_code=400)
