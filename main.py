@@ -1,67 +1,83 @@
-import os, httpx, urllib.parse
+import os, stripe, httpx, urllib.parse
 from fastapi import FastAPI, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
-app = FastAPI(title="SmartCargo Advisory by May Roga LLC")
+app = FastAPI()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
-)
-
+# Configuración de API Keys desde Render
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+DOMAIN_URL = os.getenv("DOMAIN_URL")
+
+# --- CONSTITUCIÓN TÉCNICA SMARTCARGO ---
+TECH_CORE = """
+Eres el Cerebro Estratégico de SMARTCARGO ADVISORY by MAY ROGA LLC.
+NORMATIVA: IATA DGR, TSA 1544, 49 CFR DOT, CBP, GOM AVIANCA.
+
+FILOSOFÍA: 
+1. RESOLUCIÓN: Si el cliente pregunta algo vago, interrógale (¿Es PAX o CAO?, ¿Sello ISPM-15?, ¿Original 2 y 4?).
+2. ACCIÓN: No des conceptos. Da pasos. "Mueva la etiqueta", "Firme en rojo", "Saque el papel del sobre".
+3. BLINDAJE: Tu objetivo es que la carga fluya y evitar multas al Shipper y rechazos en el Counter.
+"""
+
+@app.post("/advisory")
+async def advisory_engine(prompt: str = Form(...), lang: str = Form("es"), role: Optional[str] = Form("auto")):
+    system_instr = f"{TECH_CORE}\nIdioma: {lang}. Rol: {role}. Situación: {prompt}"
+    
+    async with httpx.AsyncClient(timeout=55.0) as client:
+        # FRENTE 1: GEMINI 1.5 FLASH (Velocidad y Visión)
+        try:
+            res_g = await client.post(
+                f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}",
+                json={"contents": [{"parts": [{"text": system_instr}]}]}
+            )
+            if res_g.status_code == 200:
+                return {"data": res_g.json()["candidates"][0]["content"]["parts"][0]["text"]}
+        except:
+            pass
+
+        # FRENTE 2 / VALIDADOR MAESTRO: OPENAI GPT-4o (Precisión Técnica)
+        if OPENAI_KEY:
+            try:
+                res_o = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {OPENAI_KEY}"},
+                    json={"model": "gpt-4o", "messages": [{"role": "system", "content": system_instr}], "temperature": 0}
+                )
+                if res_o.status_code == 200:
+                    return {"data": res_o.json()["choices"][0]["message"]["content"]}
+            except:
+                pass
+
+    return {"data": "SISTEMA SATURADO. REINTENTE EN 5 SEGUNDOS."}
+
+@app.post("/create-payment")
+async def create_payment(amount: float = Form(...), awb: str = Form(...), user: str = Form(None), p: str = Form(None)):
+    # Master Login
+    if user == os.getenv("ADMIN_USERNAME") and p == os.getenv("ADMIN_PASSWORD"):
+        return {"url": f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"}
+    
+    # Pago Real Stripe
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{'price_data': {'currency': 'usd', 'product_data': {'name': f'Advisory AWB: {awb}'}, 'unit_amount': int(amount * 100)}, 'quantity': 1}],
+            mode='payment',
+            success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}",
+            cancel_url=f"{DOMAIN_URL}/",
+        )
+        return {"url": session.url}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
 
 @app.get("/")
 async def home(): return FileResponse("index.html")
 
 @app.get("/app.js")
-async def js_serve(): return FileResponse("app.js")
-
-@app.post("/advisory")
-async def advisory_engine(prompt: str = Form(...), lang: str = Form("es"), role: Optional[str] = Form("auto")):
-    
-    # KNOWLEDGE INJECTION: IATA, TSA, DOT, CBP, AVIANCA STANDARDS
-    system_instruction = f"""
-    YOU ARE THE STRATEGIC ADVISORY BRAIN OF SMARTCARGO ADVISORY BY MAY ROGA LLC.
-    MISSION: Educate, Prevent, and Mitigate errors BEFORE, DURING, and AFTER counter delivery.
-    
-    TECHNICAL MANDATES:
-    1. PAPERWORK: Verify AWB Originals 2 & 4. Manifests must be legible. Keep papers OUTSIDE the envelope to avoid 'Human Mixing Errors'.
-    2. CARGO: 96" max length for Avianca. Bellies (PAX) max height 63". DG labels MUST face OUTWARD for inspectors.
-    3. STANDARDS: ISPM-15 seals for wood pallets. No black tape. No moisture.
-    4. ROLES: 
-       - SHIPPER: UN packaging, marks, and labels.
-       - FORWARDER: Exact text for AWB and DGD.
-       - TRUCKER: DOT standards, load securing, BOL awareness.
-       - COUNTER/STAFF: CAO check (>160cm), weight discrepancies, security seals.
-    
-    RESPONSE STRUCTURE:
-    - [OPERATIONAL ADVICE] Strategic path to follow.
-    - [TECHNICAL DIAGNOSIS] Error identification and immediate solution.
-    - [CALCULATION] Volumetric weight (L x W x H cm / 6000).
-    - [WHY] Fines prevention (TSA/CBP) and avoiding Avianca rejections.
-    
-    Language: {lang}. User Role: {role}. INPUT: {prompt}
-    """
-
-    if GEMINI_KEY:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-            async with httpx.AsyncClient(timeout=45.0) as client:
-                payload = {"contents": [{"parts": [{"text": system_instruction}]}], "generationConfig": {"temperature": 0.1}}
-                r = await client.post(url, json=payload)
-                if r.status_code == 200:
-                    return {"data": r.json()["candidates"][0]["content"]["parts"][0]["text"]}
-        except Exception: pass
-
-    return {"data": "System processing technical load. Please retry."}
-
-@app.post("/create-payment")
-async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), password: Optional[str] = Form(None)):
-    # Simple login logic for Master Access
-    if user == os.getenv("ADMIN_USERNAME") and password == os.getenv("ADMIN_PASSWORD"):
-        return {"url": f"/?access=granted&awb={urllib.parse.quote(awb)}"}
-    return {"url": f"/?access=granted&awb={urllib.parse.quote(awb)}"}
+async def js(): return FileResponse("app.js")
