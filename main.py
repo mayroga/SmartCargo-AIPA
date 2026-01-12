@@ -1,85 +1,125 @@
-import os, stripe, httpx, urllib.parse, openai
-from fastapi import FastAPI, Form, Request
+import os, stripe, httpx, urllib.parse
+from fastapi import FastAPI, Form, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from typing import Optional
+from typing import Optional, List
 from dotenv import load_dotenv
 
 load_dotenv()
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# Configuración de Seguridad y CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+# Configuración de API Keys desde Render
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 DOMAIN_URL = os.getenv("DOMAIN_URL")
 
+# --- CONSTITUCIÓN TÉCNICA SMARTCARGO ADVISORY BY MAY ROGA LLC ---
+TECH_CORE = """
+Eres el Cerebro Estratégico Quirúrgico de SmartCargo by MAY ROGA LLC. 
+IDENTIDAD: Asesoría Privada de alto nivel. No eres IATA, DOT, TSA ni CBP; eres el experto que domina sus reglas.
+FILOSOFÍA: Tu objetivo es mitigar retenciones, retornos y ahorrar capital al Shipper y Forwarder.
+
+REGLAS DE ORO:
+1. FORMATO DUAL: Cada dimensión o límite de tamaño debe mostrarse en: [Pulgadas] INC / [Centímetros] CM.
+2. LENGUAJE EXPERTO: Usa lenguaje de sugerencia estratégica (ej. 'Mi recomendación es...', 'Propongo proceder...').
+3. TOMA EL MANDO: No des definiciones de libro. Si falta info, interroga. Si hay riesgo, advierte.
+4. HILO CONDUCTOR: Mantén el contexto de la conversación hasta la resolución del problema.
+5. VOZ LIMPIA: No uses asteriscos (*) ni símbolos para que la bocina lea el texto de forma fluida.
+"""
+
 @app.get("/")
-async def home(): return FileResponse("index.html")
+async def home():
+    """Entrega el Portal Visual"""
+    return FileResponse("index.html")
 
 @app.get("/app.js")
-async def js_serve(): return FileResponse("app.js")
+async def js_serve():
+    """Entrega la Lógica del Cliente"""
+    return FileResponse("app.js")
 
 @app.post("/advisory")
-async def advisory_engine(prompt: str = Form(...), lang: str = Form("es")):
-    # INSTRUCCIONES MAESTRAS DE SMARTCARGO ADVISORY BY MAY ROGA LLC
-    system_instr = (
-        f"Eres el Cerebro Estratégico Quirúrgico de SmartCargo by MAY ROGA LLC. Idioma: {lang}. "
-        "IDENTIDAD: Asesoría Privada de alto nivel. No eres IATA, DOT, TSA ni CBP. Eres el experto que conoce sus reglas mejor que nadie. "
-        "FILOSOFÍA DE RESPUESTA: Tienes el conocimiento infinito para mitigar retenciones, retornos y ahorrar dinero. "
-        "LENGUAJE LEGAL Y SEGURO: Siempre usa lenguaje de sugerencia y propuesta (ej. 'Le sugiero...', 'Mi recomendación estratégica es...', 'Propongo proceder de esta forma...'). "
-        "REGLA DE ORO: PROHIBIDO dar clases, definiciones de libro o pasos genéricos de 'búsqueda'. "
-        "TÚ TOMAS EL MANDO: Si el cliente pregunta por un Bill of Lading o AWB, no le digas que lo busque, dile: "
-        "'Le sugiero mirar el campo X; si no ve el sello Y, mi recomendación es no autorizar la salida para evitar multas'. "
-        "PROHIBIDO: Jamás remitas al cliente a otro experto o asesor. TÚ eres el único experto por el que pagó. "
-        "CERO TEORÍA: Si el cliente está perdido, guíalo con preguntas de asociación: '¿Huele a gas?', '¿Hay etiquetas de diamante?'. "
-        "ACCIÓN: Antes, Durante y Después de cada situación logística. Resuelve AHORA. "
-        "NOTA DE VOZ: No uses asteriscos ni símbolos raros para que la lectura de voz sea fluida."
-        f"\n\nContexto de la Sesión Actual: {prompt}"
-    )
+async def advisory_engine(
+    prompt: str = Form(...), 
+    lang: str = Form("es"), 
+    role: Optional[str] = Form("auto")
+):
+    """Motor de IA con Doble Respaldo y Conexión Asíncrona"""
+    system_instr = f"{TECH_CORE}\nIdioma: {lang}. Rol: {role}. Situación: {prompt}"
+    
+    async with httpx.AsyncClient(timeout=45.0) as client:
+        # PLAN A: GEMINI 1.5 FLASH (Velocidad y Análisis)
+        if GEMINI_KEY:
+            try:
+                url_g = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+                res_g = await client.post(
+                    url_g, 
+                    json={"contents": [{"parts": [{"text": system_instr}]}]},
+                    headers={"Content-Type": "application/json"}
+                )
+                if res_g.status_code == 200:
+                    return {"data": res_g.json()["candidates"][0]["content"]["parts"][0]["text"]}
+            except:
+                pass
 
-    # IA DUAL: PLAN A (Gemini 1.5 Flash)
-    if GEMINI_KEY:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                r = await client.post(url, json={"contents": [{"parts": [{"text": system_instr}]}]})
-                if r.status_code == 200:
-                    text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
-                    return {"data": text}
-        except Exception: pass
-
-    # IA DUAL: PLAN B (OpenAI GPT-4o)
-    if OPENAI_KEY:
-        try:
-            # Usamos httpx para OpenAI para evitar bloqueos de sincronía en Render
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                res = await client.post(
+        # PLAN B: OPENAI GPT-4o (Precisión y Respaldo)
+        if OPENAI_KEY:
+            try:
+                res_o = await client.post(
                     "https://api.openai.com/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {OPENAI_KEY}"},
+                    headers={"Authorization": f"Bearer {OPENAI_KEY}", "Content-Type": "application/json"},
                     json={
                         "model": "gpt-4o",
                         "messages": [{"role": "system", "content": system_instr}],
-                        "temperature": 0.1
+                        "temperature": 0.2
                     }
                 )
-                if res.status_code == 200:
-                    return {"data": res.json()["choices"][0]["message"]["content"]}
-        except Exception: pass
+                if res_o.status_code == 200:
+                    return {"data": res_o.json()["choices"][0]["message"]["content"]}
+            except:
+                pass
 
-    return {"data": "Sugerencia del Sistema: El enlace de inteligencia no está disponible temporalmente. Recomendamos contactar a soporte de MAY ROGA LLC."}
+    return {"data": "SMARTCARGO ADVISORY: Enlace de inteligencia fuera de línea. Verifique API Keys en Render."}
 
 @app.post("/create-payment")
-async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), p: Optional[str] = Form(None)):
+async def create_payment(
+    amount: float = Form(...), 
+    awb: str = Form(...), 
+    user: Optional[str] = Form(None), 
+    p: Optional[str] = Form(None)
+):
+    """Gestión de Pagos Stripe y Acceso Maestro Admin"""
+    # Validación de Acceso Maestro (Personal de MAY ROGA LLC)
     if user == os.getenv("ADMIN_USERNAME") and p == os.getenv("ADMIN_PASSWORD"):
         return {"url": f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"}
+    
+    # Proceso de Pago Stripe
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=['card'],
-            line_items=[{'price_data': {'currency': 'usd', 'product_data': {'name': f'Advisory AWB: {awb}'}, 'unit_amount': int(amount * 100)}, 'quantity': 1}],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {
+                        'name': f'Asesoría Estratégica SmartCargo - AWB: {awb}',
+                        'description': 'Resolución técnica de carga - MAY ROGA LLC'
+                    },
+                    'unit_amount': int(amount * 100),
+                },
+                'quantity': 1,
+            }],
             mode='payment',
             success_url=f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}",
             cancel_url=f"{DOMAIN_URL}/",
         )
         return {"url": session.url}
-    except Exception as e: return JSONResponse({"error": str(e)}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
