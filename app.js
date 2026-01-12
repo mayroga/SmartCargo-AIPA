@@ -1,18 +1,18 @@
 let role = "";
-let chatHistory = "";
+let chatHistory = []; // Array para manejar memoria selectiva
 
 const i18n = {
-    en: { get: "EXECUTE ADVISORY", roles: ["Trucker", "Forwarder", "Counter Staff", "Shipper/Owner"], analyzing: "SMARTCARGO ADVISORY | ANALYZING..." },
-    es: { get: "EJECUTAR ASESORÍA", roles: ["Camionero", "Forwarder", "Agente Counter", "Dueño/Shipper"], analyzing: "SMARTCARGO ADVISORY | ANALIZANDO..." }
+    en: { get: "EXECUTE ADVISORY", roles: ["Trucker", "Forwarder", "Counter Staff", "Shipper/Owner"], analyzing: "SMARTCARGO | ANALYZING..." },
+    es: { get: "EJECUTAR ASESORÍA", roles: ["Camionero", "Forwarder", "Agente Counter", "Dueño/Shipper"], analyzing: "SMARTCARGO | ANALIZANDO..." }
 };
 
 function changeLang(l) {
     const lang = i18n[l];
     document.getElementById('btn-get').innerText = lang.get;
-    document.querySelectorAll('.role-btn').forEach((b, i) => b.innerText = lang.roles[i]);
+    const btns = document.querySelectorAll('.role-btn');
+    lang.roles.forEach((text, i) => { if(btns[i]) btns[i].innerText = text; });
 }
 
-// CÁMARAS
 function scRead(e, n) {
     const r = new FileReader();
     r.onload = () => {
@@ -20,10 +20,9 @@ function scRead(e, n) {
         img.src = r.result; img.style.display = "block";
         document.getElementById('cap' + n).style.display = "none";
     };
-    r.readAsDataURL(e.target.files[0]);
+    if(e.target.files[0]) r.readAsDataURL(e.target.files[0]);
 }
 
-// BOCINA (Speaker)
 function hablar(t) {
     window.speechSynthesis.cancel();
     const cleanText = t.replace(/🔊/g, "").replace(/[*#_]/g, "").replace(/-/g, " ");
@@ -32,43 +31,28 @@ function hablar(t) {
     window.speechSynthesis.speak(utter);
 }
 
-// MICRÓFONO (Dictado)
-let rec;
-function startVoice() {
-    const S = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!S) return alert("Microphone not supported.");
-    rec = new S();
-    rec.lang = document.getElementById('userLang').value === 'es' ? 'es-US' : 'en-US';
-    rec.onresult = (e) => document.getElementById('prompt').value = e.results[0][0].transcript;
-    rec.start();
-}
-function stopVoice() { if(rec) rec.stop(); }
-
-// PAGOS Y ACCESO
-async function pay(amt) {
-    const fd = new FormData();
-    fd.append("amount", amt);
-    fd.append("awb", document.getElementById('awb').value || "REF");
-    fd.append("user", document.getElementById('u').value);
-    fd.append("p", document.getElementById('p').value);
-    const r = await fetch('/create-payment', { method: 'POST', body: fd });
-    const d = await r.json();
-    if (d.url) window.location.href = d.url;
-}
-
-// EJECUCIÓN DE IA (REPARADA)
+// IA EXECUTION
 async function run() {
-    if (!role) return alert("Select Role / Selecciona Rol");
-    const p = document.getElementById('prompt').value;
+    const pInput = document.getElementById('prompt');
     const out = document.getElementById('res');
+    const btn = document.getElementById('btn-get');
     const lang = document.getElementById('userLang').value;
-    
+
+    if (!role) return alert("Select Role / Selecciona Rol");
+    if (!pInput.value.trim()) return alert("Write something / Escribe algo");
+
+    // UI Estado: Bloquear para evitar clics dobles (causa de freezes)
+    btn.disabled = true;
     out.style.display = "block";
     out.innerText = i18n[lang].analyzing;
     document.getElementById('speak-btn').style.display = "none";
 
+    // Enviamos solo los últimos 4 mensajes del historial para ligereza
+    const historySnippet = chatHistory.slice(-4).join(" | ");
+
     const fd = new FormData();
-    fd.append("prompt", `HISTORY: ${chatHistory} | QUERY: ${p}`);
+    fd.append("prompt", pInput.value);
+    fd.append("history", historySnippet);
     fd.append("role", role);
     fd.append("lang", lang);
 
@@ -79,9 +63,14 @@ async function run() {
         
         out.innerText = d.data;
         document.getElementById('speak-btn').style.display = "block";
-        chatHistory += ` Q:${p} A:${d.data} | `;
+        
+        // Guardar en historial
+        chatHistory.push(`Q:${pInput.value}`, `A:${d.data}`);
+        pInput.value = ""; // Limpiar entrada
     } catch (e) {
-        out.innerText = "CONNECTION ERROR: The IA brain is not responding. Check Render Logs.";
+        out.innerText = "ERROR DE CONEXIÓN: El cerebro de la IA no responde. Reintenta.";
+    } finally {
+        btn.disabled = false;
     }
 }
 
@@ -91,18 +80,17 @@ function selRole(r, b) {
     b.classList.add('selected');
 }
 
-// EXPORTACIÓN
 function ws() {
     const text = document.getElementById('res').innerText;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
+
 function email() {
     const text = document.getElementById('res').innerText;
-    const subject = "SMARTCARGO ADVISORY REPORT";
-    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+    window.location.href = `mailto:?subject=SMARTCARGO REPORT&body=${encodeURIComponent(text)}`;
 }
 
-// DETECCIÓN DE ACCESO
+// Login Detect
 const params = new URLSearchParams(window.location.search);
 if (params.get('access') === 'granted') {
     document.getElementById('accessSection').style.display = "none";
