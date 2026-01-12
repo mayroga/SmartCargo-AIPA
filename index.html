@@ -1,75 +1,76 @@
-let role = "";
-const i18n = {
-    en: {
-        promoGold: "360° STRATEGIC LOGISTICS SOLUTIONS - MAY ROGA LLC",
-        promoBlue: "MITIGATING HOLDS & RETURNS. WE THINK FOR YOUR CARGO.",
-        get: "EXECUTE ADVISORY",
-        analyzing: "MAY ROGA LLC | MASTER VALIDATION IN PROGRESS...",
-        roles: ["Trucker", "Forwarder", "Counter Staff", "Shipper/Owner"]
-    },
-    es: {
-        promoGold: "SOLUCIONES LOGÍSTICAS ESTRATÉGICAS 360° - MAY ROGA LLC",
-        promoBlue: "MITIGAMOS RETENCIONES Y RETORNOS. PENSAMOS POR TU CARGA.",
-        get: "EJECUTAR ASESORÍA",
-        analyzing: "MAY ROGA LLC | VALIDACIÓN MAESTRA EN CURSO...",
-        roles: ["Camionero", "Forwarder", "Agente Counter", "Dueño/Shipper"]
-    }
-};
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartCargo Advisory | MAY ROGA LLC</title>
+<style>
+    body { background: #000b1a; font-family: sans-serif; padding:10px; margin:0; overflow-x:hidden; }
+    .card { max-width: 500px; margin:auto; background:white; border-radius:20px; padding:20px; border-top:10px solid #d4af37; box-shadow:0 10px 40px rgba(0,0,0,0.5); }
+    @keyframes mover { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+    .promo-gold { background:#d4af37; color:#000; font-weight:bold; overflow:hidden; white-space:nowrap; padding:8px; font-size:11px; margin:-20px -20px 10px -20px; border-radius:15px 15px 0 0; }
+    .promo-blue { background:#0056b3; color:#fff; font-weight:bold; overflow:hidden; white-space:nowrap; padding:6px; font-size:11px; margin:0 -20px 15px -20px; }
+    .promo-gold span, .promo-blue span { display:inline-block; animation: mover 18s linear infinite; }
+    .btn-main { width:100%; padding:14px; border:none; border-radius:10px; cursor:pointer; font-weight:bold; margin-top:5px; text-transform:uppercase; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .role-btn { border:1.5px solid #001d3d; padding:12px; border-radius:8px; text-align:center; font-weight:bold; background:#f8f9fa; cursor:pointer; font-size:11px; }
+    .role-btn.selected { background:#001d3d; color:white; border-color:#d4af37; }
+    #res { margin-top:15px; background:#f0f7ff; padding:20px; border-radius:10px; border:2px solid #0056b3; display:none; color:#003366; font-weight:bold; white-space:pre-wrap; line-height:1.6; }
+    input, textarea { width:100%; box-sizing:border-box; padding:12px; border-radius:8px; border:1px solid #ccc; outline:none; font-size:16px; }
+</style>
+</head>
+<body>
+<div class="card">
+    <div class="promo-gold" id="promoGold"><span>SOLUCIONES LOGÍSTICAS ESTRATÉGICAS 360° - SMARTCARGO ADVISORY BY MAY ROGA LLC</span></div>
+    <div class="promo-blue" id="promoBlue"><span>MITIGAMOS RETENCIONES Y RETORNOS. PENSAMOS POR TU CARGA.</span></div>
 
-function changeLang(l) {
-    const lang = i18n[l];
-    document.getElementById('promoGold').innerHTML = `<span>${lang.promoGold}</span>`;
-    document.getElementById('promoBlue').innerHTML = `<span>${lang.promoBlue}</span>`;
-    document.getElementById('btn-get').innerText = lang.get;
-    document.querySelectorAll('.role-btn').forEach((b, i) => b.innerText = lang.roles[i]);
-}
+    <select id="userLang" onchange="changeLang(this.value)" style="width:100%; padding:12px; font-weight:bold; border:2px solid #001d3d; border-radius:8px; margin-bottom:10px;">
+        <option value="es"> SISTEMA ESPAÑOL</option>
+        <option value="en"> ENGLISH SYSTEM</option>
+    </select>
 
-// MICROFONO: PUSH TO TALK
-let rec;
-function startVoice() {
-    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Speech) return;
-    rec = new Speech();
-    rec.lang = document.getElementById('userLang').value === 'es' ? 'es-US' : 'en-US';
-    rec.start();
-    rec.onresult = (e) => { document.getElementById('prompt').value = e.results[0][0].transcript; };
-}
-function stopVoice() { if(rec) rec.stop(); }
+    <div id="accessSection">
+        <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
+            <button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="pay(5)">$5</button>
+            <button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="pay(15)">$15</button>
+            <button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="pay(35)">$35</button>
+            <button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="pay(95)">$95</button>
+        </div>
+        <input type="text" id="awb" placeholder="REFERENCIA / AWB #" style="margin-top:10px;">
+        <div class="grid">
+            <input type="text" id="u" placeholder="Admin User">
+            <input type="password" id="p" placeholder="Security Key">
+        </div>
+        <button class="btn-main" style="background:#333;color:white;" onclick="pay(0)">MASTER ACCESS LOGIN</button>
+    </div>
 
-async function pay(amt) {
-    const fd = new FormData();
-    fd.append("amount", amt);
-    fd.append("awb", document.getElementById('awb').value || "REF_MASTER");
-    fd.append("user", document.getElementById('u').value);
-    fd.append("p", document.getElementById('p').value);
-    
-    const r = await fetch('/create-payment', { method: 'POST', body: fd });
-    const d = await r.json();
-    if (d.url) window.location.href = d.url;
-}
+    <div id="mainApp" style="display:none; margin-top:15px;">
+        <div class="grid">
+            <div class="role-btn" onclick="selRole('Trucker',this)">Camionero</div>
+            <div class="role-btn" onclick="selRole('Forwarder',this)">Forwarder</div>
+            <div class="role-btn" onclick="selRole('Counter',this)">Agente Counter</div>
+            <div class="role-btn" onclick="selRole('Shipper',this)">Dueño/Shipper</div>
+        </div>
+        <div style="position:relative; margin-top:10px;">
+            <textarea id="prompt" style="height:100px;" placeholder="Describe la situación..."></textarea>
+            <button onmousedown="startVoice()" onmouseup="stopVoice()" style="position:absolute; right:10px; bottom:10px; border:none; background:none; font-size:24px; cursor:pointer;">🎤</button>
+        </div>
+        <button class="btn-main" id="btn-get" style="background:#1b5e20; color:white;" onclick="run()">EJECUTAR ASESORÍA</button>
+        <div id="res"></div>
+        <button class="btn-main" style="background:#a8071a;color:white;font-size:10px;margin-top:10px;" onclick="location.reload()">CLEAR SESSION</button>
+    </div>
+</div>
 
-async function run() {
-    if (!role) return alert("Select Role / Selecciona Rol");
-    const out = document.getElementById('res');
-    out.style.display = "block";
-    out.innerText = i18n[document.getElementById('userLang').value].analyzing;
-    
-    const fd = new FormData();
-    fd.append("prompt", document.getElementById('prompt').value);
-    fd.append("role", role);
-    fd.append("lang", document.getElementById('userLang').value);
-    
-    const r = await fetch('/advisory', { method: 'POST', body: fd });
-    const d = await r.json();
-    out.innerText = d.data;
-    
-    const utter = new SpeechSynthesisUtterance(d.data);
-    utter.lang = document.getElementById('userLang').value === 'es' ? 'es-US' : 'en-US';
-    window.speechSynthesis.speak(utter);
-}
-
-function selRole(r, btn) {
-    role = r;
-    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-}
+<script>
+    // Lógica para detectar si el acceso fue concedido tras el pago
+    window.addEventListener('DOMContentLoaded', () => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('access') === 'granted') {
+            document.getElementById('accessSection').style.display = "none";
+            document.getElementById('mainApp').style.display = "block";
+        }
+    });
+</script>
+<script src="app.js"></script>
+</body>
+</html>
