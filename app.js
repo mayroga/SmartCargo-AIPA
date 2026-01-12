@@ -24,7 +24,6 @@ function changeLang(l) {
     document.querySelectorAll('.role-btn').forEach((b, i) => b.innerText = lang.roles[i]);
 }
 
-// MICROFONO: PUSH TO TALK
 let rec;
 function startVoice() {
     const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
