@@ -1,14 +1,16 @@
 let role = "";
 let chatHistory = "";
 const i18n = {
-    en: { promoGold: "360° STRATEGIC LOGISTICS - MAY ROGA LLC", get: "EXECUTE ADVISORY", roles: ["Trucker", "Forwarder", "Counter", "Shipper"] },
-    es: { promoGold: "SOLUCIONES LOGÍSTICAS 360° - MAY ROGA LLC", get: "EJECUTAR ASESORÍA", roles: ["Camionero", "Forwarder", "Counter", "Dueño/Shipper"] }
+    en: { promoGold: "360° STRATEGIC LOGISTICS - MAY ROGA LLC", promoBlue: "MITIGATING HOLDS & RETURNS. WE THINK FOR YOUR CARGO.", get: "EXECUTE ADVISORY", roles: ["Trucker", "Forwarder", "Counter", "Shipper/Owner"], new: "NEW CONSULTATION" },
+    es: { promoGold: "SOLUCIONES LOGÍSTICAS 360° - MAY ROGA LLC", promoBlue: "MITIGAMOS RETENCIONES Y RETORNOS. PENSAMOS POR TU CARGA.", get: "EJECUTAR ASESORÍA", roles: ["Camionero", "Forwarder", "Counter", "Dueño/Shipper"], new: "NUEVA CONSULTA" }
 };
 
 function changeLang(l) {
     const lang = i18n[l];
     document.getElementById('promoGold').innerHTML = `<span>${lang.promoGold}</span>`;
+    document.getElementById('promoBlue').innerHTML = `<span>${lang.promoBlue}</span>`;
     document.getElementById('btn-get').innerText = lang.get;
+    document.getElementById('btn-new').innerText = lang.new;
     document.querySelectorAll('.role-btn').forEach((b, i) => b.innerText = lang.roles[i]);
 }
 
@@ -17,15 +19,15 @@ function scRead(e, n) {
     r.onload = () => {
         const img = document.getElementById('v' + n);
         img.src = r.result; img.style.display = "block";
-        document.getElementById('txt-capture' + n).style.display = "none";
+        document.getElementById('cap' + n).style.display = "none";
     };
     r.readAsDataURL(e.target.files[0]);
 }
 
 function hablar(t) {
     window.speechSynthesis.cancel();
-    const limpia = t.replace(/[*#_]/g, "").replace(/-/g, " ");
-    const utter = new SpeechSynthesisUtterance(limpia);
+    const cleanText = t.replace(/🔊/g, "").replace(/[*#_]/g, "").replace(/-/g, " ");
+    const utter = new SpeechSynthesisUtterance(cleanText);
     utter.lang = document.getElementById('userLang').value === 'es' ? 'es-US' : 'en-US';
     window.speechSynthesis.speak(utter);
 }
@@ -53,19 +55,23 @@ async function pay(amt) {
 }
 
 async function run() {
-    if (!role) return alert("Selecciona Rol");
+    if (!role) return alert("Select Role");
     const p = document.getElementById('prompt').value;
     const out = document.getElementById('res');
-    out.style.display = "block"; out.innerText = "Validando...";
+    out.style.display = "block"; out.innerText = "Analyzing...";
+    document.getElementById('speak-btn').style.display = "none";
+
     const fd = new FormData();
-    fd.append("prompt", `HISTORIAL: ${chatHistory} | CONSULTA: ${p}`);
+    fd.append("prompt", `HISTORY: ${chatHistory} | CURRENT: ${p}`);
     fd.append("role", role);
     fd.append("lang", document.getElementById('userLang').value);
+
     const r = await fetch('/advisory', { method: 'POST', body: fd });
     const d = await r.json();
     out.innerText = d.data;
-    chatHistory += ` Q:${p} A:${d.data} |`;
-    hablar(d.data);
+    out.appendChild(document.getElementById('speak-btn'));
+    document.getElementById('speak-btn').style.display = "block";
+    chatHistory += ` Q:${p} A:${d.data} | `;
 }
 
 function selRole(r, b) {
@@ -75,4 +81,11 @@ function selRole(r, b) {
 }
 
 function ws() { window.open("https://wa.me/?text=" + encodeURIComponent(document.getElementById('res').innerText)); }
-function email() { window.open("mailto:?subject=Asesoría SmartCargo&body=" + encodeURIComponent(document.getElementById('res').innerText)); }
+function email() { window.open("mailto:?subject=Advisory&body=" + encodeURIComponent(document.getElementById('res').innerText)); }
+
+// Check access on load
+const params = new URLSearchParams(window.location.search);
+if (params.get('access') === 'granted') {
+    document.getElementById('accessSection').style.display = "none";
+    document.getElementById('mainApp').style.display = "block";
+}
