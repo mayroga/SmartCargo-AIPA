@@ -5,20 +5,29 @@ from fastapi.responses import FileResponse, JSONResponse
 from typing import Optional
 from dotenv import load_dotenv
 
+# Carga de variables de entorno
 load_dotenv()
-app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# Configuración de API Keys desde Render
+app = FastAPI()
+
+# Configuración de CORS para permitir conexiones desde cualquier origen
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+# Configuración de API Keys (Asegúrate de tenerlas en el Dashboard de Render)
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 DOMAIN_URL = os.getenv("DOMAIN_URL")
 
-# --- CONSTITUCIÓN TÉCNICA SMARTCARGO ---
+# --- CONSTITUCIÓN TÉCNICA SMARTCARGO (EL CEREBRO) ---
 TECH_CORE = """
 Eres el Cerebro Estratégico de SMARTCARGO ADVISORY by MAY ROGA LLC.
-NORMATIVA: IATA DGR, TSA 1544, 49 CFR DOT, CBP, GOM AVIANCA.
+DOMINIO TOTAL: Avianca Cargo, Freighters, Bellies (PAX), GSA, Express, Interlines, Transfer y COMAT.
 
 REGLA DE MEDIDAS OBLIGATORIA:
 Cada vez que menciones una dimensión, medida o límite de tamaño, 
@@ -26,20 +35,32 @@ DEBES mostrarla en formato dual al final de la frase o en el resumen:
 Ejemplo: "La altura máxima para Bellies es 63 INC / 160 CM".
 Usa siempre Pulgadas (INC) y Centímetros (CM).
 
-FILOSOFÍA: 
+FILOSOFÍA DE ASESORÍA: 
 1. RESOLUCIÓN: Si el cliente pregunta algo vago, interrógale con autoridad técnica (¿Es PAX o CAO?, ¿Tiene sello HT ISPM-15?, ¿Presentó Original 2 y 4?).
 2. ASESORÍA ACTIVA: No des conceptos. Enseña a hacer la papelería, muestra ejemplos de embalaje y guía paso a paso desde el Shipper hasta el Counter.
 3. ACCIÓN: Da pasos directos. "Mueva la etiqueta hacia afuera", "Firme el DGD en rojo", "Saque el manifiesto del sobre para agilizar".
-4. BLINDAJE: Tu objetivo es que la carga fluya. Evita multas (TSA/CBP/DOT) y rechazos en el counter de Avianca mediante la educación preventiva.
+4. BLINDAJE: Tu objetivo es que la carga fluya. Evita multas (TSA/CBP/DOT) y rechazos mediante la educación preventiva.
 """
+
+# --- RUTAS DE NAVEGACIÓN (CORREGIDAS) ---
+
+@app.get("/")
+async def home():
+    """Entrega la App Visual (HTML) al entrar a la URL principal"""
+    return FileResponse("index.html")
+
+@app.get("/app.js")
+async def js_serve():
+    """Entrega el archivo Javascript cuando el navegador lo solicita"""
+    return FileResponse("app.js")
 
 @app.post("/advisory")
 async def advisory_engine(prompt: str = Form(...), lang: str = Form("es"), role: Optional[str] = Form("auto")):
-    # Inyectamos la constitución y el mando de resolución
+    """Motor Dual de IA: Gemini como frente, OpenAI como Validador Maestro"""
     system_instr = f"{TECH_CORE}\nIdioma: {lang}. Rol: {role}. Situación: {prompt}"
     
     async with httpx.AsyncClient(timeout=55.0) as client:
-        # FRENTE 1: GEMINI 1.5 FLASH (Velocidad, Visión y Respuesta Primaria)
+        # FRENTE 1: GEMINI 1.5 FLASH (Velocidad y Visión)
         try:
             res_g = await client.post(
                 f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}",
@@ -50,7 +71,7 @@ async def advisory_engine(prompt: str = Form(...), lang: str = Form("es"), role:
         except:
             pass
 
-        # FRENTE 2 / VALIDADOR MAESTRO: OPENAI GPT-4o (Precisión Técnica y Respaldo)
+        # FRENTE 2 / VALIDADOR MAESTRO: OPENAI GPT-4o (Respaldo técnico)
         if OPENAI_KEY:
             try:
                 res_o = await client.post(
@@ -67,11 +88,13 @@ async def advisory_engine(prompt: str = Form(...), lang: str = Form("es"), role:
 
 @app.post("/create-payment")
 async def create_payment(amount: float = Form(...), awb: str = Form(...), user: Optional[str] = Form(None), p: Optional[str] = Form(None)):
-    # Master Login - Entrada gratuita por Username y Clave Secreta
+    """Gestión de Pagos Stripe y Acceso Master Gratuito"""
+    
+    # MASTER LOGIN (Entrada gratuita para ti)
     if user == os.getenv("ADMIN_USERNAME") and p == os.getenv("ADMIN_PASSWORD"):
         return {"url": f"{DOMAIN_URL}/?access=granted&awb={urllib.parse.quote(awb)}"}
     
-    # Pago Real Stripe - Generación de link dinámico
+    # PAGO REAL STRIPE
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=['card'],
@@ -80,7 +103,7 @@ async def create_payment(amount: float = Form(...), awb: str = Form(...), user: 
                     'currency': 'usd',
                     'product_data': {
                         'name': f'Asesoría Estratégica SmartCargo - Ref: {awb}',
-                        'description': 'Resolución de problemas de carga y logística 360°'
+                        'description': 'Resolución de problemas de carga y logística 360° May Roga LLC'
                     },
                     'unit_amount': int(amount * 100),
                 },
@@ -93,9 +116,3 @@ async def create_payment(amount: float = Form(...), awb: str = Form(...), user: 
         return {"url": session.url}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=400)
-
-@app.get("/")
-async def home(): return FileResponse("index.html")
-
-@app.get("/app.js")
-async def js(): return FileResponse("app.js")
