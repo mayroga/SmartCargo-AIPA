@@ -1,92 +1,75 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SmartCargo Advisory | MAY ROGA LLC</title>
-<style>
-    body { background: #000b1a; font-family: sans-serif; padding:10px; margin:0; overflow-x:hidden; }
-    .card { max-width: 500px; margin:auto; background:white; border-radius:20px; padding:20px; border-top:10px solid #d4af37; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
-    @keyframes mover { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-    .promo-gold { background: #d4af37; color: #000; font-weight: bold; overflow: hidden; white-space: nowrap; padding: 6px; font-size: 11px; margin: -20px -20px 0 -20px; border-radius: 15px 15px 0 0; border-bottom: 1px solid #000; }
-    .promo-blue { background: #0056b3; color: #fff; font-weight: bold; overflow: hidden; white-space: nowrap; padding: 6px; font-size: 11px; margin: 0 -20px 15px -20px; border-bottom: 2px solid #000; }
-    .promo-gold span, .promo-blue span { display: inline-block; animation: mover 18s linear infinite; }
-    .legal-banner { background:#111; color:#d4af37; padding:10px; font-size:9px; text-align:center; font-weight:bold; border:1px solid #d4af37; border-radius:10px; margin-bottom:15px; text-transform:uppercase; line-height:1.2; }
-    h2 { text-align:center; margin:0; color:#001d3d; font-size:20px; }
-    .btn-main { width:100%; padding:14px; border:none; border-radius:10px; cursor:pointer; font-weight:bold; margin-top:5px; text-transform:uppercase; }
-    .photo-box { width:100%; height:80px; background:#0b1e33; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; border:1px solid #d4af37; margin-top:5px; overflow:hidden; }
-    .photo-box img { max-width:100%; max-height:100%; display:none; }
-    .grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
-    .role-btn { border:1px solid #001d3d; padding:12px; border-radius:8px; text-align:center; font-weight:bold; cursor:pointer; font-size:11px; background:#f8f9fa; }
-    .role-btn.selected { background:#001d3d; color:white; border-color:#d4af37; }
-    #res { margin-top:10px; font-size:14px; white-space:pre-wrap; background:#f0f7ff; padding:15px; border-radius:10px; border:2px solid #0056b3; display:none; color:#003366; line-height:1.5; font-weight:bold; }
-    input, textarea { outline:none; border:1px solid #ccc; width:100%; box-sizing:border-box; padding:12px; border-radius:8px; font-size:16px; }
-</style>
-</head>
-<body>
+let role = "";
+const i18n = {
+    en: {
+        promoGold: "360° STRATEGIC LOGISTICS SOLUTIONS - MAY ROGA LLC",
+        promoBlue: "MITIGATING HOLDS & RETURNS. WE THINK FOR YOUR CARGO.",
+        get: "EXECUTE ADVISORY",
+        analyzing: "MAY ROGA LLC | MASTER VALIDATION IN PROGRESS...",
+        roles: ["Trucker", "Forwarder", "Counter Staff", "Shipper/Owner"]
+    },
+    es: {
+        promoGold: "SOLUCIONES LOGÍSTICAS ESTRATÉGICAS 360° - MAY ROGA LLC",
+        promoBlue: "MITIGAMOS RETENCIONES Y RETORNOS. PENSAMOS POR TU CARGA.",
+        get: "EJECUTAR ASESORÍA",
+        analyzing: "MAY ROGA LLC | VALIDACIÓN MAESTRA EN CURSO...",
+        roles: ["Camionero", "Forwarder", "Agente Counter", "Dueño/Shipper"]
+    }
+};
 
-<div class="card">
-    <div class="promo-gold" id="promoGold"><span>360° STRATEGIC LOGISTICS SOLUTIONS - SMARTCARGO ADVISORY BY MAY ROGA LLC</span></div>
-    <div class="promo-blue" id="promoBlue"><span>MITIGATING HOLDS, RETURNS, SAVING MONEY. WE THINK AND WORK ON YOUR CARGO.</span></div>
+function changeLang(l) {
+    const lang = i18n[l];
+    document.getElementById('promoGold').innerHTML = `<span>${lang.promoGold}</span>`;
+    document.getElementById('promoBlue').innerHTML = `<span>${lang.promoBlue}</span>`;
+    document.getElementById('btn-get').innerText = lang.get;
+    document.querySelectorAll('.role-btn').forEach((b, i) => b.innerText = lang.roles[i]);
+}
 
-    <select id="userLang" onchange="changeLang(this.value)" style="width:100%; font-weight:bold; border:2px solid #001d3d; margin-bottom:10px; padding:12px; border-radius:8px;">
-        <option value="en"> ENGLISH SYSTEM</option>
-        <option value="es"> SISTEMA ESPAÑOL</option>
-    </select>
+// MICROFONO: PUSH TO TALK
+let rec;
+function startVoice() {
+    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Speech) return;
+    rec = new Speech();
+    rec.lang = document.getElementById('userLang').value === 'es' ? 'es-US' : 'en-US';
+    rec.start();
+    rec.onresult = (e) => { document.getElementById('prompt').value = e.results[0][0].transcript; };
+}
+function stopVoice() { if(rec) rec.stop(); }
 
-    <div class="legal-banner" id="txt-legal">SMARTCARGO ADVISORY by May Roga LLC | ASESORÍA PRIVADA INDEPENDIENTE.</div>
+async function pay(amt) {
+    const fd = new FormData();
+    fd.append("amount", amt);
+    fd.append("awb", document.getElementById('awb').value || "REF_MASTER");
+    fd.append("user", document.getElementById('u').value);
+    fd.append("p", document.getElementById('p').value);
+    
+    const r = await fetch('/create-payment', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.url) window.location.href = d.url;
+}
 
-    <h2>SMARTCARGO ADVISORY</h2>
+async function run() {
+    if (!role) return alert("Select Role / Selecciona Rol");
+    const out = document.getElementById('res');
+    out.style.display = "block";
+    out.innerText = i18n[document.getElementById('userLang').value].analyzing;
+    
+    const fd = new FormData();
+    fd.append("prompt", document.getElementById('prompt').value);
+    fd.append("role", role);
+    fd.append("lang", document.getElementById('userLang').value);
+    
+    const r = await fetch('/advisory', { method: 'POST', body: fd });
+    const d = await r.json();
+    out.innerText = d.data;
+    
+    const utter = new SpeechSynthesisUtterance(d.data);
+    utter.lang = document.getElementById('userLang').value === 'es' ? 'es-US' : 'en-US';
+    window.speechSynthesis.speak(utter);
+}
 
-    <div id="accessSection">
-        <div class="grid">
-            <button class="btn-main" style="background:#0056b3;color:white;" onclick="pay(5)">$5</button>
-            <button class="btn-main" style="background:#0056b3;color:white;" onclick="pay(95)">$95</button>
-        </div>
-        <input type="text" id="awb" placeholder="REF # / AWB" style="margin-top:5px;">
-        <div style="display:flex; gap:5px; margin-top:5px;">
-            <input type="text" id="u" placeholder="User">
-            <input type="password" id="p" placeholder="Pass">
-        </div>
-        <button class="btn-main" style="background:#333;color:white;" onclick="pay(0)">MASTER LOGIN</button>
-    </div>
-
-    <div id="mainApp" style="display:none;">
-        <div class="grid">
-            <div class="role-btn" onclick="selRole('Driver',this)">Trucker</div>
-            <div class="role-btn" onclick="selRole('Forwarder',this)">Forwarder</div>
-            <div class="role-btn" onclick="selRole('Counter',this)">Counter</div>
-            <div class="role-btn" onclick="selRole('Owner',this)">Shipper</div>
-        </div>
-
-        <div class="grid">
-            <div class="photo-box" onclick="document.getElementById('f1').click()">
-                <img id="v1"><span id="txt-capture1" style="color:#d4af37;font-size:11px;"> SCAN DOC 1</span>
-                <input type="file" id="f1" accept="image/*" style="display:none;" onchange="scRead(event,1)">
-            </div>
-            <div class="photo-box" onclick="document.getElementById('f2').click()">
-                <img id="v2"><span id="txt-capture2" style="color:#d4af37;font-size:11px;"> SCAN DOC 2</span>
-                <input type="file" id="f2" accept="image/*" style="display:none;" onchange="scRead(event,2)">
-            </div>
-        </div>
-
-        <div style="position:relative; margin-top:10px;">
-            <textarea id="prompt" placeholder="Dime qué ves..."></textarea>
-            <button onmousedown="startVoice()" onmouseup="stopVoice()" style="position:absolute; right:55px; bottom:12px; border:none; background:white; font-size:28px;">🎤</button>
-            <button onclick="escuchar()" style="position:absolute; right:12px; bottom:12px; border:none; background:#d4af37; border-radius:50%; width:40px; height:40px; color:white; font-size:20px;">🔊</button>
-        </div>
-
-        <button class="btn-main" id="btn-get" style="background:#1b5e20; color:white; font-size:16px;" onclick="preRun()">EXECUTE ADVISORY</button>
-        <div id="res"></div>
-
-        <div class="grid">
-            <button class="btn-main" style="background:#25D366;color:white;font-size:10px;" onclick="ws()">WhatsApp</button>
-            <button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="enviarEmail()">Email</button>
-            <button class="btn-main" style="background:#333;color:white;font-size:10px;" onclick="imprimirPDF()">PDF</button>
-            <button class="btn-main" style="background:#a8071a;color:white;font-size:10px;" onclick="limpiar()">CLEAR</button>
-        </div>
-    </div>
-</div>
-<script src="app.js"></script>
-</body>
-</html>
+function selRole(r, btn) {
+    role = r;
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+}
