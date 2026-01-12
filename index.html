@@ -5,36 +5,38 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SmartCargo Advisory | MAY ROGA LLC</title>
 <style>
-    body { background: #000b1a; font-family: sans-serif; padding:10px; margin:0; overflow-x:hidden; }
+    body { background: #000b1a; font-family: sans-serif; padding:10px; margin:0; }
     .card { max-width: 500px; margin:auto; background:white; border-radius:20px; padding:20px; border-top:10px solid #d4af37; box-shadow:0 10px 40px rgba(0,0,0,0.5); }
     @keyframes mover { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
     .promo-gold { background:#d4af37; color:#000; font-weight:bold; overflow:hidden; white-space:nowrap; padding:8px; font-size:11px; margin:-20px -20px 10px -20px; border-radius:15px 15px 0 0; }
     .promo-blue { background:#0056b3; color:#fff; font-weight:bold; overflow:hidden; white-space:nowrap; padding:6px; font-size:11px; margin:0 -20px 15px -20px; }
     .promo-gold span, .promo-blue span { display:inline-block; animation: mover 18s linear infinite; }
-    .btn-main { width:100%; padding:14px; border:none; border-radius:10px; cursor:pointer; font-weight:bold; margin-top:5px; text-transform:uppercase; }
-    .grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
-    .role-btn { border:1.5px solid #001d3d; padding:12px; border-radius:8px; text-align:center; font-weight:bold; background:#f8f9fa; cursor:pointer; font-size:11px; }
+    .btn-main { width:100%; padding:14px; border:none; border-radius:10px; cursor:pointer; font-weight:bold; margin-top:5px; text-transform:uppercase; font-size:12px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px; }
+    .role-btn { border:1.5px solid #001d3d; padding:12px; border-radius:8px; text-align:center; font-weight:bold; background:#f8f9fa; cursor:pointer; font-size:10px; }
     .role-btn.selected { background:#001d3d; color:white; border-color:#d4af37; }
+    .photo-box { width:100%; height:90px; background:#0b1e33; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; border:1.5px dashed #d4af37; overflow:hidden; }
+    .photo-box img { max-width:100%; max-height:100%; display:none; }
     #res { margin-top:15px; background:#f0f7ff; padding:20px; border-radius:10px; border:2px solid #0056b3; display:none; color:#003366; font-weight:bold; white-space:pre-wrap; line-height:1.6; }
     input, textarea { width:100%; box-sizing:border-box; padding:12px; border-radius:8px; border:1px solid #ccc; outline:none; font-size:16px; }
 </style>
 </head>
 <body>
 <div class="card">
-    <div class="promo-gold" id="promoGold"><span>SOLUCIONES LOGÍSTICAS ESTRATÉGICAS 360° - SMARTCARGO ADVISORY BY MAY ROGA LLC</span></div>
-    <div class="promo-blue" id="promoBlue"><span>MITIGAMOS RETENCIONES Y RETORNOS. PENSAMOS POR TU CARGA.</span></div>
+    <div class="promo-gold" id="promoGold"><span>SOLUCIONES LOGÍSTICAS ESTRATÉGICAS 360° - MAY ROGA LLC</span></div>
+    <div class="promo-blue" id="promoBlue"><span>MITIGAMOS RETENCIONES Y RETORNOS. AHORRAMOS DINERO.</span></div>
 
     <select id="userLang" onchange="changeLang(this.value)" style="width:100%; padding:12px; font-weight:bold; border:2px solid #001d3d; border-radius:8px; margin-bottom:10px;">
-        <option value="es"> SISTEMA ESPAÑOL</option>
-        <option value="en"> ENGLISH SYSTEM</option>
+        <option value="es"> ESPAÑOL</option>
+        <option value="en"> ENGLISH</option>
     </select>
 
     <div id="accessSection">
         <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
-            <button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="pay(5)">$5</button>
-            <button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="pay(15)">$15</button>
-            <button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="pay(35)">$35</button>
-            <button class="btn-main" style="background:#0056b3;color:white;font-size:10px;" onclick="pay(95)">$95</button>
+            <button class="btn-main" style="background:#0056b3;color:white;" onclick="pay(5)">$5</button>
+            <button class="btn-main" style="background:#0056b3;color:white;" onclick="pay(15)">$15</button>
+            <button class="btn-main" style="background:#0056b3;color:white;" onclick="pay(35)">$35</button>
+            <button class="btn-main" style="background:#0056b3;color:white;" onclick="pay(95)">$95</button>
         </div>
         <input type="text" id="awb" placeholder="REFERENCIA / AWB #" style="margin-top:10px;">
         <div class="grid">
@@ -46,30 +48,41 @@
 
     <div id="mainApp" style="display:none; margin-top:15px;">
         <div class="grid">
-            <div class="role-btn" onclick="selRole('Trucker',this)">Camionero</div>
+            <div class="photo-box" onclick="document.getElementById('f1').click()">
+                <img id="v1"><span id="txt-capture1" style="color:#d4af37; font-size:10px;">📸 FOTO DOC</span>
+                <input type="file" id="f1" accept="image/*" style="display:none;" onchange="scRead(event,1)">
+            </div>
+            <div class="photo-box" onclick="document.getElementById('f2').click()">
+                <img id="v2"><span id="txt-capture2" style="color:#d4af37; font-size:10px;">📸 FOTO CARGA</span>
+                <input type="file" id="f2" accept="image/*" style="display:none;" onchange="scRead(event,2)">
+            </div>
+        </div>
+        <div class="grid">
+            <div class="role-btn" onclick="selRole('Camionero',this)">Camionero</div>
             <div class="role-btn" onclick="selRole('Forwarder',this)">Forwarder</div>
-            <div class="role-btn" onclick="selRole('Counter',this)">Agente Counter</div>
-            <div class="role-btn" onclick="selRole('Shipper',this)">Dueño/Shipper</div>
+            <div class="role-btn" onclick="selRole('Counter',this)">Counter</div>
+            <div class="role-btn" onclick="selRole('Shipper',this)">Shipper</div>
         </div>
         <div style="position:relative; margin-top:10px;">
             <textarea id="prompt" style="height:100px;" placeholder="Describe la situación..."></textarea>
-            <button onmousedown="startVoice()" onmouseup="stopVoice()" style="position:absolute; right:10px; bottom:10px; border:none; background:none; font-size:24px; cursor:pointer;">🎤</button>
+            <button onmousedown="startVoice()" onmouseup="stopVoice()" style="position:absolute; right:10px; bottom:10px; border:none; background:none; font-size:24px;">🎤</button>
         </div>
-        <button class="btn-main" id="btn-get" style="background:#1b5e20; color:white;" onclick="run()">EJECUTAR ASESORÍA</button>
+        <button class="btn-main" id="btn-get" style="background:#1b5e20; color:white; font-size:16px;" onclick="run()">EJECUTAR ASESORÍA</button>
         <div id="res"></div>
-        <button class="btn-main" style="background:#a8071a;color:white;font-size:10px;margin-top:10px;" onclick="location.reload()">CLEAR SESSION</button>
+        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
+            <button class="btn-main" style="background:#25D366;color:white;" onclick="ws()">WhatsApp</button>
+            <button class="btn-main" style="background:#444;color:white;" onclick="email()">Email</button>
+            <button class="btn-main" style="background:#0056b3;color:white;" onclick="window.print()">Print</button>
+        </div>
+        <button class="btn-main" style="background:#a8071a;color:white;margin-top:10px;" onclick="location.reload()">NUEVA CONSULTA</button>
     </div>
 </div>
-
 <script>
-    // Lógica para detectar si el acceso fue concedido tras el pago
-    window.addEventListener('DOMContentLoaded', () => {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('access') === 'granted') {
-            document.getElementById('accessSection').style.display = "none";
-            document.getElementById('mainApp').style.display = "block";
-        }
-    });
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('access') === 'granted') {
+        document.getElementById('accessSection').style.display = "none";
+        document.getElementById('mainApp').style.display = "block";
+    }
 </script>
 <script src="app.js"></script>
 </body>
