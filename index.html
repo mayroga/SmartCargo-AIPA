@@ -3,103 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SmartCargo-AIPA | OpenAI Core</title>
+    <title>SmartCargo-AIPA Console</title>
     <style>
-        :root { --red: #d32f2f; --gold: #c5a059; --dark: #0a192f; }
-        body { background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 10px; }
-        .card { background: #fff; color: #333; border-radius: 15px; padding: 15px; max-width: 450px; margin: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        input, textarea { width: 100%; padding: 12px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
-        .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .photo-box { height: 110px; border: 2px dashed var(--gold); border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; cursor: zoom-in; background: #f9f9f9; }
-        .photo-box img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
-        .btn-voice { width: 100%; padding: 15px; background: var(--dark); color: var(--gold); border: 2px solid var(--gold); border-radius: 12px; font-weight: bold; margin-bottom: 10px; cursor: pointer; touch-action: none; }
-        .btn-exec { width: 100%; padding: 20px; background: var(--red); color: #fff; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; }
-        .btn-vip { width: 100%; padding: 10px; background: #fff; color: var(--gold); border: 2px solid var(--gold); border-radius: 10px; font-weight: bold; margin-bottom: 10px; cursor: pointer; }
-        .btn-vip.active { background: var(--gold); color: #fff; }
-        #resBox { display: none; margin-top: 15px; padding: 15px; background: #f1f1f1; border-left: 6px solid var(--gold); border-radius: 8px; color: #000; }
+        :root { --red: #d32f2f; --gold: #c5a059; --dark: #02060c; --white: #ffffff; }
+        body { background: var(--dark); color: var(--white); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; }
+        
+        .main-container { max-width: 800px; margin: auto; display: flex; flex-direction: column; gap: 15px; }
+        
+        /* Inputs Limpios */
+        .tech-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 10px; }
+        input, textarea { background: #111; border: 1px solid #333; color: var(--gold); padding: 12px; border-radius: 5px; font-size: 16px; width: 100%; box-sizing: border-box; }
+        input:focus { border-color: var(--gold); outline: none; }
+
+        /* Botonera de Acción */
+        .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        button { padding: 18px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        .btn-voice { background: var(--gold); color: #000; grid-column: span 3; font-size: 18px; }
+        .btn-solve { background: var(--red); color: #fff; }
+        .btn-clear { background: #333; color: #ccc; }
+        .btn-print { background: #fff; color: #000; }
+
+        /* Pantalla de Resultados - Estilo Terminal */
+        #resDisplay { background: #000; border: 1px solid var(--gold); padding: 20px; border-radius: 5px; min-height: 200px; white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 14px; display: none; overflow-x: auto; }
+        table { border-collapse: collapse; width: 100%; color: #0f0; border: 1px solid #0f0; margin: 10px 0; }
+        th, td { border: 1px solid #0f0; padding: 8px; text-align: left; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2 style="text-align:center; color:var(--red); margin:0;">SmartCargo-AIPA</h2>
-        <p style="text-align:center; font-size:10px; color:var(--gold); font-weight:bold; margin-bottom:15px;">POWERED BY OPENAI CORE</p>
-        
-        <input type="text" id="awb" placeholder="AWB / ULD NUMBER">
-        <div style="display:flex; gap:5px;">
-            <input type="number" id="L" placeholder="L"><input type="number" id="W" placeholder="W"><input type="number" id="H" placeholder="H">
-        </div>
 
-        <div class="photo-grid">
-            <div class="photo-box" onclick="z(this)"><img id="v1" style="display:none;"><span>📸 DOCS</span><input type="file" id="f1" hidden onchange="pv(this,'v1')"></div>
-            <div class="photo-box" onclick="z(this)"><img id="v2" style="display:none;"><span>📸 CARGO</span><input type="file" id="f2" hidden onchange="pv(this,'v2')"></div>
-        </div>
-
-        <button class="btn-voice" id="voiceBtn">🎤 MANTÉN PARA DICTAR REPORTE</button>
-        <button class="btn-vip" id="vipBtn" onclick="toggleVip()">💎 ACLARAR DUDAS (MODO MAESTRO)</button>
-        <textarea id="obs" rows="3" placeholder="Describe la carga o el documento..."></textarea>
-        
-        <button class="btn-exec" onclick="send()">EJECUTAR ASESORÍA MAESTRA</button>
-
-        <div id="resBox">
-            <small id="sourceTag" style="color:var(--gold); font-weight:bold; text-transform:uppercase; font-size:9px;"></small>
-            <div id="resTxt" style="font-size:14px; white-space:pre-wrap; margin-top:5px; line-height:1.4;"></div>
-            <button onclick="speak()" style="width:100%; padding:12px; margin-top:10px; background:var(--dark); color:#fff; border-radius:10px; font-weight:bold;">🔊 ESCUCHAR LECCIÓN</button>
-            <button onclick="window.print()" style="width:100%; padding:8px; margin-top:5px; background:#fff; border:1px solid #333; border-radius:10px; font-size:12px;">📄 GENERAR REPORTE PDF</button>
-        </div>
+<div class="main-container">
+    <div style="text-align: center;">
+        <h1 style="color: var(--red); margin: 0; letter-spacing: 2px;">SMARTCARGO ADVISOR</h1>
+        <p style="color: var(--gold); margin: 0; font-size: 12px;">AVIANCA SPECIALIST SYSTEM | HUB MIA</p>
     </div>
 
-    <script>
-        let isVip = false;
-        function toggleVip() { isVip = !isVip; document.getElementById('vipBtn').classList.toggle('active'); }
+    <div class="tech-grid">
+        <input type="text" id="awb" placeholder="AWB / ULD">
+        <input type="number" id="L" placeholder="L">
+        <input type="number" id="W" placeholder="W">
+        <input type="number" id="H" placeholder="H">
+        <input type="number" id="wgt" placeholder="KG">
+    </div>
 
-        function z(el) {
-            const img = el.querySelector('img');
-            if(img.style.display === "none") el.querySelector('input').click();
-            else { img.style.transform = img.style.transform === "scale(2.5)" ? "scale(1)" : "scale(2.5)"; img.style.zIndex = "100"; }
+    <button class="btn-voice" id="voiceBtn">🎤 INICIAR REPORTE POR VOZ</button>
+    
+    <textarea id="obs" rows="4" placeholder="Dictado técnico: 'Tengo carga perecedera, falta el log de temp...'"></textarea>
+
+    <div class="actions">
+        <button class="btn-clear" onclick="clearAll()">🗑️ BORRAR</button>
+        <button class="btn-solve" onclick="resolve()">RESOLVER AHORA</button>
+        <button class="btn-print" onclick="window.print()">📄 PDF</button>
+    </div>
+
+    <div id="resDisplay"></div>
+</div>
+
+<script>
+    let chatHistory = "";
+    const voiceBtn = document.getElementById('voiceBtn');
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'es-ES';
+    recognition.continuous = false;
+
+    voiceBtn.onmousedown = voiceBtn.ontouchstart = (e) => {
+        e.preventDefault();
+        recognition.start();
+        voiceBtn.innerText = "🔴 ESCUCHANDO...";
+        voiceBtn.style.background = "#ff0000";
+    };
+
+    voiceBtn.onmouseup = voiceBtn.ontouchend = () => {
+        recognition.stop();
+        voiceBtn.innerText = "🎤 INICIAR REPORTE POR VOZ";
+        voiceBtn.style.background = "var(--gold)";
+    };
+
+    recognition.onresult = (e) => {
+        document.getElementById('obs').value += " " + e.results[0][0].transcript;
+    };
+
+    function clearAll() {
+        document.querySelectorAll('input, textarea').forEach(i => i.value = "");
+        document.getElementById('resDisplay').style.display = "none";
+        chatHistory = "";
+    }
+
+    async function resolve() {
+        const display = document.getElementById('resDisplay');
+        display.style.display = "block";
+        display.innerText = "> ACCEDIENDO A PROTOCOLOS IATA/AVIANCA...";
+
+        const fd = new FormData();
+        fd.append('prompt', document.getElementById('obs').value);
+        fd.append('awb', document.getElementById('awb').value);
+        fd.append('l', document.getElementById('L').value);
+        fd.append('w', document.getElementById('W').value);
+        fd.append('h', document.getElementById('H').value);
+        fd.append('wgt', document.getElementById('wgt').value);
+        fd.append('context_history', chatHistory);
+
+        try {
+            const res = await fetch('/advisory', { method: 'POST', body: fd });
+            const result = await res.json();
+            
+            // Renderizar tablas Markdown si existen
+            display.innerHTML = formatMarkdown(result.data);
+            chatHistory += "\n" + result.data;
+        } catch (err) {
+            display.innerText = "ERROR CRÍTICO: CORE NO RESPONDE.";
         }
+    }
 
-        function pv(input, id) {
-            const r = new FileReader();
-            r.onload = e => { const i = document.getElementById(id); i.src = e.target.result; i.style.display = "block"; i.nextElementSibling.style.display = "none"; };
-            r.readAsDataURL(input.files[0]);
-        }
+    function formatMarkdown(text) {
+        // Simple conversor de tablas para la terminal
+        return text.replace(/\n/g, "<br>");
+    }
+</script>
 
-        const voiceBtn = document.getElementById('voiceBtn');
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'es-ES'; recognition.continuous = true;
-
-        voiceBtn.onmousedown = voiceBtn.ontouchstart = (e) => { e.preventDefault(); recognition.start(); voiceBtn.innerText = "🔴 ESCUCHANDO..."; voiceBtn.style.background = "red"; };
-        voiceBtn.onmouseup = voiceBtn.ontouchend = () => { recognition.stop(); voiceBtn.innerText = "🎤 MANTÉN PARA DICTAR REPORTE"; voiceBtn.style.background = ""; };
-        recognition.onresult = (e) => { document.getElementById('obs').value = e.results[e.results.length-1][0].transcript; };
-
-        async function send() {
-            const txt = document.getElementById('resTxt');
-            document.getElementById('resBox').style.display = "block";
-            txt.innerText = "Consultando con el Maestro de Carga OpenAI...";
-
-            const fd = new FormData();
-            fd.append('prompt', document.getElementById('obs').value);
-            fd.append('awb', document.getElementById('awb').value);
-            fd.append('l', document.getElementById('L').value);
-            fd.append('w', document.getElementById('W').value);
-            fd.append('h', document.getElementById('H').value);
-            fd.append('clear_doubts', isVip);
-
-            try {
-                const response = await fetch('/advisory', { method: 'POST', body: fd });
-                const result = await response.json();
-                txt.innerText = result.data;
-                document.getElementById('sourceTag').innerText = result.source;
-            } catch (err) {
-                txt.innerText = "Error de comunicación. Verifique su OPENAI_API_KEY en Render.";
-            }
-        }
-
-        function speak() {
-            const utterance = new SpeechSynthesisUtterance(document.getElementById('resTxt').innerText);
-            utterance.lang = 'es-ES';
-            window.speechSynthesis.speak(utterance);
-        }
-    </script>
 </body>
 </html>
