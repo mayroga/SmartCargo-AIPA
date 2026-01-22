@@ -1,0 +1,1 @@
+# SMARTCARGO-AIPA backend package
