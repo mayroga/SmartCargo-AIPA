@@ -6,7 +6,6 @@ from openai import OpenAI
 
 app = FastAPI()
 
-# Configuración de CORS total para evitar bloqueos en rampa
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,21 +13,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inicialización exclusiva con OpenAI
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+# Personalidad: Especialista Avianca, específica y técnica.
 SYSTEM_PROMPT = """
-Eres 'SmartCargo-AIPA', el Asesor Maestro de Carga de Avianca Cargo.
-CONOCIMIENTO EXPERTO: IATA DGR, DOT, CBP, TSA y toda la papelería técnica (AWB, HAWB, MAWB, SLI, CBP 7509, DGD, Warehouse Receipt, etc.).
-
-PROTOCOLO OPERATIVO:
-1. DOCUMENTACIÓN: Si el usuario menciona o describe un documento, recita sus campos obligatorios y verifica su validez técnica.
-2. MAESTRO EMERGENTE: Si el operador tiene dudas, da una lección técnica directa y profesional.
-3. LOGÍSTICA: Calcula pesos volumétricos (1:6), sugiere ULD (PMC/AKE) y flota (A330F/767).
-4. PRIORIZACIÓN: Clasifica en Must-Go, General o Stand-by.
-5. ACLARAR DUDAS: Si se activa el modo VIP, profundiza en la explicación pedagógica y legal.
-
-IMPORTANTE: No uses las palabras 'IA', 'Inteligencia Artificial' ni 'Gobierno'. Eres un Asesor Estratégico Privado.
+Eres la Asesora Especialista SmartCargo. Tu peso radica en la precisión, no en la extensión.
+REGLAS DE ORO:
+1. TABLAS: Usa tablas para pesos, dimensiones y checklists de documentos.
+2. CONTINUIDAD: Mantén el hilo. Si faltan datos, no los inventes; déjalos en blanco.
+3. AUTORIDAD: Dominas IATA (DGR), DOT, CBP y TSA.
+4. CALCULADORA: Siempre calcula Volumen (L*W*H/166) y sugiere ULD (PMC/AKE).
+5. NO RELLENO: Prohibido decir 'IA', 'ChatGPT' o saludos largos.
+6. DOCUMENTOS: Si se pide 'Simular', usa formato de terminal (texto monospaciado).
 """
 
 @app.get("/", response_class=HTMLResponse)
@@ -41,26 +37,24 @@ async def process_advisory(
     prompt: str = Form(...), 
     awb: str = Form(""),
     l: str = Form(""), w: str = Form(""), h: str = Form(""),
-    pcs: str = Form(""), wgt: str = Form(""), unit: str = Form(""),
-    clear_doubts: str = Form("false")
+    pcs: str = Form(""), wgt: str = Form(""),
+    context_history: str = Form("") # Para mantener el hilo de la conversación
 ):
-    # Consolidación de datos técnicos para OpenAI
-    full_context = f"DATOS TÉCNICOS: AWB/ULD: {awb} | Dims: {l}x{w}x{h} {unit} | Pcs: {pcs} | Peso: {wgt}\n"
-    full_context += f"REPORTE DEL OPERADOR: {prompt}\n"
-    full_context += f"MODO ACLARAR DUDAS: {clear_doubts}"
+    # Lógica de construcción de datos técnicos
+    tech_info = f"AWB: {awb} | Dims: {l}x{w}x{h} | Pcs: {pcs} | Peso: {wgt}"
+    
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "assistant", "content": context_history},
+        {"role": "user", "content": f"{tech_info}\nREPORTE: {prompt}"}
+    ]
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": full_context}
-            ],
-            temperature=0.7
+            messages=messages,
+            temperature=0.3 # Mayor precisión técnica
         )
-        return JSONResponse(content={
-            "data": response.choices[0].message.content, 
-            "source": "SmartCargo Core (OpenAI GPT-4o)"
-        })
-    except Exception as e:
-        return JSONResponse(content={"data": f"Error de conexión con el Core: {str(e)}"}, status_code=500)
+        return JSONResponse(content={"data": response.choices[0].message.content})
+    except Exception:
+        return JSONResponse(content={"data": "ERROR: Core SmartCargo desconectado."}, status_code=500)
