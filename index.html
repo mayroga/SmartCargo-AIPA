@@ -19,6 +19,15 @@
         input, textarea { background: var(--gray); border: 1px solid #333; color: var(--white); padding: 15px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; }
         input:focus { border-color: var(--gold); outline: none; }
 
+        /* Photo Upload Boxes */
+        .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .photo-box { height: 120px; border: 2px dashed var(--gold); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; position: relative; cursor: pointer; background: var(--gray); }
+        .photo-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+        .photo-box span { color: var(--gold); font-size: 0.9em; margin-top: 5px; }
+        .photo-box.has-img span { display: none; }
+        .photo-box.has-img img { display: block; }
+        .photo-box img:not([src]) { display: none; } /* Ocultar img si no tiene src */
+
         .button-zone { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
         button { padding: 18px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
         .btn-voice { background: var(--gold); color: var(--black); grid-column: span 2; font-size: 1.1em; }
@@ -32,6 +41,7 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         .btn-print { width: 100%; margin-top: 20px; background: var(--black); color: var(--gold); border: 2px solid var(--gold); }
+        .btn-speak { width: 100%; margin-top: 10px; background: #222; color: var(--gold); border: 1px solid var(--gold); }
 
         table { width: 100%; border-collapse: collapse; margin: 20px 0; background: #f9f9f9; }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
@@ -39,7 +49,7 @@
 
         @media print {
             body { background: white; color: black; padding: 0; }
-            .header, .input-group, button, .lang-switch, textarea { display: none !important; }
+            .header, .input-group, button, .lang-switch, textarea, .photo-grid { display: none !important; }
             #output { display: block !important; border: none; box-shadow: none; padding: 0; }
         }
     </style>
@@ -47,7 +57,7 @@
 <body>
 
 <div class="lang-switch">
-    <button class="lang-btn" id="btn-en" onclick="setLang('en')">English</button>
+    <button class="lang-btn active" id="btn-en" onclick="setLang('en')">English</button>
     <button class="lang-btn" id="btn-es" onclick="setLang('es')">Español</button>
 </div>
 
@@ -64,6 +74,19 @@
     <input type="number" id="wgt" placeholder="Weight">
 </div>
 
+<div class="photo-grid">
+    <div class="photo-box" onclick="handlePhotoClick(this, 'photo1')">
+        <img id="photo1-preview" src="" alt="Document Photo">
+        <span>📸 Document / AWB</span>
+        <input type="file" id="photo1" hidden onchange="previewPhoto(this, 'photo1-preview')">
+    </div>
+    <div class="photo-box" onclick="handlePhotoClick(this, 'photo2')">
+        <img id="photo2-preview" src="" alt="Cargo Photo">
+        <span>📸 Cargo Condition</span>
+        <input type="file" id="photo2" hidden onchange="previewPhoto(this, 'photo2-preview')">
+    </div>
+</div>
+
 <button class="btn-voice" id="voiceBtn">🎤 PRESS & HOLD TO DICTATE</button>
 <textarea id="obs" rows="4" placeholder="Describe the cargo situation, documents, or request a classification..."></textarea>
 
@@ -74,21 +97,39 @@
 
 <div id="output">
     <div id="resTxt"></div>
+    <button class="btn-speak" onclick="readResponse()">🔊 Read Response / Leer Respuesta</button>
     <button class="btn-print" onclick="window.print()">📄 SAVE AS PDF / PRINT</button>
 </div>
 
 <script>
     let currentLang = 'en';
+    const speech = window.speechSynthesis;
+    
     function setLang(l) {
         currentLang = l;
         document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('btn-' + l).classList.add('active');
+        // Update placeholders
+        document.getElementById('awb').placeholder = (l === 'es') ? 'AWB / ULD' : 'AWB / ULD';
+        document.getElementById('L').placeholder = (l === 'es') ? 'Largo' : 'Length';
+        document.getElementById('W').placeholder = (l === 'es') ? 'Ancho' : 'Width';
+        document.getElementById('H').placeholder = (l === 'es') ? 'Alto' : 'Height';
+        document.getElementById('wgt').placeholder = (l === 'es') ? 'Peso' : 'Weight';
+        document.getElementById('obs').placeholder = (l === 'es') ? 'Describe la situación, documentos o solicita una clasificación...' : 'Describe the cargo situation, documents, or request a classification...';
+        document.querySelector('.btn-voice').innerText = (l === 'es') ? '🎤 MANTÉN PARA DICTAR' : '🎤 PRESS & HOLD TO DICTATE';
+        document.querySelector('.btn-clear').innerText = (l === 'es') ? '🗑️ Borrar' : '🗑️ Clear';
+        document.querySelector('.btn-resolve').innerText = (l === 'es') ? 'Resolver' : 'Resolve';
+        document.querySelector('.btn-print').innerText = (l === 'es') ? '📄 GUARDAR PDF / IMPRIMIR' : '📄 SAVE AS PDF / PRINT';
+        document.querySelector('.btn-speak').innerText = (l === 'es') ? '🔊 Leer Respuesta' : '🔊 Read Response';
+        document.querySelector('#photo1-preview').nextElementSibling.innerText = (l === 'es') ? '📸 Documento / AWB' : '📸 Document / AWB';
+        document.querySelector('#photo2-preview').nextElementSibling.innerText = (l === 'es') ? '📸 Estado Carga' : '📸 Cargo Condition';
+
     }
-    setLang('en');
+    setLang('en'); // Default language
 
     const voiceBtn = document.getElementById('voiceBtn');
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'en-US';
+    recognition.continuous = false; // Capture a single phrase
 
     voiceBtn.onmousedown = voiceBtn.ontouchstart = (e) => {
         e.preventDefault();
@@ -104,8 +145,40 @@
         document.getElementById('obs').value += " " + e.results[0][0].transcript;
     };
 
+    function handlePhotoClick(boxElement, inputId) {
+        // Zoom functionality
+        const img = boxElement.querySelector('img');
+        if (img.src && img.style.display !== "none") { // If there's an image and it's visible
+            img.style.transform = img.style.transform === "scale(2.5)" ? "scale(1)" : "scale(2.5)";
+            img.style.position = (img.style.transform === "scale(2.5)") ? "absolute" : "static";
+            img.style.zIndex = (img.style.transform === "scale(2.5)") ? "100" : "auto";
+        } else {
+            // Trigger file input if no image or image not visible
+            document.getElementById(inputId).click();
+        }
+    }
+
+    function previewPhoto(input, previewId) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.getElementById(previewId);
+                img.src = e.target.result;
+                img.style.display = 'block';
+                input.closest('.photo-box').classList.add('has-img'); // Add class to hide span
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
     function clearAll() {
-        document.querySelectorAll('input, textarea').forEach(i => i.value = "");
+        document.querySelectorAll('input:not([type="file"]), textarea').forEach(i => i.value = "");
+        document.querySelectorAll('.photo-box img').forEach(img => {
+            img.src = '';
+            img.style.display = 'none';
+            img.style.transform = 'scale(1)'; // Reset zoom
+            img.parentNode.classList.remove('has-img');
+        });
         document.getElementById('output').style.display = "none";
     }
 
@@ -113,7 +186,7 @@
         const out = document.getElementById('output');
         const txt = document.getElementById('resTxt');
         out.style.display = "block";
-        txt.innerText = "Analyzing / Analizando...";
+        txt.innerText = (currentLang === 'es') ? "Analizando y resolviendo..." : "Analyzing and resolving...";
 
         const fd = new FormData();
         fd.append('prompt', document.getElementById('obs').value);
@@ -127,8 +200,18 @@
         const res = await fetch('/advisory', { method: 'POST', body: fd });
         const result = await res.json();
         
-        // Formateo de respuesta para PDF limpio
         txt.innerHTML = result.data.replace(/\n/g, "<br>");
+    }
+
+    function readResponse() {
+        if (speech.speaking) {
+            speech.cancel();
+            return;
+        }
+        const textToRead = document.getElementById('resTxt').innerText;
+        const utterance = new SpeechSynthesisUtterance(textToRead);
+        utterance.lang = (currentLang === 'es') ? 'es-ES' : 'en-US';
+        speech.speak(utterance);
     }
 </script>
 </body>
