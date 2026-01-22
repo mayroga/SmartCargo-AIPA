@@ -1,13 +1,15 @@
 # main.py
 
-from fastapi import FastAPI, Form, UploadFile, File, HTTPException
+from fastapi import FastAPI, Form, UploadFile, File, HTTPException, Depends
 from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime
+import os
 
 from storage import save_document, list_documents, get_document_path, delete_document, validate_documents
-from models import Cargo, Document, Base, engine, SessionLocal
+from models import Cargo, Document, Base, SessionLocal, engine
 
 # -------------------
 # Inicialización DB
@@ -18,13 +20,25 @@ Base.metadata.create_all(bind=engine)
 # FastAPI App
 # -------------------
 app = FastAPI(title="SmartCargo AIPA")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# -------------------
+# Seguridad Admin
+# -------------------
+security = HTTPBasic()
+
+def get_admin_user(credentials: HTTPBasicCredentials = Depends(security)):
+    username = os.getenv("ADMIN_USERNAME")
+    password = os.getenv("ADMIN_PASSWORD")
+    if credentials.username == username and credentials.password == password:
+        return True
+    raise HTTPException(status_code=401, detail="Unauthorized", headers={"WWW-Authenticate": "Basic"})
 
 # -------------------
 # Endpoints Frontend
 # -------------------
 @app.get("/", response_class=HTMLResponse)
 async def home():
-    """Carga la página principal"""
     with open("frontend/index.html", "r", encoding="utf-8") as f:
         return f.read()
 
@@ -39,8 +53,7 @@ async def create_cargo(
     origin: str = Form(...),
     destination: str = Form(...),
     cargo_type: str = Form(...),
-    flight_date: str = Form(...),
-    created_by: str = Form("system")
+    flight_date: str = Form(...)
 ):
     db: Session = SessionLocal()
     try:
@@ -51,9 +64,7 @@ async def create_cargo(
             origin=origin,
             destination=destination,
             cargo_type=cargo_type,
-            flight_date=datetime.strptime(flight_date, "%Y-%m-%d"),
-            created_by=created_by,
-            updated_by=created_by
+            flight_date=flight_date
         )
         db.add(cargo)
         db.commit()
@@ -75,11 +86,7 @@ async def upload_document(
     db: Session = SessionLocal()
     try:
         doc = save_document(db=db, file=file, cargo_id=cargo_id, doc_type=doc_type, uploaded_by=uploaded_by)
-        return {
-            "message": f"Documento '{doc_type}' cargado correctamente",
-            "filename": doc.filename,
-            "version": doc.version
-        }
+        return {"message": f"Documento '{doc_type}' cargado correctamente", "filename": doc.filename, "version": doc.version}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
@@ -122,9 +129,41 @@ async def remove_document(cargo_id: int, filename: str, deleted_by: str = Form(.
 # Validar documentos obligatorios
 # -------------------
 @app.post("/cargo/validate")
-async def validate_cargo_documents(
-    cargo_id: int = Form(...),
-    required_docs: List[str] = Form(...)
-):
+async def validate_cargo_documents(cargo_id: int = Form(...), required_docs: List[str] = Form(...)):
     result = validate_documents(cargo_id, required_docs)
-    return {"cargo_id": cargo_id, "validation": result}
+    return result
+
+# -------------------
+# Auditoría Admin
+# -------------------
+@app.get("/admin/audit/{cargo_id}")
+def audit_cargo(cargo_id: int, admin: bool = Depends(get_admin_user)):
+    db = SessionLocal()
+    try:
+        cargo = db.query(Cargo).filter(Cargo.id == cargo_id).first()
+        if not cargo:
+            raise HTTPException(status_code=404, detail="Cargo no encontrado")
+        return {
+            "cargo": {
+                "id": cargo.id,
+                "mawb": cargo.mawb,
+                "hawb": cargo.hawb,
+                "origin": cargo.origin,
+                "destination": cargo.destination,
+                "cargo_type": cargo.cargo_type,
+                "flight_date": cargo.flight_date.isoformat(),
+                "documents": [
+                    {
+                        "doc_type": doc.doc_type,
+                        "filename": doc.filename,
+                        "version": doc.version,
+                        "status": doc.status,
+                        "responsible": doc.responsible,
+                        "upload_date": doc.upload_date.isoformat(),
+                        "audit_notes": doc.audit_notes,
+                    } for doc in cargo.documents
+                ]
+            }
+        }
+    finally:
+        db.close()
