@@ -1,11 +1,17 @@
-from fastapi import FastAPI, Form, UploadFile, File
+# main.py
+
+from fastapi import FastAPI, Form, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from backend.database import SessionLocal, Cargo, Document
 from backend.utils import cargo_summary
-import os, shutil
+from backend.storage import save_document, list_documents
+import os
 
 app = FastAPI()
-STORAGE_DIR = "storage"
+
+# ----------------------------
+# ENDPOINTS FRONTEND
+# ----------------------------
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
@@ -35,19 +41,31 @@ async def create_cargo(
     return {"cargo_id": cargo.id, "message": "Cargo creado"}
 
 @app.post("/cargo/upload")
-async def upload_document(cargo_id: int = Form(...), doc_type: str = Form(...), file: UploadFile = File(...)):
-    cargo_dir = os.path.join(STORAGE_DIR, str(cargo_id))
-    os.makedirs(cargo_dir, exist_ok=True)
-    file_path = os.path.join(cargo_dir, file.filename)
-    with open(file_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+async def upload_document(
+    cargo_id: int = Form(...),
+    doc_type: str = Form(...),
+    file: UploadFile = File(...),
+    role: str = Form(...)
+):
+    if role not in ["admin", "user", "auditor"]:
+        raise HTTPException(status_code=403, detail="Rol no autorizado")
 
+    meta = save_document(file, str(cargo_id), doc_type, uploaded_by=role)
+
+    # Guardar registro en DB
     db = SessionLocal()
-    doc = Document(cargo_id=cargo_id, doc_type=doc_type, status="pending", version="v1", responsible="user")
+    doc = Document(
+        cargo_id=cargo_id,
+        doc_type=doc_type,
+        version=str(meta["version"]),
+        status="pending",
+        responsible=role
+    )
     db.add(doc)
     db.commit()
     db.close()
-    return {"message": f"{doc_type} cargado correctamente"}
+
+    return {"message": f"{doc_type} cargado correctamente", "meta": meta}
 
 @app.get("/cargo/status/{cargo_id}/{role}")
 async def cargo_status(cargo_id: int, role: str):
@@ -57,3 +75,14 @@ async def cargo_status(cargo_id: int, role: str):
     db.close()
     summary = cargo_summary(cargo, documents, role)
     return JSONResponse(content=summary)
+
+@app.get("/cargo/list_files/{cargo_id}/{role}")
+async def list_files(cargo_id: int, role: str):
+    """
+    Endpoint para listar archivos físicos en storage
+    """
+    try:
+        docs = list_documents(str(cargo_id), role)
+        return {"cargo_id": cargo_id, "role": role, "files": docs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
