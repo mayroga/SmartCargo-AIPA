@@ -1,12 +1,13 @@
 import os
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
+from openai import OpenAI
 
 app = FastAPI()
 
-# CORRECCIÓN DE CORS: Permite comunicación total sin bloqueos
+# Configuración de CORS total para evitar bloqueos
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,21 +15,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuración de Inteligencia
-api_key = os.environ.get("GEMINI_API_KEY")
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel('gemini-1.5-flash')
+# Inicialización de Claves
+api_key_gemini = os.environ.get("GEMINI_API_KEY")
+api_key_openai = os.environ.get("OPENAI_API_KEY")
 
-# Protocolo con la lista de documentos que proporcionaste
+client_openai = OpenAI(api_key=api_key_openai)
+
 SYSTEM_PROMPT = """
 Eres 'SmartCargo-AIPA', Asesor Maestro de Avianca Cargo.
-DOMINAS TODA LA PAPELERÍA: AWB, HAWB, MAWB, B/L, Commercial Invoice, Packing List, SLI, Cargo Manifest, Certificate of Origin, DGD, CBP 7509, Warehouse Receipt, etc.
-INSTRUCCIONES:
-1. Si el operador no conoce un documento o proceso, actúa como maestro y explica.
-2. Calcula peso volumétrico (1:6). Sugiere ULD (PMC/AKE) y flota (A330F/767).
-3. Sugiere prioridad: Must-Go, General o Stand-by.
-4. Si la descripción es por voz/texto, analízala con rigor técnico.
-5. No uses 'IA' o 'Gobierno'. Usa: 'Recomendación Técnica de SmartCargo'.
+DOMINAS: IATA, DOT, CBP, TSA y toda la papelería de warehouse (AWB, SLI, CBP 7509, DGR).
+TAREAS: 
+1. Si el operador tiene dudas de documentos, explica como maestro.
+2. Calcula peso volumétrico (1:6) y sugiere ULD (PMC/AKE) y flota (A330F/767).
+3. Prioriza: Must-Go, General o Stand-by.
+4. Resuelve dudas VIP con detalle pedagógico.
+No uses 'IA' ni 'Gobierno'. Usa 'Asesoría Técnica de SmartCargo'.
 """
 
 @app.get("/", response_class=HTMLResponse)
@@ -37,16 +38,32 @@ async def home():
         return f.read()
 
 @app.post("/advisory")
-async def advisory_endpoint(
-    prompt: str = Form(...),
+async def process_advisory(
+    prompt: str = Form(...), 
     awb: str = Form(""),
     l: str = Form(""), w: str = Form(""), h: str = Form(""),
-    pcs: str = Form(""), wgt: str = Form(""), unit: str = Form("")
+    pcs: str = Form(""), wgt: str = Form(""), unit: str = Form(""),
+    clear_doubts: str = Form("false")
 ):
+    full_context = f"{SYSTEM_PROMPT}\n\nDATOS: AWB {awb}, Dim {l}x{w}x{h}, Pcs {pcs}, Wgt {wgt}\nREPORTE: {prompt}\nVIP MODE: {clear_doubts}"
+    
+    # --- INTENTO 1: GEMINI ---
     try:
-        # Unión de datos para el análisis
-        context = f"DATOS: AWB {awb}, Dim {l}x{w}x{h} {unit}, Cant {pcs}, Peso {wgt}.\nDESCRIPCIÓN: {prompt}"
-        response = model.generate_content(f"{SYSTEM_PROMPT}\n\n{context}")
-        return JSONResponse(content={"data": response.text})
+        genai.configure(api_key=api_key_gemini)
+        model_gemini = genai.GenerativeModel('gemini-1.5-flash')
+        response = model_gemini.generate_content(full_context)
+        return JSONResponse(content={"data": response.text, "source": "AIPA-Flash (Gemini)"})
+    
     except Exception as e:
-        return JSONResponse(content={"data": f"Error del sistema: {str(e)}"}, status_code=500)
+        # --- INTENTO 2: RESPALDO AUTOMÁTICO CON OPENAI ---
+        try:
+            response = client_openai.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": full_context}]
+            )
+            return JSONResponse(content={
+                "data": response.choices[0].message.content, 
+                "source": "AIPA-SafeMode (OpenAI Backup)"
+            })
+        except Exception as e2:
+            return JSONResponse(content={"data": "Error crítico: Ambos sistemas fuera de línea. Verifique API Keys."}, status_code=500)
