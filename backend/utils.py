@@ -2,7 +2,7 @@
 
 from typing import List, Dict
 from .rules import validate_cargo   # <- Import corregido con punto relativo
-from .models import Cargo, Document
+from models import Cargo, Document
 
 def cargo_summary(cargo: Cargo, documents: List[Document], role: str = "user") -> Dict:
     """
