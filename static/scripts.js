@@ -1,91 +1,82 @@
-const translations = {
-    es: {
-        "SmartCargo AIPA": "SmartCargo AIPA",
-        "Create Cargo": "Crear Cargo",
-        "MAWB": "MAWB",
-        "HAWB": "HAWB",
-        "Origin": "Origen",
-        "Destination": "Destino",
-        "Cargo Type": "Tipo de carga",
-        "Flight Date": "Fecha de vuelo",
-        "Documents": "Documentos",
-        "Version": "Versión",
-        "Status": "Estado",
-        "Responsible": "Responsable",
-        "Audit Notes": "Notas de Auditoría"
-    },
-    en: {
-        "Crear Cargo": "Create Cargo",
-        "Origen": "Origin",
-        "Destino": "Destination",
-        "Tipo de carga": "Cargo Type",
-        "Fecha de vuelo": "Flight Date",
-        "Documentos": "Documents",
-        "Versión": "Version",
-        "Estado": "Status",
-        "Responsable": "Responsible",
-        "Notas de Auditoría": "Audit Notes"
-    }
-};
+// scripts.js
 
-let currentLang = "en";
+const cargoForm = document.getElementById("cargoForm");
+const cargoTableBody = document.querySelector("#cargoTable tbody");
+const translateBtn = document.getElementById("translateBtn");
+const printBtn = document.getElementById("printBtn");
+const whatsappBtn = document.getElementById("whatsappBtn");
 
-function toggleLanguage() {
-    currentLang = currentLang === "en" ? "es" : "en";
-    document.querySelectorAll("[data-i18n]").forEach(el => {
-        const key = el.getAttribute("data-i18n");
-        el.innerText = translations[currentLang][key];
+let isSpanish = false;
+
+// Crear cargo
+cargoForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(cargoForm);
+    const data = Object.fromEntries(formData.entries());
+
+    const res = await fetch("/cargo/create", {
+        method: "POST",
+        body: new URLSearchParams(data)
     });
-}
 
-// Fetch cargos y llenar tabla
+    const result = await res.json();
+    alert(result.message);
+    cargoForm.reset();
+    loadCargos();
+});
+
+// Cargar cargos y documentos
 async function loadCargos() {
-    const tbody = document.querySelector("#cargoTable tbody");
-    tbody.innerHTML = "";
-    const res = await fetch("/cargo/list/1"); // Ejemplo cargo_id=1
+    cargoTableBody.innerHTML = "";
+    const res = await fetch("/cargo/list/1"); // Para demo, cargo_id=1
     const data = await res.json();
     if (data.documents) {
         data.documents.forEach(doc => {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
+            const row = document.createElement("tr");
+            row.innerHTML = `
                 <td>${data.cargo_id}</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>${doc}</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
+                <td>${doc.mawb || ""}</td>
+                <td>${doc.hawb || ""}</td>
+                <td>${doc.origin || ""}</td>
+                <td>${doc.destination || ""}</td>
+                <td>${doc.cargo_type || ""}</td>
+                <td>${doc.flight_date || ""}</td>
+                <td>${doc.filename || ""}</td>
+                <td>${doc.version || ""}</td>
+                <td>${doc.status || ""}</td>
+                <td>${doc.responsible || ""}</td>
+                <td>${doc.upload_date || ""}</td>
+                <td>${doc.audit_notes || ""}</td>
             `;
-            tbody.appendChild(tr);
+            cargoTableBody.appendChild(row);
         });
     }
 }
 
-// Imprimir tabla / generar PDF
-function printTable() {
-    const printWindow = window.open("", "", "width=900,height=600");
-    printWindow.document.write("<html><head><title>Print</title></head><body>");
-    printWindow.document.write(document.querySelector("#cargoTable").outerHTML);
-    printWindow.document.write("</body></html>");
-    printWindow.document.close();
-    printWindow.print();
-}
+// Traducción inglés/español
+translateBtn.addEventListener("click", () => {
+    isSpanish = !isSpanish;
+    document.querySelector("h1").textContent = isSpanish ? "SmartCargo AIPA" : "SmartCargo AIPA";
+    document.querySelector("h2").textContent = isSpanish ? "Gestión de Carga y Documentos" : "Cargo & Document Management";
+    cargoForm.querySelector("button").textContent = isSpanish ? "Crear Cargo" : "Create Cargo";
+    printBtn.textContent = isSpanish ? "Imprimir / PDF" : "Print / PDF";
+    whatsappBtn.textContent = isSpanish ? "Enviar WhatsApp" : "Send WhatsApp";
+});
 
-// Enviar resumen por WhatsApp
-function sendWhatsApp() {
-    const tableText = Array.from(document.querySelectorAll("#cargoTable tr"))
-        .map(tr => Array.from(tr.cells).map(td => td.innerText).join("\t"))
-        .join("\n");
-    const phone = prompt("Enter WhatsApp number (with country code):");
-    if (phone) {
-        const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(tableText)}&phone=${phone}`;
-        window.open(url, "_blank");
-    }
-}
+// Imprimir / PDF
+printBtn.addEventListener("click", () => {
+    window.print();
+});
 
-// Inicial
+// WhatsApp
+whatsappBtn.addEventListener("click", () => {
+    let text = "Cargo & Documents:\n";
+    document.querySelectorAll("#cargoTable tbody tr").forEach(row => {
+        text += Array.from(row.children).map(td => td.textContent).join(" | ") + "\n";
+    });
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
+});
+
+// Inicial carga
 loadCargos();
