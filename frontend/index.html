@@ -1,41 +1,48 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SMARTCARGO-AIPA by MAY ROGA LLC</title>
-<link rel="stylesheet" href="styles.css">
-<script src="scripts.js" defer></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartCargo AIPA</title>
+<link rel="stylesheet" href="/static/styles.css">
+<script src="/static/scripts.js" defer></script>
 </head>
 <body>
-<h1>SMARTCARGO-AIPA | Identificación de carga</h1>
+<h1 data-i18n="SmartCargo AIPA">SmartCargo AIPA</h1>
+
+<button onclick="toggleLanguage()">ES / EN</button>
+<button onclick="printTable()">Print / PDF</button>
+<button onclick="sendWhatsApp()">WhatsApp</button>
+
+<h2 data-i18n="Create Cargo">Create Cargo</h2>
 <form id="cargoForm">
-    <input type="text" name="mawb" placeholder="MAWB" required>
-    <input type="text" name="hawb" placeholder="HAWB">
-    <input type="text" name="origin" placeholder="Origen" required>
-    <input type="text" name="destination" placeholder="Destino" required>
-    <select name="cargo_type" required>
-        <option value="">Tipo de carga</option>
-        <option value="GEN">GEN</option>
-        <option value="DG">DG</option>
-        <option value="HUM">HUM</option>
-        <option value="VAL">VAL</option>
-    </select>
-    <input type="date" name="flight_date" required>
-    <button type="submit">Crear Cargo</button>
+    <input type="text" name="mawb" placeholder="MAWB" data-i18n="MAWB" required>
+    <input type="text" name="hawb" placeholder="HAWB" data-i18n="HAWB">
+    <input type="text" name="origin" placeholder="Origin" data-i18n="Origin" required>
+    <input type="text" name="destination" placeholder="Destination" data-i18n="Destination" required>
+    <input type="text" name="cargo_type" placeholder="Cargo Type" data-i18n="Cargo Type" required>
+    <input type="date" name="flight_date" placeholder="Flight Date" data-i18n="Flight Date" required>
+    <button type="submit" data-i18n="Create Cargo">Create Cargo</button>
 </form>
 
-<h2>Consultar estado por rol</h2>
-<form id="statusForm">
-    <input type="number" name="cargo_id" placeholder="ID Cargo" required>
-    <select name="role" required>
-        <option value="dueño">Dueño</option>
-        <option value="forwarder">Forwarder</option>
-        <option value="camionero">Camionero</option>
-        <option value="warehouse">Warehouse</option>
-        <option value="admin">Admin</option>
-    </select>
-    <button type="submit">Ver estado</button>
-</form>
-<pre id="status"></pre>
+<h2 data-i18n="Documents">Documents</h2>
+<table id="cargoTable">
+<thead>
+<tr>
+<th data-i18n="MAWB">MAWB</th>
+<th data-i18n="HAWB">HAWB</th>
+<th data-i18n="Origin">Origin</th>
+<th data-i18n="Destination">Destination</th>
+<th data-i18n="Cargo Type">Cargo Type</th>
+<th data-i18n="Flight Date">Flight Date</th>
+<th data-i18n="Documents">Documents</th>
+<th data-i18n="Version">Version</th>
+<th data-i18n="Status">Status</th>
+<th data-i18n="Responsible">Responsible</th>
+<th data-i18n="Audit Notes">Audit Notes</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
 </body>
 </html>
