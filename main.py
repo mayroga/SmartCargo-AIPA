@@ -4,7 +4,7 @@ from fastapi import FastAPI, Form, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from typing import List
-import os
+from datetime import datetime
 
 from storage import save_document, list_documents, get_document_path, delete_document, validate_documents
 from models import Cargo, Document, Base, engine, SessionLocal
@@ -39,7 +39,8 @@ async def create_cargo(
     origin: str = Form(...),
     destination: str = Form(...),
     cargo_type: str = Form(...),
-    flight_date: str = Form(...)
+    flight_date: str = Form(...),
+    created_by: str = Form("system")
 ):
     db: Session = SessionLocal()
     try:
@@ -50,7 +51,9 @@ async def create_cargo(
             origin=origin,
             destination=destination,
             cargo_type=cargo_type,
-            flight_date=flight_date
+            flight_date=datetime.strptime(flight_date, "%Y-%m-%d"),
+            created_by=created_by,
+            updated_by=created_by
         )
         db.add(cargo)
         db.commit()
@@ -72,7 +75,11 @@ async def upload_document(
     db: Session = SessionLocal()
     try:
         doc = save_document(db=db, file=file, cargo_id=cargo_id, doc_type=doc_type, uploaded_by=uploaded_by)
-        return {"message": f"Documento '{doc_type}' cargado correctamente", "filename": doc.filename, "version": doc.version}
+        return {
+            "message": f"Documento '{doc_type}' cargado correctamente",
+            "filename": doc.filename,
+            "version": doc.version
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
@@ -93,7 +100,7 @@ async def list_cargo_documents(cargo_id: int):
 async def document_path(cargo_id: int, filename: str):
     try:
         path = get_document_path(cargo_id, filename)
-        return {"cargo_id": cargo_id, "filename": filename, "path": path}
+        return {"cargo_id": cargo_id, "filename": filename, "path": str(path)}
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -115,6 +122,9 @@ async def remove_document(cargo_id: int, filename: str, deleted_by: str = Form(.
 # Validar documentos obligatorios
 # -------------------
 @app.post("/cargo/validate")
-async def validate_cargo_documents(cargo_id: int = Form(...), required_docs: List[str] = Form(...)):
+async def validate_cargo_documents(
+    cargo_id: int = Form(...),
+    required_docs: List[str] = Form(...)
+):
     result = validate_documents(cargo_id, required_docs)
-    return result
+    return {"cargo_id": cargo_id, "validation": result}
