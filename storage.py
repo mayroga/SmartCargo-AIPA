@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 from typing import List
-from backend.models import Document, Cargo
+from models import Document, Cargo
 
 # Si quieres migrar a S3, puedes reemplazar BASE_DIR por boto3 bucket
 BASE_DIR = Path("storage/uploads")
