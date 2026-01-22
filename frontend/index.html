@@ -23,6 +23,19 @@
     <input type="date" name="flight_date" required>
     <button type="submit">Crear Cargo</button>
 </form>
-<div id="status"></div>
+
+<h2>Consultar estado por rol</h2>
+<form id="statusForm">
+    <input type="number" name="cargo_id" placeholder="ID Cargo" required>
+    <select name="role" required>
+        <option value="dueño">Dueño</option>
+        <option value="forwarder">Forwarder</option>
+        <option value="camionero">Camionero</option>
+        <option value="warehouse">Warehouse</option>
+        <option value="admin">Admin</option>
+    </select>
+    <button type="submit">Ver estado</button>
+</form>
+<pre id="status"></pre>
 </body>
 </html>
