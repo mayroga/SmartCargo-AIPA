@@ -1,7 +1,7 @@
-import os, stripe, httpx, urllib.parse
+import os, httpx
 from fastapi import FastAPI, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from typing import Optional
 from dotenv import load_dotenv
 
@@ -15,25 +15,23 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# Variables de Entorno
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-OPENAI_KEY = os.getenv("OPENAI_API_KEY")
-DOMAIN_URL = os.getenv("DOMAIN_URL")
-
+# Configuración de Identidad y Reglas de Respuesta
 TECH_CORE = """
-You are the Strategic Brain of SMARTCARGO ADVISORY by MAY ROGA LLC. 
-OFFICIAL IDENTITY: High-level private logistics consultant. Not IATA, TSA, DOT, or Gov.
-PHILOSOPHY: Mitigate holds and returns, maximize capital. 
-RULES:
-1. DUAL MEASURES: Always provide dimensions in [Inches] INC / [Centimeters] CM.
-2. AUTHORITY: Professional, decisive, and interrogative. If info is missing, ask.
-3. NO SYMBOLS: Do not use asterisks (*) or hashtags (#) for a clean voice reading.
-4. THREAD: Maintain conversation flow to reach a resolution.
+Eres el CEREBRO ESTRATÉGICO de SMARTCARGO ADVISORY by MAY ROGA LLC. 
+IDENTIDAD: Consultor logístico privado de alto nivel. No eres gobierno, IATA, TSA ni DOT.
+FILOSOFÍA: Mitigar retenciones, maximizar capital y prevenir errores operativos.
+
+REGLAS CRÍTICAS DE RESPUESTA:
+1. MEDIDAS DUALES: Siempre entrega dimensiones en [Pulgadas] INC y [Centímetros] CM.
+2. SIN SÍMBOLOS: Prohibido usar asteriscos (*), hashtags (#) o Markdown complejo. La respuesta debe ser texto limpio para lectura de voz.
+3. TONO: Profesional, decisivo y consultivo. No des órdenes, ofrece sugerencias y propuestas de acción.
+4. RESOLUCIÓN: Si falta información, pregunta con precisión. Mantén el hilo hasta resolver el problema.
+5. IDIOMA: Responde estrictamente en el idioma solicitado por el usuario.
 """
 
 @app.get("/")
-async def home(): return FileResponse("index.html")
+async def home():
+    return FileResponse("index.html")
 
 @app.post("/advisory")
 async def advisory_engine(
@@ -42,40 +40,45 @@ async def advisory_engine(
     lang: str = Form("es"), 
     role: Optional[str] = Form("auto")
 ):
-    system_instr = f"{TECH_CORE}\nLanguage: {lang}. Role: {role}.\nCONTEXT: {history}\nQUERY: {prompt}"
+    # Construcción del Prompt de Sistema
+    system_instr = f"{TECH_CORE}\nIdioma: {lang}. Rol del Cliente: {role}.\nCONTEXTO PREVIO: {history}\nCONSULTA: {prompt}"
     
     async with httpx.AsyncClient(timeout=40.0) as client:
-        # --- PLAN A: GEMINI 1.5 FLASH (Prioridad por Velocidad) ---
-        if GEMINI_KEY:
+        # PLAN A: MOTOR PRINCIPAL (Velocidad Flash)
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        if gemini_key:
             try:
-                url_g = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
-                res_g = await client.post(
-                    url_g, 
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+                res = await client.post(
+                    url, 
                     json={"contents": [{"parts": [{"text": system_instr}]}]},
                     headers={"Content-Type": "application/json"}
                 )
-                if res_g.status_code == 200:
-                    return {"data": res_g.json()["candidates"][0]["content"]["parts"][0]["text"]}
+                if res.status_code == 200:
+                    return {"data": res.json()["candidates"][0]["content"]["parts"][0]["text"]}
             except Exception as e:
-                print(f"Gemini Error: {e}")
+                print(f"Error Motor 1: {e}")
 
-        # --- PLAN B: OPENAI GPT-4o (Respaldo de Emergencia) ---
-        if OPENAI_KEY:
+        # PLAN B: MOTOR DE RESPALDO (Alta Complejidad)
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if openai_key:
             try:
-                res_o = await client.post(
+                res = await client.post(
                     "https://api.openai.com/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {OPENAI_KEY}", "Content-Type": "application/json"},
+                    headers={"Authorization": f"Bearer {openai_key}"},
                     json={
                         "model": "gpt-4o",
                         "messages": [{"role": "system", "content": system_instr}],
                         "temperature": 0.3
                     }
                 )
-                if res_o.status_code == 200:
-                    return {"data": res_o.json()["choices"][0]["message"]["content"]}
+                if res.status_code == 200:
+                    return {"data": res.json()["choices"][0]["message"]["content"]}
             except Exception as e:
-                print(f"OpenAI Error: {e}")
+                print(f"Error Motor 2: {e}")
 
-    return {"data": "SMARTCARGO ERROR: No hay respuesta de los motores de IA. Verifica conexión y API Keys."}
+    return {"data": "ERROR DE CONEXIÓN: El cerebro de asesoría no está disponible. Verifique su red."}
 
-# ... (El resto del código de pagos se mantiene igual)
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
