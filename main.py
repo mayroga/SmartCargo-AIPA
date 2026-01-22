@@ -5,7 +5,6 @@ import os
 
 app = FastAPI()
 
-# Configuración de CORS para evitar errores de conexión
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,21 +12,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuración de Gemini con instrucciones de SmartCargo
 genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# INSTRUCCIONES DE SEGURIDAD Y ESPECIALIDAD
-SYSTEM_BRAIN = """
-You are 'SmartCargo Advisory by MAY ROGA LLC'. 
-OFFICIAL RULES:
-1. FOCUS: Maritime, Terrestrial, and Aerial logistics advisor (Specialist in AVIANCA cargo).
-2. COMPLIANCE: Expert in IATA DGR, CBP, DOT, and TSA regulations.
-3. LEGAL: You are NOT a government body. Do NOT use words like 'audit', 'AI', or 'Intelligence'.
-4. MEASUREMENTS: Always provide dimensions in BOTH [Inches] INC and [Centimeters] CM.
-5. LIABILITY: Use advisory language: 'We suggest', 'It is recommended', 'Action proposed'.
-6. SCOPE: Cover all 50 states and health systems. If data is missing, suggest a professional alternative.
-7. STYLE: Professional, interesting, and precise. Never mix words or lose the thread.
+# INSTRUCCIONES NIVEL EXPERTO: OPERACIÓN AVIANCA / CARGO HUB
+SYSTEM_SPECIALIST = """
+You are the Lead Logistics Advisor for 'SmartCargo Advisory by MAY ROGA LLC', specialized in AVIANCA Cargo Operations.
+Your goal: ZERO REJECTIONS, ZERO FINES, MAXIMUM PROFIT.
+
+EXPERT KNOWLEDGE BASE:
+1. ULD/PMC INTEGRITY: Check for punctures, net tension, and base deformation.
+2. DOCUMENTATION (The 'Paperwork Shield'): Verify AWB vs Manifest vs HAWB. Check for legible stamps, required copies (3 originals/6 copies), and SLI accuracy.
+3. CONSOLIDATED CARGO: Verify house-to-master consistency. No loose boxes without proper labeling.
+4. AVIANCA SPECIFICS: Follow Avianca's 'Ready for Carriage' standards.
+5. DG & DOT: Check segregation (IATA Table 9.3.A). Ensure UN numbers and Proper Shipping Names are exactly as per DGD.
+6. PACKAGING: From a regular box to a crate, check for 'Wet Cargo' signs, crushing resistance, and ISPM-15 stamps.
+
+ADVISORY PROTOCOL:
+- Dimensioning: Mandatory [Inches] INC and [Centimeters] CM.
+- Language: Professional advisory ('It is suggested to re-label', 'Recommended to tighten nets').
+- No-Go words: Do NOT use 'audit', 'AI', or 'government'.
 """
 
 @app.post("/advisory")
@@ -37,31 +41,20 @@ async def get_advisory(
     awb: str = Form(...),
 ):
     try:
-        # Estructura de la consulta para el motor
         context = f"""
-        {SYSTEM_BRAIN}
+        {SYSTEM_SPECIALIST}
         ---
-        CLIENT DATA:
-        Role: {role}
-        AWB/Reference: {awb}
-        Situation Found: {prompt}
+        FIELD REPORT:
+        Role: {role} | Reference/AWB: {awb}
+        Observation: {prompt}
         ---
-        Please provide a professional technical solution including risks and step-by-step advice.
+        ACTION PLAN: Provide a breakdown of Document Check, Physical Inspection, and Final Recommendation to guarantee acceptance at the counter.
         """
-        
-        # Generar contenido sin bloquear el hilo principal
         response = model.generate_content(context)
-        
-        if not response.text:
-            return {"data": "Incomplete data. Please provide more details about the cargo."}
-
         return {"data": response.text}
-
     except Exception as e:
-        # Error amigable para evitar que el frontend se bloquee
-        return {"data": "Technical interruption. Please retry in 30 seconds."}
+        return {"data": "System overload. Re-connecting to Avianca Technical Standards..."}
 
 if __name__ == "__main__":
     import uvicorn
-    # Puerto estandar para Render
     uvicorn.run(app, host="0.0.0.0", port=10000)
