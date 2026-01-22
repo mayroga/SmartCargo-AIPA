@@ -1,123 +1,113 @@
-// VARIABLES DE ESTADO
+// ==============================================================================
+// SMARTCARGO ADVISORY - LÓGICA OPERATIVA (FOTO-ESTRUCTURA)
+// ==============================================================================
+
 let selectedRole = "";
-let chatHistory = [];
-const synth = window.speechSynthesis;
+let isCritical = false;
 
-// 1. GESTIÓN DE IDIOMAS (Utiliza el objeto 'i18n' que estará en config.js)
-function toggleLang(lang) {
-    const d = i18n[lang];
-    document.getElementById('legalText').innerHTML = d.legal;
-    document.getElementById('mainTitle').innerText = d.title;
-    document.getElementById('promoText').innerText = d.promo;
-    document.getElementById('execBtn').innerText = d.exec;
-    document.getElementById('prompt').placeholder = d.placeholder;
-    
-    // Actualizar nombres de roles
-    const roles = ["r1", "r2", "r3", "r4"];
-    roles.forEach((id, i) => {
-        document.getElementById(id).innerText = d.roles[i];
-    });
-}
-
-// 2. PREVISUALIZACIÓN DE IMÁGENES
-function preview(e, n) {
-    const reader = new FileReader();
-    reader.onload = () => {
-        const img = document.getElementById('view' + n);
-        img.src = reader.result;
-        img.style.display = "block";
-        document.getElementById('lab' + n).style.display = "none";
-    };
-    if(e.target.files[0]) reader.readAsDataURL(e.target.files[0]);
-}
-
-// 3. SELECCIÓN DE ROL
-function setRole(role, btn) {
+// 1. SELECCIÓN DE ROL Y PRECIO
+function selRole(role, element, critical = false) {
     selectedRole = role;
-    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
+    isCritical = critical;
+    // Remover clase 'selected' de todos los botones de rol
+    document.querySelectorAll('.role-btn').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    // Resaltar el botón seleccionado
+    element.classList.add('selected');
 }
 
-// 4. EJECUCIÓN DE ASESORÍA (IA)
-async function runAdvisory() {
-    const pInput = document.getElementById('prompt');
-    const out = document.getElementById('responseText');
-    const resBox = document.getElementById('res');
-    const btn = document.getElementById('execBtn');
-    const lang = document.getElementById('userLang').value;
+// 2. DESBLOQUEO DE APLICACIÓN (VALIDATE & ACCESS)
+function unlockApp() {
+    const awb = document.getElementById('awb').value.trim();
+    if (!selectedRole) {
+        alert("Please select a Role first / Por favor seleccione un Rol.");
+        return;
+    }
+    if (!awb) {
+        alert("Please enter a Reference or AWB / Ingrese Referencia o AWB.");
+        return;
+    }
+    // Mostrar sección principal
+    document.getElementById('mainApp').style.display = "block";
+    document.getElementById('awb').disabled = true;
+}
 
-    if (!selectedRole) return alert(lang === 'es' ? "Selecciona un Rol" : "Select a Role");
-    if (!pInput.value.trim()) return alert(lang === 'es' ? "Escribe tu consulta" : "Write your query");
-
-    // Bloqueo de UI para evitar "Freezes"
-    btn.disabled = true;
-    btn.innerText = lang === 'es' ? "ANALIZANDO..." : "ANALYZING...";
-    resBox.style.display = "block";
-    out.innerText = "...";
-
-    // Preparar historial (últimos 4 para ligereza)
-    const historySnippet = chatHistory.slice(-4).join(" | ");
-
-    const fd = new FormData();
-    fd.append("prompt", pInput.value);
-    fd.append("history", historySnippet);
-    fd.append("role", selectedRole);
-    fd.append("lang", lang);
-
-    try {
-        const response = await fetch('/advisory', { method: 'POST', body: fd });
-        const result = await response.json();
-        
-        out.innerText = result.data;
-        chatHistory.push(`Q:${pInput.value}`, `A:${result.data}`);
-        pInput.value = ""; // Limpiar entrada
-    } catch (err) {
-        out.innerText = "Error: Connection lost. Reintenta.";
-    } finally {
-        btn.disabled = false;
-        btn.innerText = i18n[lang].exec;
+// 3. PREVISUALIZACIÓN DE IMÁGENES (LAS 3 CAJAS)
+function pv(event, index) {
+    const reader = new FileReader();
+    reader.onload = function() {
+        const output = document.getElementById('v' + index);
+        output.src = reader.result;
+        output.style.display = "block";
+        // Ocultar el número/texto de fondo
+        output.parentElement.style.color = "transparent";
+    };
+    if(event.target.files[0]) {
+        reader.readAsDataURL(event.target.files[0]);
     }
 }
 
-// 5. VOZ Y COMPARTIR
-function readAloud() {
-    synth.cancel();
-    const text = document.getElementById('responseText').innerText;
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = document.getElementById('userLang').value === 'es' ? 'es-US' : 'en-US';
-    synth.speak(utter);
-}
-
-// Dictado por voz (Micrófono)
-const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-recognition.onresult = (e) => {
-    document.getElementById('prompt').value = e.results[0][0].transcript;
-};
-
-document.getElementById('micBtn').onclick = () => {
+// 4. DICTADO DE VOZ (MICROPHONE)
+function startDictation() {
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'en-US'; // Puede cambiarse dinámicamente
     recognition.start();
-};
 
-// Funciones de Envío
-function shareWS() {
-    const t = document.getElementById('responseText').innerText;
-    window.open(`https://wa.me/?text=${encodeURIComponent(t)}`, '_blank');
+    recognition.onresult = (event) => {
+        document.getElementById('evidence').value = event.results[0][0].transcript;
+    };
 }
 
-function shareEmail() {
-    const t = document.getElementById('responseText').innerText;
-    window.location.href = `mailto:?subject=SMARTCARGO ADVISORY&body=${encodeURIComponent(t)}`;
+// 5. EJECUCIÓN DE SOLUCIÓN TÉCNICA
+async function getSolution() {
+    const evidence = document.getElementById('evidence').value;
+    const btn = document.getElementById('btn-solution');
+    const responseArea = document.getElementById('responseArea');
+    const resText = document.getElementById('resText');
+
+    if (!evidence.trim()) {
+        alert("Please describe the findings / Por favor describa los hallazgos.");
+        return;
+    }
+
+    // Estado de carga para evitar "Freezes"
+    btn.disabled = true;
+    btn.innerText = "ANALYZING TECHNICAL DATA...";
+    responseArea.style.display = "block";
+    resText.innerText = "Generating specialized advisory...";
+
+    const formData = new FormData();
+    formData.append("prompt", evidence);
+    formData.append("role", selectedRole);
+    formData.append("awb", document.getElementById('awb').value);
+
+    try {
+        const response = await fetch('/advisory', { 
+            method: 'POST', 
+            body: formData 
+        });
+        const result = await response.json();
+        resText.innerText = result.data;
+    } catch (error) {
+        resText.innerText = "CONNECTION ERROR: The technical brain is not responding. Please retry.";
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Get Technical Solution";
+    }
 }
 
-// Lógica de Acceso (Simulada para el ejemplo)
-function processPay(amt) {
-    alert(`Redirigiendo a Checkout de $${amt}...`);
-    // Aquí iría la lógica de Stripe. Para pruebas:
-    document.getElementById('accessSection').style.display = "none";
-    document.getElementById('mainApp').style.display = "block";
+// 6. FUNCIONES DE SALIDA (VOZ Y COMPARTIR)
+function speak() {
+    window.speechSynthesis.cancel();
+    const text = document.getElementById('resText').innerText;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'en-US';
+    window.speechSynthesis.speak(utter);
 }
 
-function showLogin() {
-    const f = document.getElementById('loginForm');
-    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+function sendWS() {
+    const text = document.getElementById('resText').innerText;
+    const url = `https://wa.me/?text=${encodeURIComponent("SMARTCARGO ADVISORY: " + text)}`;
+    window.open(url, '_blank');
 }
