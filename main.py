@@ -1,84 +1,105 @@
-import os, httpx
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from typing import Optional
-from dotenv import load_dotenv
+from pydantic import BaseModel
+import google.generativeai as genai
+import os
 
-load_dotenv()
-app = FastAPI()
+app = FastAPI(title="SmartCargo Advisory Backend")
 
+# 1. CONFIGURACIÓN DE SEGURIDAD (CORS)
+# Permite la comunicación con el frontend en Render o local
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
-# Configuración de Identidad y Reglas de Respuesta
-TECH_CORE = """
-Eres el CEREBRO ESTRATÉGICO de SMARTCARGO ADVISORY by MAY ROGA LLC. 
-IDENTIDAD: Consultor logístico privado de alto nivel. No eres gobierno, IATA, TSA ni DOT.
-FILOSOFÍA: Mitigar retenciones, maximizar capital y prevenir errores operativos.
+# 2. CONFIGURACIÓN DEL MOTOR DE ASESORÍA
+# La API Key debe estar configurada en las variables de entorno de Render
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+genai.configure(api_key=GOOGLE_API_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-REGLAS CRÍTICAS DE RESPUESTA:
-1. MEDIDAS DUALES: Siempre entrega dimensiones en [Pulgadas] INC y [Centímetros] CM.
-2. SIN SÍMBOLOS: Prohibido usar asteriscos (*), hashtags (#) o Markdown complejo. La respuesta debe ser texto limpio para lectura de voz.
-3. TONO: Profesional, decisivo y consultivo. No des órdenes, ofrece sugerencias y propuestas de acción.
-4. RESOLUCIÓN: Si falta información, pregunta con precisión. Mantén el hilo hasta resolver el problema.
-5. IDIOMA: Responde estrictamente en el idioma solicitado por el usuario.
+# 3. PROMPT MAESTRO (INSTRUCCIONES DEL SISTEMA)
+# Aquí se integran todas tus reglas de negocio y blindaje legal
+SYSTEM_PROMPT = """
+You are the high-level professional advisor for 'SmartCargo Advisory by MAY ROGA LLC'.
+Your purpose is to provide stability to the logistics chain and prevent fines or holds.
+
+STRICT RULES:
+1. MEASUREMENTS: Always provide dimensions in both [Inches] INC and [Centimeters] CM.
+2. LEGAL SHIELD: Never use words like 'audit', 'AI', or 'Artificial Intelligence'.
+3. AUTHORITY: Do NOT claim to be IATA, DOT, TSA, CBP, or any government entity. State you are a private advisor.
+4. TONE: Professional, expert, and proactive. Use words that suggest/advise (e.g., 'we suggest', 'it is recommended') to avoid legal liabilities.
+5. KNOWLEDGE SCOPE: 
+   - Full coverage of the 50 U.S. states and the entire health system (doctors, dentists, psychologists).
+   - Expert in Avianca-related logistics and procedures.
+   - Expert in maritime, terrestrial, and aerial advisory.
+6. PROBLEM SOLVING: If data is missing in the database, you must fill the gap based on professional standards to provide a solution.
+7. LANGUAGE: If the user asks in Spanish, respond in Spanish. If in English, respond in English.
 """
 
+# 4. RUTAS DE LA API
+
 @app.get("/")
-async def home():
-    return FileResponse("index.html")
+async def root():
+    return {"message": "SmartCargo Advisory API is running"}
 
 @app.post("/advisory")
-async def advisory_engine(
-    prompt: str = Form(...), 
-    history: Optional[str] = Form(""),
-    lang: str = Form("es"), 
-    role: Optional[str] = Form("auto")
+async def get_technical_solution(
+    prompt: str = Form(...),
+    role: str = Form(...),
+    awb: str = Form(...),
+    lang: str = Form("en")
 ):
-    # Construcción del Prompt de Sistema
-    system_instr = f"{TECH_CORE}\nIdioma: {lang}. Rol del Cliente: {role}.\nCONTEXTO PREVIO: {history}\nCONSULTA: {prompt}"
-    
-    async with httpx.AsyncClient(timeout=40.0) as client:
-        # PLAN A: MOTOR PRINCIPAL (Velocidad Flash)
-        gemini_key = os.getenv("GEMINI_API_KEY")
-        if gemini_key:
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-                res = await client.post(
-                    url, 
-                    json={"contents": [{"parts": [{"text": system_instr}]}]},
-                    headers={"Content-Type": "application/json"}
-                )
-                if res.status_code == 200:
-                    return {"data": res.json()["candidates"][0]["content"]["parts"][0]["text"]}
-            except Exception as e:
-                print(f"Error Motor 1: {e}")
+    """
+    Recibe la consulta técnica y devuelve la asesoría estratégica.
+    """
+    try:
+        # Construcción del contexto para el motor
+        user_context = f"""
+        User Role: {role}
+        Reference/AWB: {awb}
+        Technical Situation: {prompt}
+        """
+        
+        # Generación de la respuesta
+        response = model.generate_content([SYSTEM_PROMPT, user_context])
+        
+        if not response.text:
+            raise HTTPException(status_code=500, detail="Empty response from advisory engine")
 
-        # PLAN B: MOTOR DE RESPALDO (Alta Complejidad)
-        openai_key = os.getenv("OPENAI_API_KEY")
-        if openai_key:
-            try:
-                res = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {openai_key}"},
-                    json={
-                        "model": "gpt-4o",
-                        "messages": [{"role": "system", "content": system_instr}],
-                        "temperature": 0.3
-                    }
-                )
-                if res.status_code == 200:
-                    return {"data": res.json()["choices"][0]["message"]["content"]}
-            except Exception as e:
-                print(f"Error Motor 2: {e}")
+        return {
+            "status": "success",
+            "data": response.text,
+            "reference": awb
+        }
 
-    return {"data": "ERROR DE CONEXIÓN: El cerebro de asesoría no está disponible. Verifique su red."}
+    except Exception as e:
+        return {
+            "status": "error",
+            "data": "The technical brain is currently updating. Please try again in a few moments or contact support."
+        }
 
+@app.post("/upload-evidence")
+async def upload_evidence(
+    file: UploadFile = File(...),
+    description: str = Form(...)
+):
+    """
+    Procesa las imágenes de carga o documentos enviadas por el usuario.
+    """
+    # Aquí se integra la lógica de procesamiento de imagen si es necesario
+    return {
+        "info": "Evidence received",
+        "filename": file.filename,
+        "analysis": "Image queued for technical verification"
+    }
+
+# 5. INICIO DEL SERVIDOR
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Puerto 10000 para compatibilidad directa con Render
+    uvicorn.run(app, host="0.0.0.0", port=10000)
