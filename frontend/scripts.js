@@ -1,61 +1,91 @@
-document.addEventListener("DOMContentLoaded", () => {
-    loadCargos();
+const translations = {
+    es: {
+        "SmartCargo AIPA": "SmartCargo AIPA",
+        "Create Cargo": "Crear Cargo",
+        "MAWB": "MAWB",
+        "HAWB": "HAWB",
+        "Origin": "Origen",
+        "Destination": "Destino",
+        "Cargo Type": "Tipo de carga",
+        "Flight Date": "Fecha de vuelo",
+        "Documents": "Documentos",
+        "Version": "Versión",
+        "Status": "Estado",
+        "Responsible": "Responsable",
+        "Audit Notes": "Notas de Auditoría"
+    },
+    en: {
+        "Crear Cargo": "Create Cargo",
+        "Origen": "Origin",
+        "Destino": "Destination",
+        "Tipo de carga": "Cargo Type",
+        "Fecha de vuelo": "Flight Date",
+        "Documentos": "Documents",
+        "Versión": "Version",
+        "Estado": "Status",
+        "Responsable": "Responsible",
+        "Notas de Auditoría": "Audit Notes"
+    }
+};
 
-    const form = document.getElementById("createCargoForm");
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const formData = new FormData(form);
+let currentLang = "en";
 
-        try {
-            const res = await fetch("/cargo/create", {
-                method: "POST",
-                body: formData
-            });
-            const data = await res.json();
-            if (res.ok) {
-                alert(`Cargo creado correctamente. ID: ${data.cargo_id}`);
-                form.reset();
-                loadCargos();
-            } else {
-                alert(`Error: ${data.detail || JSON.stringify(data)}`);
-            }
-        } catch (err) {
-            alert(`Error de red: ${err}`);
-        }
+function toggleLanguage() {
+    currentLang = currentLang === "en" ? "es" : "en";
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        el.innerText = translations[currentLang][key];
     });
-});
+}
 
-// Cargar todos los cargos y documentos
+// Fetch cargos y llenar tabla
 async function loadCargos() {
-    const tbody = document.getElementById("cargoTable");
+    const tbody = document.querySelector("#cargoTable tbody");
     tbody.innerHTML = "";
-
-    try {
-        // Aquí deberíamos tener un endpoint que liste todos los cargos
-        const cargosRes = await fetch("/cargo/listall"); // Crear endpoint /cargo/listall
-        const cargosData = await cargosRes.json();
-
-        for (const cargo of cargosData) {
-            const docsRes = await fetch(`/cargo/list/${cargo.id}`);
-            const docsData = await docsRes.json();
-            const docsHTML = docsData.documents.length
-                ? docsData.documents.map(d => `<li>${d}</li>`).join("")
-                : "<li>No hay documentos</li>";
-
-            const row = document.createElement("tr");
-            row.innerHTML = `
-                <td>${cargo.id}</td>
-                <td>${cargo.mawb}</td>
-                <td>${cargo.hawb || "-"}</td>
-                <td>${cargo.origin}</td>
-                <td>${cargo.destination}</td>
-                <td>${cargo.cargo_type}</td>
-                <td>${new Date(cargo.flight_date).toLocaleDateString()}</td>
-                <td><ul>${docsHTML}</ul></td>
+    const res = await fetch("/cargo/list/1"); // Ejemplo cargo_id=1
+    const data = await res.json();
+    if (data.documents) {
+        data.documents.forEach(doc => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${data.cargo_id}</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>${doc}</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
             `;
-            tbody.appendChild(row);
-        }
-    } catch (err) {
-        console.error("Error cargando los cargos:", err);
+            tbody.appendChild(tr);
+        });
     }
 }
+
+// Imprimir tabla / generar PDF
+function printTable() {
+    const printWindow = window.open("", "", "width=900,height=600");
+    printWindow.document.write("<html><head><title>Print</title></head><body>");
+    printWindow.document.write(document.querySelector("#cargoTable").outerHTML);
+    printWindow.document.write("</body></html>");
+    printWindow.document.close();
+    printWindow.print();
+}
+
+// Enviar resumen por WhatsApp
+function sendWhatsApp() {
+    const tableText = Array.from(document.querySelectorAll("#cargoTable tr"))
+        .map(tr => Array.from(tr.cells).map(td => td.innerText).join("\t"))
+        .join("\n");
+    const phone = prompt("Enter WhatsApp number (with country code):");
+    if (phone) {
+        const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(tableText)}&phone=${phone}`;
+        window.open(url, "_blank");
+    }
+}
+
+// Inicial
+loadCargos();
