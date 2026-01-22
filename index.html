@@ -1,124 +1,135 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SmartCargo-AIPA Console</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCargo Advisory | May Roga</title>
     <style>
-        :root { --red: #d32f2f; --gold: #c5a059; --dark: #02060c; --white: #ffffff; }
-        body { background: var(--dark); color: var(--white); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; }
+        :root { --red: #d32f2f; --gold: #c5a059; --black: #050505; --white: #ffffff; --gray: #1a1a1a; }
+        body { background: var(--black); color: var(--white); font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; }
         
-        .main-container { max-width: 800px; margin: auto; display: flex; flex-direction: column; gap: 15px; }
-        
-        /* Inputs Limpios */
-        .tech-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 10px; }
-        input, textarea { background: #111; border: 1px solid #333; color: var(--gold); padding: 12px; border-radius: 5px; font-size: 16px; width: 100%; box-sizing: border-box; }
+        .header { text-align: center; border-bottom: 2px solid var(--gold); padding-bottom: 10px; margin-bottom: 20px; }
+        .advisor-name { color: var(--gold); font-weight: bold; font-size: 1.2em; letter-spacing: 1px; }
+
+        .lang-switch { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 15px; }
+        .lang-btn { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 5px 15px; cursor: pointer; border-radius: 4px; }
+        .lang-btn.active { background: var(--gold); color: var(--black); }
+
+        .input-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        input, textarea { background: var(--gray); border: 1px solid #333; color: var(--white); padding: 15px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; }
         input:focus { border-color: var(--gold); outline: none; }
 
-        /* Botonera de Acción */
-        .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-        button { padding: 18px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
-        .btn-voice { background: var(--gold); color: #000; grid-column: span 3; font-size: 18px; }
-        .btn-solve { background: var(--red); color: #fff; }
-        .btn-clear { background: #333; color: #ccc; }
-        .btn-print { background: #fff; color: #000; }
+        .button-zone { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
+        button { padding: 18px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-voice { background: var(--gold); color: var(--black); grid-column: span 2; font-size: 1.1em; }
+        .btn-resolve { background: var(--red); color: var(--white); }
+        .btn-clear { background: #444; color: var(--white); }
 
-        /* Pantalla de Resultados - Estilo Terminal */
-        #resDisplay { background: #000; border: 1px solid var(--gold); padding: 20px; border-radius: 5px; min-height: 200px; white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 14px; display: none; overflow-x: auto; }
-        table { border-collapse: collapse; width: 100%; color: #0f0; border: 1px solid #0f0; margin: 10px 0; }
-        th, td { border: 1px solid #0f0; padding: 8px; text-align: left; }
+        #output { 
+            display: none; background: var(--white); color: var(--black); 
+            padding: 30px; margin-top: 25px; border-radius: 12px; 
+            line-height: 1.8; font-size: 17px; white-space: pre-wrap; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .btn-print { width: 100%; margin-top: 20px; background: var(--black); color: var(--gold); border: 2px solid var(--gold); }
+
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; background: #f9f9f9; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #eee; }
+
+        @media print {
+            body { background: white; color: black; padding: 0; }
+            .header, .input-group, button, .lang-switch, textarea { display: none !important; }
+            #output { display: block !important; border: none; box-shadow: none; padding: 0; }
+        }
     </style>
 </head>
 <body>
 
-<div class="main-container">
-    <div style="text-align: center;">
-        <h1 style="color: var(--red); margin: 0; letter-spacing: 2px;">SMARTCARGO ADVISOR</h1>
-        <p style="color: var(--gold); margin: 0; font-size: 12px;">AVIANCA SPECIALIST SYSTEM | HUB MIA</p>
-    </div>
+<div class="lang-switch">
+    <button class="lang-btn" id="btn-en" onclick="setLang('en')">English</button>
+    <button class="lang-btn" id="btn-es" onclick="setLang('es')">Español</button>
+</div>
 
-    <div class="tech-grid">
-        <input type="text" id="awb" placeholder="AWB / ULD">
-        <input type="number" id="L" placeholder="L">
-        <input type="number" id="W" placeholder="W">
-        <input type="number" id="H" placeholder="H">
-        <input type="number" id="wgt" placeholder="KG">
-    </div>
+<div class="header">
+    <div class="advisor-name">SMARTCARGO ADVISORY by MAY ROGA</div>
+    <div style="font-size: 10px; color: #888; margin-top: 5px;">AIR FREIGHT SPECIALIST CONSOLE</div>
+</div>
 
-    <button class="btn-voice" id="voiceBtn">🎤 INICIAR REPORTE POR VOZ</button>
-    
-    <textarea id="obs" rows="4" placeholder="Dictado técnico: 'Tengo carga perecedera, falta el log de temp...'"></textarea>
+<div class="input-group">
+    <input type="text" id="awb" placeholder="AWB / ULD">
+    <input type="number" id="L" placeholder="Length">
+    <input type="number" id="W" placeholder="Width">
+    <input type="number" id="H" placeholder="Height">
+    <input type="number" id="wgt" placeholder="Weight">
+</div>
 
-    <div class="actions">
-        <button class="btn-clear" onclick="clearAll()">🗑️ BORRAR</button>
-        <button class="btn-solve" onclick="resolve()">RESOLVER AHORA</button>
-        <button class="btn-print" onclick="window.print()">📄 PDF</button>
-    </div>
+<button class="btn-voice" id="voiceBtn">🎤 PRESS & HOLD TO DICTATE</button>
+<textarea id="obs" rows="4" placeholder="Describe the cargo situation, documents, or request a classification..."></textarea>
 
-    <div id="resDisplay"></div>
+<div class="button-zone">
+    <button class="btn-clear" onclick="clearAll()">🗑️ Clear</button>
+    <button class="btn-resolve" onclick="resolve()">Resolve / Resolver</button>
+</div>
+
+<div id="output">
+    <div id="resTxt"></div>
+    <button class="btn-print" onclick="window.print()">📄 SAVE AS PDF / PRINT</button>
 </div>
 
 <script>
-    let chatHistory = "";
+    let currentLang = 'en';
+    function setLang(l) {
+        currentLang = l;
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + l).classList.add('active');
+    }
+    setLang('en');
+
     const voiceBtn = document.getElementById('voiceBtn');
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'es-ES';
-    recognition.continuous = false;
+    recognition.lang = 'en-US';
 
     voiceBtn.onmousedown = voiceBtn.ontouchstart = (e) => {
         e.preventDefault();
+        recognition.lang = (currentLang === 'es') ? 'es-ES' : 'en-US';
         recognition.start();
-        voiceBtn.innerText = "🔴 ESCUCHANDO...";
-        voiceBtn.style.background = "#ff0000";
+        voiceBtn.style.background = "red";
     };
-
     voiceBtn.onmouseup = voiceBtn.ontouchend = () => {
         recognition.stop();
-        voiceBtn.innerText = "🎤 INICIAR REPORTE POR VOZ";
-        voiceBtn.style.background = "var(--gold)";
+        voiceBtn.style.background = "";
     };
-
     recognition.onresult = (e) => {
         document.getElementById('obs').value += " " + e.results[0][0].transcript;
     };
 
     function clearAll() {
         document.querySelectorAll('input, textarea').forEach(i => i.value = "");
-        document.getElementById('resDisplay').style.display = "none";
-        chatHistory = "";
+        document.getElementById('output').style.display = "none";
     }
 
     async function resolve() {
-        const display = document.getElementById('resDisplay');
-        display.style.display = "block";
-        display.innerText = "> ACCEDIENDO A PROTOCOLOS IATA/AVIANCA...";
+        const out = document.getElementById('output');
+        const txt = document.getElementById('resTxt');
+        out.style.display = "block";
+        txt.innerText = "Analyzing / Analizando...";
 
         const fd = new FormData();
         fd.append('prompt', document.getElementById('obs').value);
         fd.append('awb', document.getElementById('awb').value);
-        fd.append('l', document.getElementById('L').value);
-        fd.append('w', document.getElementById('W').value);
-        fd.append('h', document.getElementById('H').value);
-        fd.append('wgt', document.getElementById('wgt').value);
-        fd.append('context_history', chatHistory);
+        fd.append('l', document.getElementById('L').value || "0");
+        fd.append('w', document.getElementById('W').value || "0");
+        fd.append('h', document.getElementById('H').value || "0");
+        fd.append('wgt', document.getElementById('wgt').value || "0");
+        fd.append('lang', currentLang);
 
-        try {
-            const res = await fetch('/advisory', { method: 'POST', body: fd });
-            const result = await res.json();
-            
-            // Renderizar tablas Markdown si existen
-            display.innerHTML = formatMarkdown(result.data);
-            chatHistory += "\n" + result.data;
-        } catch (err) {
-            display.innerText = "ERROR CRÍTICO: CORE NO RESPONDE.";
-        }
-    }
-
-    function formatMarkdown(text) {
-        // Simple conversor de tablas para la terminal
-        return text.replace(/\n/g, "<br>");
+        const res = await fetch('/advisory', { method: 'POST', body: fd });
+        const result = await res.json();
+        
+        // Formateo de respuesta para PDF limpio
+        txt.innerHTML = result.data.replace(/\n/g, "<br>");
     }
 </script>
-
 </body>
 </html>
