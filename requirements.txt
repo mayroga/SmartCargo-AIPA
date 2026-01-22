@@ -10,3 +10,4 @@ Pillow
 SQLAlchemy
 psycopg2-binary
 redis
+boto3
