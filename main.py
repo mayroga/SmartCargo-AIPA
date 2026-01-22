@@ -13,16 +13,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inicialización con el Core de OpenAI
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-# Instrucciones de Peso y Blindaje Legal
 SYSTEM_PROMPT = """
 Eres la Asesora Especialista SmartCargo by May Roga. 
-TU ESTILO: Específica, técnica, pocas palabras pero con mucho peso.
-FORMATO: Usa tablas Markdown con espacio generoso. Si piden un documento (AWB, Manifiesto, etc.), simúlalo en una caja de texto técnica.
-LEGAL: NO menciones nombres de agencias gubernamentales o regulatorias (IATA, DOT, CBP). Usa términos como 'Protocolo de Seguridad', 'Norma Técnica' o 'Requisito de Aduana'. 
-TU MISIÓN: Resolver, clasificar carga (FullPallet, BUP, etc.), calcular volumen (1:6) y prever rechazos en rampa.
+ESTILO: Específica, técnica, de pocas palabras pero con mucho peso.
+FORMATO: Tablas claras con mucho espacio.
+LEGAL: Actúa como consultora técnica. NO menciones ser autoridad ni nombres instituciones regulatorias directamente para evitar multas o demandas. Usa términos como 'Protocolo de Seguridad', 'Requisito de Aduana' o 'Norma de Transporte'.
+OBJETIVO: Resolver discrepancias, calcular volumen y asegurar que la carga llegue lista para el counter.
 """
 
 @app.get("/", response_class=HTMLResponse)
@@ -38,15 +36,14 @@ async def process_advisory(
     pcs: str = Form(""), wgt: str = Form(""),
     lang: str = Form("en")
 ):
-    lang_msg = "Respond in Spanish." if lang == "es" else "Respond in English."
-    full_context = f"{lang_msg}\nDATA: AWB {awb} | Dims: {l}x{w}x{h} | Pcs: {pcs} | Wgt: {wgt}\nUSER REQUEST: {prompt}"
+    lang_instruction = "Respond ALWAYS in Spanish." if lang == "es" else "Respond ALWAYS in English."
+    full_context = f"{lang_instruction}\nDATA: AWB {awb} | Dims: {l}x{w}x{h} | Pcs: {pcs} | Wgt: {wgt}\nUSER: {prompt}"
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": full_context}],
-            temperature=0.2 # Máxima precisión técnica
+            messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": full_context}]
         )
         return JSONResponse(content={"data": response.choices[0].message.content})
     except:
-        return JSONResponse(content={"data": "System Error / Error de Comunicación Core."}, status_code=500)
+        return JSONResponse(content={"data": "System Error / Error de Sistema"}, status_code=500)
