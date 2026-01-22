@@ -5,44 +5,54 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SmartCargo AIPA</title>
 <link rel="stylesheet" href="/static/styles.css">
-<script src="/static/scripts.js" defer></script>
 </head>
 <body>
-<h1 data-i18n="SmartCargo AIPA">SmartCargo AIPA</h1>
+<header>
+    <h1>SmartCargo AIPA</h1>
+    <button id="translateBtn">Español / English</button>
+</header>
 
-<button onclick="toggleLanguage()">ES / EN</button>
-<button onclick="printTable()">Print / PDF</button>
-<button onclick="sendWhatsApp()">WhatsApp</button>
+<section>
+    <h2>Cargo & Document Management</h2>
 
-<h2 data-i18n="Create Cargo">Create Cargo</h2>
-<form id="cargoForm">
-    <input type="text" name="mawb" placeholder="MAWB" data-i18n="MAWB" required>
-    <input type="text" name="hawb" placeholder="HAWB" data-i18n="HAWB">
-    <input type="text" name="origin" placeholder="Origin" data-i18n="Origin" required>
-    <input type="text" name="destination" placeholder="Destination" data-i18n="Destination" required>
-    <input type="text" name="cargo_type" placeholder="Cargo Type" data-i18n="Cargo Type" required>
-    <input type="date" name="flight_date" placeholder="Flight Date" data-i18n="Flight Date" required>
-    <button type="submit" data-i18n="Create Cargo">Create Cargo</button>
-</form>
+    <form id="cargoForm">
+        <input type="text" name="mawb" placeholder="MAWB" required>
+        <input type="text" name="hawb" placeholder="HAWB">
+        <input type="text" name="origin" placeholder="Origin" required>
+        <input type="text" name="destination" placeholder="Destination" required>
+        <input type="text" name="cargo_type" placeholder="Cargo Type" required>
+        <input type="date" name="flight_date" required>
+        <button type="submit">Create Cargo</button>
+    </form>
 
-<h2 data-i18n="Documents">Documents</h2>
-<table id="cargoTable">
-<thead>
-<tr>
-<th data-i18n="MAWB">MAWB</th>
-<th data-i18n="HAWB">HAWB</th>
-<th data-i18n="Origin">Origin</th>
-<th data-i18n="Destination">Destination</th>
-<th data-i18n="Cargo Type">Cargo Type</th>
-<th data-i18n="Flight Date">Flight Date</th>
-<th data-i18n="Documents">Documents</th>
-<th data-i18n="Version">Version</th>
-<th data-i18n="Status">Status</th>
-<th data-i18n="Responsible">Responsible</th>
-<th data-i18n="Audit Notes">Audit Notes</th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
+    <table id="cargoTable">
+        <thead>
+            <tr>
+                <th>ID Cargo</th>
+                <th>MAWB</th>
+                <th>HAWB</th>
+                <th>Origin</th>
+                <th>Destination</th>
+                <th>Type</th>
+                <th>Flight Date</th>
+                <th>Documents</th>
+                <th>Version</th>
+                <th>Status</th>
+                <th>Responsible</th>
+                <th>Upload Date</th>
+                <th>Audit Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <div class="buttons">
+        <button id="printBtn">Print / PDF</button>
+        <button id="whatsappBtn">Send WhatsApp</button>
+    </div>
+</section>
+
+<script src="/static/scripts.js"></script>
 </body>
 </html>
