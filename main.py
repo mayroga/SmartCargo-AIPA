@@ -2,12 +2,11 @@ import os
 from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import google.generativeai as genai
 from openai import OpenAI
 
 app = FastAPI()
 
-# Configuración de CORS total para evitar bloqueos
+# Configuración de CORS total para evitar bloqueos en rampa
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,21 +14,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inicialización de Claves
-api_key_gemini = os.environ.get("GEMINI_API_KEY")
-api_key_openai = os.environ.get("OPENAI_API_KEY")
-
-client_openai = OpenAI(api_key=api_key_openai)
+# Inicialización exclusiva con OpenAI
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 SYSTEM_PROMPT = """
-Eres 'SmartCargo-AIPA', Asesor Maestro de Avianca Cargo.
-DOMINAS: IATA, DOT, CBP, TSA y toda la papelería de warehouse (AWB, SLI, CBP 7509, DGR).
-TAREAS: 
-1. Si el operador tiene dudas de documentos, explica como maestro.
-2. Calcula peso volumétrico (1:6) y sugiere ULD (PMC/AKE) y flota (A330F/767).
-3. Prioriza: Must-Go, General o Stand-by.
-4. Resuelve dudas VIP con detalle pedagógico.
-No uses 'IA' ni 'Gobierno'. Usa 'Asesoría Técnica de SmartCargo'.
+Eres 'SmartCargo-AIPA', el Asesor Maestro de Carga de Avianca Cargo.
+CONOCIMIENTO EXPERTO: IATA DGR, DOT, CBP, TSA y toda la papelería técnica (AWB, HAWB, MAWB, SLI, CBP 7509, DGD, Warehouse Receipt, etc.).
+
+PROTOCOLO OPERATIVO:
+1. DOCUMENTACIÓN: Si el usuario menciona o describe un documento, recita sus campos obligatorios y verifica su validez técnica.
+2. MAESTRO EMERGENTE: Si el operador tiene dudas, da una lección técnica directa y profesional.
+3. LOGÍSTICA: Calcula pesos volumétricos (1:6), sugiere ULD (PMC/AKE) y flota (A330F/767).
+4. PRIORIZACIÓN: Clasifica en Must-Go, General o Stand-by.
+5. ACLARAR DUDAS: Si se activa el modo VIP, profundiza en la explicación pedagógica y legal.
+
+IMPORTANTE: No uses las palabras 'IA', 'Inteligencia Artificial' ni 'Gobierno'. Eres un Asesor Estratégico Privado.
 """
 
 @app.get("/", response_class=HTMLResponse)
@@ -45,25 +44,23 @@ async def process_advisory(
     pcs: str = Form(""), wgt: str = Form(""), unit: str = Form(""),
     clear_doubts: str = Form("false")
 ):
-    full_context = f"{SYSTEM_PROMPT}\n\nDATOS: AWB {awb}, Dim {l}x{w}x{h}, Pcs {pcs}, Wgt {wgt}\nREPORTE: {prompt}\nVIP MODE: {clear_doubts}"
-    
-    # --- INTENTO 1: GEMINI ---
+    # Consolidación de datos técnicos para OpenAI
+    full_context = f"DATOS TÉCNICOS: AWB/ULD: {awb} | Dims: {l}x{w}x{h} {unit} | Pcs: {pcs} | Peso: {wgt}\n"
+    full_context += f"REPORTE DEL OPERADOR: {prompt}\n"
+    full_context += f"MODO ACLARAR DUDAS: {clear_doubts}"
+
     try:
-        genai.configure(api_key=api_key_gemini)
-        model_gemini = genai.GenerativeModel('gemini-1.5-flash')
-        response = model_gemini.generate_content(full_context)
-        return JSONResponse(content={"data": response.text, "source": "AIPA-Flash (Gemini)"})
-    
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": full_context}
+            ],
+            temperature=0.7
+        )
+        return JSONResponse(content={
+            "data": response.choices[0].message.content, 
+            "source": "SmartCargo Core (OpenAI GPT-4o)"
+        })
     except Exception as e:
-        # --- INTENTO 2: RESPALDO AUTOMÁTICO CON OPENAI ---
-        try:
-            response = client_openai.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": full_context}]
-            )
-            return JSONResponse(content={
-                "data": response.choices[0].message.content, 
-                "source": "AIPA-SafeMode (OpenAI Backup)"
-            })
-        except Exception as e2:
-            return JSONResponse(content={"data": "Error crítico: Ambos sistemas fuera de línea. Verifique API Keys."}, status_code=500)
+        return JSONResponse(content={"data": f"Error de conexión con el Core: {str(e)}"}, status_code=500)
