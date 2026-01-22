@@ -1,218 +1,178 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo Advisory | May Roga</title>
+    <title>SMARTCARGO-AIPA by MAY ROGA LLC</title>
     <style>
-        :root { --red: #d32f2f; --gold: #c5a059; --black: #050505; --white: #ffffff; --gray: #1a1a1a; }
-        body { background: var(--black); color: var(--white); font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; }
-        
-        .header { text-align: center; border-bottom: 2px solid var(--gold); padding-bottom: 10px; margin-bottom: 20px; }
-        .advisor-name { color: var(--gold); font-weight: bold; font-size: 1.2em; letter-spacing: 1px; }
-
-        .lang-switch { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 15px; }
-        .lang-btn { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 5px 15px; cursor: pointer; border-radius: 4px; }
-        .lang-btn.active { background: var(--gold); color: var(--black); }
-
-        .input-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        input, textarea { background: var(--gray); border: 1px solid #333; color: var(--white); padding: 15px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; }
-        input:focus { border-color: var(--gold); outline: none; }
-
-        /* Photo Upload Boxes */
-        .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        .photo-box { height: 120px; border: 2px dashed var(--gold); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; position: relative; cursor: pointer; background: var(--gray); }
-        .photo-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
-        .photo-box span { color: var(--gold); font-size: 0.9em; margin-top: 5px; }
-        .photo-box.has-img span { display: none; }
-        .photo-box.has-img img { display: block; }
-        .photo-box img:not([src]) { display: none; } /* Ocultar img si no tiene src */
-
-        .button-zone { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
-        button { padding: 18px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
-        .btn-voice { background: var(--gold); color: var(--black); grid-column: span 2; font-size: 1.1em; }
-        .btn-resolve { background: var(--red); color: var(--white); }
-        .btn-clear { background: #444; color: var(--white); }
-
-        #output { 
-            display: none; background: var(--white); color: var(--black); 
-            padding: 30px; margin-top: 25px; border-radius: 12px; 
-            line-height: 1.8; font-size: 17px; white-space: pre-wrap; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        :root {
+            --green: #28a745;
+            --yellow: #ffc107;
+            --red: #dc3545;
+            --black: #050505;
+            --white: #ffffff;
+            --gray: #1a1a1a;
+            --gold: #c5a059;
         }
-        .btn-print { width: 100%; margin-top: 20px; background: var(--black); color: var(--gold); border: 2px solid var(--gold); }
-        .btn-speak { width: 100%; margin-top: 10px; background: #222; color: var(--gold); border: 1px solid var(--gold); }
 
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; background: #f9f9f9; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background: #eee; }
-
-        @media print {
-            body { background: white; color: black; padding: 0; }
-            .header, .input-group, button, .lang-switch, textarea, .photo-grid { display: none !important; }
-            #output { display: block !important; border: none; box-shadow: none; padding: 0; }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: var(--black);
+            color: var(--white);
         }
+
+        h1 {
+            text-align: center;
+            color: var(--gold);
+        }
+
+        .section {
+            margin-bottom: 25px;
+            padding: 15px;
+            border: 1px solid #333;
+            border-radius: 10px;
+            background: var(--gray);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 6px 0;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: #222;
+            color: #fff;
+        }
+
+        label {
+            font-weight: bold;
+            margin-top: 8px;
+            display: block;
+        }
+
+        button {
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-submit { background: var(--gold); color: var(--black); width: 100%; }
+
+        .semaforo {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .docs-list {
+            margin-top: 10px;
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 6px;
+            max-height: 250px;
+            overflow-y: auto;
+            background: #111;
+        }
+
     </style>
 </head>
 <body>
+    <h1>SMARTCARGO-AIPA by MAY ROGA LLC</h1>
 
-<div class="lang-switch">
-    <button class="lang-btn active" id="btn-en" onclick="setLang('en')">English</button>
-    <button class="lang-btn" id="btn-es" onclick="setLang('es')">Español</button>
-</div>
+    <!-- Pantalla 1: Identificación de carga -->
+    <div class="section" id="pantalla-carga">
+        <h2>1️⃣ Identificación de Carga</h2>
+        <label for="airline">Aerolínea</label>
+        <select id="airline">
+            <option value="Avianca Cargo" selected>Avianca Cargo</option>
+        </select>
 
-<div class="header">
-    <div class="advisor-name">SMARTCARGO ADVISORY by MAY ROGA</div>
-    <div style="font-size: 10px; color: #888; margin-top: 5px;">AIR FREIGHT SPECIALIST CONSOLE</div>
-</div>
+        <label for="mawb">MAWB</label>
+        <input type="text" id="mawb" placeholder="Número MAWB" required>
 
-<div class="input-group">
-    <input type="text" id="awb" placeholder="AWB / ULD">
-    <input type="number" id="L" placeholder="Length">
-    <input type="number" id="W" placeholder="Width">
-    <input type="number" id="H" placeholder="Height">
-    <input type="number" id="wgt" placeholder="Weight">
-</div>
+        <label for="hawb">HAWB (si aplica)</label>
+        <input type="text" id="hawb" placeholder="Número HAWB">
 
-<div class="photo-grid">
-    <div class="photo-box" onclick="handlePhotoClick(this, 'photo1')">
-        <img id="photo1-preview" src="" alt="Document Photo">
-        <span>📸 Document / AWB</span>
-        <input type="file" id="photo1" hidden onchange="previewPhoto(this, 'photo1-preview')">
+        <label for="origin">Origen</label>
+        <input type="text" id="origin" placeholder="Ciudad / Aeropuerto">
+
+        <label for="destination">Destino</label>
+        <input type="text" id="destination" placeholder="Ciudad / Aeropuerto">
+
+        <label for="cargoType">Tipo de Carga</label>
+        <select id="cargoType">
+            <option value="GEN">General (GEN)</option>
+            <option value="DG">Peligrosa (DG)</option>
+            <option value="PER">Perishable (PER)</option>
+            <option value="HUM">Humanitaria (HUM)</option>
+            <option value="AVI">Animal Vivo (AVI)</option>
+            <option value="VAL">Valor (VAL)</option>
+        </select>
+
+        <label for="flightDate">Fecha de Vuelo</label>
+        <input type="date" id="flightDate">
     </div>
-    <div class="photo-box" onclick="handlePhotoClick(this, 'photo2')">
-        <img id="photo2-preview" src="" alt="Cargo Photo">
-        <span>📸 Cargo Condition</span>
-        <input type="file" id="photo2" hidden onchange="previewPhoto(this, 'photo2-preview')">
+
+    <!-- Pantalla 2: Documentos -->
+    <div class="section" id="pantalla-documentos">
+        <h2>2️⃣ Documentos</h2>
+        <input type="file" id="invoice" placeholder="Commercial Invoice">
+        <input type="file" id="packingList" placeholder="Packing List">
+        <input type="file" id="sli" placeholder="Shipper’s Letter of Instruction">
+        <input type="file" id="awbDoc" placeholder="AWB / eAWB">
+        <input type="file" id="certificates" placeholder="Certificados (DG / PER / HUM)">
+        <input type="file" id="msds" placeholder="MSDS si aplica">
+        <input type="file" id="permits" placeholder="Permisos país destino">
     </div>
-</div>
 
-<button class="btn-voice" id="voiceBtn">🎤 PRESS & HOLD TO DICTATE</button>
-<textarea id="obs" rows="4" placeholder="Describe the cargo situation, documents, or request a classification..."></textarea>
+    <!-- Pantalla 3: Resultado operativo -->
+    <div class="section" id="pantalla-resultados">
+        <h2>3️⃣ Resultado Operativo</h2>
+        <button class="btn-submit" onclick="submitCarga()">Validar Carga</button>
+        <div class="semaforo" id="semaforo"></div>
+        <div class="docs-list" id="docsStatus"></div>
+    </div>
 
-<div class="button-zone">
-    <button class="btn-clear" onclick="clearAll()">🗑️ Clear</button>
-    <button class="btn-resolve" onclick="resolve()">Resolve / Resolver</button>
-</div>
-
-<div id="output">
-    <div id="resTxt"></div>
-    <button class="btn-speak" onclick="readResponse()">🔊 Read Response / Leer Respuesta</button>
-    <button class="btn-print" onclick="window.print()">📄 SAVE AS PDF / PRINT</button>
-</div>
-
-<script>
-    let currentLang = 'en';
-    const speech = window.speechSynthesis;
-    
-    function setLang(l) {
-        currentLang = l;
-        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('btn-' + l).classList.add('active');
-        // Update placeholders
-        document.getElementById('awb').placeholder = (l === 'es') ? 'AWB / ULD' : 'AWB / ULD';
-        document.getElementById('L').placeholder = (l === 'es') ? 'Largo' : 'Length';
-        document.getElementById('W').placeholder = (l === 'es') ? 'Ancho' : 'Width';
-        document.getElementById('H').placeholder = (l === 'es') ? 'Alto' : 'Height';
-        document.getElementById('wgt').placeholder = (l === 'es') ? 'Peso' : 'Weight';
-        document.getElementById('obs').placeholder = (l === 'es') ? 'Describe la situación, documentos o solicita una clasificación...' : 'Describe the cargo situation, documents, or request a classification...';
-        document.querySelector('.btn-voice').innerText = (l === 'es') ? '🎤 MANTÉN PARA DICTAR' : '🎤 PRESS & HOLD TO DICTATE';
-        document.querySelector('.btn-clear').innerText = (l === 'es') ? '🗑️ Borrar' : '🗑️ Clear';
-        document.querySelector('.btn-resolve').innerText = (l === 'es') ? 'Resolver' : 'Resolve';
-        document.querySelector('.btn-print').innerText = (l === 'es') ? '📄 GUARDAR PDF / IMPRIMIR' : '📄 SAVE AS PDF / PRINT';
-        document.querySelector('.btn-speak').innerText = (l === 'es') ? '🔊 Leer Respuesta' : '🔊 Read Response';
-        document.querySelector('#photo1-preview').nextElementSibling.innerText = (l === 'es') ? '📸 Documento / AWB' : '📸 Document / AWB';
-        document.querySelector('#photo2-preview').nextElementSibling.innerText = (l === 'es') ? '📸 Estado Carga' : '📸 Cargo Condition';
-
-    }
-    setLang('en'); // Default language
-
-    const voiceBtn = document.getElementById('voiceBtn');
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.continuous = false; // Capture a single phrase
-
-    voiceBtn.onmousedown = voiceBtn.ontouchstart = (e) => {
-        e.preventDefault();
-        recognition.lang = (currentLang === 'es') ? 'es-ES' : 'en-US';
-        recognition.start();
-        voiceBtn.style.background = "red";
-    };
-    voiceBtn.onmouseup = voiceBtn.ontouchend = () => {
-        recognition.stop();
-        voiceBtn.style.background = "";
-    };
-    recognition.onresult = (e) => {
-        document.getElementById('obs').value += " " + e.results[0][0].transcript;
-    };
-
-    function handlePhotoClick(boxElement, inputId) {
-        // Zoom functionality
-        const img = boxElement.querySelector('img');
-        if (img.src && img.style.display !== "none") { // If there's an image and it's visible
-            img.style.transform = img.style.transform === "scale(2.5)" ? "scale(1)" : "scale(2.5)";
-            img.style.position = (img.style.transform === "scale(2.5)") ? "absolute" : "static";
-            img.style.zIndex = (img.style.transform === "scale(2.5)") ? "100" : "auto";
-        } else {
-            // Trigger file input if no image or image not visible
-            document.getElementById(inputId).click();
-        }
-    }
-
-    function previewPhoto(input, previewId) {
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = document.getElementById(previewId);
-                img.src = e.target.result;
-                img.style.display = 'block';
-                input.closest('.photo-box').classList.add('has-img'); // Add class to hide span
+    <script>
+        async function submitCarga() {
+            const cargaData = {
+                airline: document.getElementById('airline').value,
+                mawb: document.getElementById('mawb').value,
+                hawb: document.getElementById('hawb').value,
+                origin: document.getElementById('origin').value,
+                destination: document.getElementById('destination').value,
+                cargoType: document.getElementById('cargoType').value,
+                flightDate: document.getElementById('flightDate').value
             };
-            reader.readAsDataURL(input.files[0]);
+
+            const formData = new FormData();
+            for (let key in cargaData) formData.append(key, cargaData[key]);
+
+            // Archivos
+            ['invoice','packingList','sli','awbDoc','certificates','msds','permits'].forEach(id => {
+                const file = document.getElementById(id).files[0];
+                if (file) formData.append(id, file);
+            });
+
+            const res = await fetch('/validate', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            // Semáforo operativo
+            const sem = document.getElementById('semaforo');
+            sem.innerText = data.status;
+            sem.style.color = (data.status === "🔴 NO ACEPTABLE") ? 'red' : (data.status === "🟡 ACEPTABLE CON RIESGO") ? 'yellow' : 'green';
+
+            // Documentos
+            const docDiv = document.getElementById('docsStatus');
+            docDiv.innerHTML = data.documents.map(d => `${d.name}: ${d.status} ${d.comment || ''}`).join('<br>');
         }
-    }
-
-    function clearAll() {
-        document.querySelectorAll('input:not([type="file"]), textarea').forEach(i => i.value = "");
-        document.querySelectorAll('.photo-box img').forEach(img => {
-            img.src = '';
-            img.style.display = 'none';
-            img.style.transform = 'scale(1)'; // Reset zoom
-            img.parentNode.classList.remove('has-img');
-        });
-        document.getElementById('output').style.display = "none";
-    }
-
-    async function resolve() {
-        const out = document.getElementById('output');
-        const txt = document.getElementById('resTxt');
-        out.style.display = "block";
-        txt.innerText = (currentLang === 'es') ? "Analizando y resolviendo..." : "Analyzing and resolving...";
-
-        const fd = new FormData();
-        fd.append('prompt', document.getElementById('obs').value);
-        fd.append('awb', document.getElementById('awb').value);
-        fd.append('l', document.getElementById('L').value || "0");
-        fd.append('w', document.getElementById('W').value || "0");
-        fd.append('h', document.getElementById('H').value || "0");
-        fd.append('wgt', document.getElementById('wgt').value || "0");
-        fd.append('lang', currentLang);
-
-        const res = await fetch('/advisory', { method: 'POST', body: fd });
-        const result = await res.json();
-        
-        txt.innerHTML = result.data.replace(/\n/g, "<br>");
-    }
-
-    function readResponse() {
-        if (speech.speaking) {
-            speech.cancel();
-            return;
-        }
-        const textToRead = document.getElementById('resTxt').innerText;
-        const utterance = new SpeechSynthesisUtterance(textToRead);
-        utterance.lang = (currentLang === 'es') ? 'es-ES' : 'en-US';
-        speech.speak(utterance);
-    }
-</script>
+    </script>
 </body>
 </html>
