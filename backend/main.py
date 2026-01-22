@@ -1,10 +1,8 @@
 from fastapi import FastAPI, Form, UploadFile, File
 from fastapi.responses import JSONResponse, HTMLResponse
 from backend.database import SessionLocal, Cargo, Document
-from backend.rules import validate_cargo
 from backend.utils import cargo_summary
-import shutil
-import os
+import os, shutil
 
 app = FastAPI()
 STORAGE_DIR = "storage"
@@ -26,13 +24,9 @@ async def create_cargo(
 ):
     db = SessionLocal()
     cargo = Cargo(
-        mawb=mawb,
-        hawb=hawb,
-        airline=airline,
-        origin=origin,
-        destination=destination,
-        cargo_type=cargo_type,
-        flight_date=flight_date
+        mawb=mawb, hawb=hawb, airline=airline,
+        origin=origin, destination=destination,
+        cargo_type=cargo_type, flight_date=flight_date
     )
     db.add(cargo)
     db.commit()
@@ -49,23 +43,17 @@ async def upload_document(cargo_id: int = Form(...), doc_type: str = Form(...), 
         shutil.copyfileobj(file.file, f)
 
     db = SessionLocal()
-    doc = Document(
-        cargo_id=cargo_id,
-        doc_type=doc_type,
-        status="pending",
-        version="v1",
-        responsible="user"
-    )
+    doc = Document(cargo_id=cargo_id, doc_type=doc_type, status="pending", version="v1", responsible="user")
     db.add(doc)
     db.commit()
     db.close()
     return {"message": f"{doc_type} cargado correctamente"}
 
-@app.get("/cargo/status/{cargo_id}")
-async def cargo_status(cargo_id: int):
+@app.get("/cargo/status/{cargo_id}/{role}")
+async def cargo_status(cargo_id: int, role: str):
     db = SessionLocal()
     cargo = db.query(Cargo).filter(Cargo.id==cargo_id).first()
     documents = db.query(Document).filter(Document.cargo_id==cargo_id).all()
     db.close()
-    status, reasons = validate_cargo(cargo, documents)
-    return {"cargo_id": cargo_id, "status": status, "reasons": reasons}
+    summary = cargo_summary(cargo, documents, role)
+    return JSONResponse(content=summary)
