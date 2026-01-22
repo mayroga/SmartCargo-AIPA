@@ -3,114 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SmartCargo ADVISORY</title>
+    <title>SmartCargo ADVISORY BY MAY ROGA LLC</title>
     <style>
-        :root { --dark-blue: #0a192f; --gold: #c5a059; --red-shield: #d32f2f; --btn-blue: #3b6695; --btn-green: #2fa866; }
-        body { background: #111; font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 10px; color: #fff; display: flex; justify-content: center; }
+        :root { --navy: #0a192f; --gold: #c5a059; --red: #d32f2f; --blue-btn: #3b6695; --green: #2fa866; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { background: #000; font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; color: #fff; }
+
+        /* Contenedor Principal Adaptable */
+        .app-container { width: 100vw; min-height: 100vh; background: var(--navy); padding: 20px; display: flex; flex-direction: column; }
         
-        .phone-container { width: 100%; max-width: 400px; background: var(--dark-blue); border-radius: 30px; padding: 20px; box-shadow: 0 0 50px rgba(0,0,0,0.8); border: 4px solid #333; }
-        
-        /* Header */
-        .header { text-align: center; margin-bottom: 15px; }
-        .header h1 { margin: 0; font-size: 26px; color: #fff; }
+        /* Header y Branding */
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 1px solid rgba(197, 160, 89, 0.3); padding-bottom: 15px; }
+        .header h1 { font-size: 28px; margin: 0; color: #fff; text-transform: uppercase; }
         .header h1 span { color: var(--gold); }
-        .header p { font-size: 14px; color: var(--gold); margin: 5px 0; font-weight: bold; }
-        .intro-text { font-size: 11px; color: #ccc; line-height: 1.3; margin: 10px 0; }
+        .header p { color: var(--gold); font-weight: bold; font-size: 14px; margin: 5px 0; }
 
-        /* Legal Shield (Exacto a la foto) */
-        .legal-shield { background: var(--red-shield); border: 2px solid #fff; border-radius: 10px; padding: 10px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
-        .legal-shield span { font-size: 24px; }
-        .legal-shield p { margin: 0; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #fff; line-height: 1.2; }
+        /* Escudo Legal Grande */
+        .legal-shield { background: var(--red); border: 2px solid #fff; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .legal-shield p { margin: 0; font-size: 11px; font-weight: 800; text-transform: uppercase; line-height: 1.4; text-align: center; }
 
-        /* Role & Price Grid */
-        .section-label { font-size: 12px; font-weight: bold; margin-bottom: 5px; display: block; }
-        .white-card { background: #fff; border-radius: 15px; padding: 15px; color: #333; margin-bottom: 15px; }
-        .grid-roles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 10px; }
-        .role-btn { border: 1px solid #ccc; padding: 8px 2px; border-radius: 5px; font-size: 10px; text-align: center; cursor: pointer; background: #fff; font-weight: bold; }
-        .role-btn.selected { background: var(--btn-blue); color: #fff; border-color: var(--btn-blue); }
+        /* Panel Blanco de Controles */
+        .control-panel { background: #fff; border-radius: 20px; padding: 20px; color: #333; flex-grow: 1; }
+        .label { font-size: 14px; font-weight: bold; color: var(--navy); margin-bottom: 8px; display: block; }
 
-        /* Inputs */
-        input[type="text"] { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; margin-bottom: 10px; box-sizing: border-box; }
-        .btn-validate { width: 100%; background: var(--btn-blue); color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        /* Grid de Roles y Precios */
+        .grid-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .opt-btn { background: #f0f2f5; border: 2px solid #ddd; padding: 15px 10px; border-radius: 10px; font-size: 12px; font-weight: bold; text-align: center; cursor: pointer; transition: 0.3s; }
+        .opt-btn.active { background: var(--blue-btn); color: #fff; border-color: var(--navy); }
 
-        /* mainApp Section (3 Photo Boxes) */
-        .main-app-box { border-top: 1px solid #eee; margin-top: 10px; padding-top: 10px; }
-        .grid-photos { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .photo-box { height: 80px; background: #e0e0e0; border: 2px solid #333; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; position: relative; overflow: hidden; }
-        .photo-box img { width: 100%; height: 100%; object-fit: cover; display: none; }
+        /* Inputs de Texto */
+        input[type="text"] { width: 100%; padding: 15px; border-radius: 10px; border: 2px solid #ddd; font-size: 16px; margin-bottom: 15px; outline: none; }
+        input[type="text"]:focus { border-color: var(--blue-btn); }
 
-        /* Cargo Evidence */
-        .evidence-box { display: flex; align-items: center; background: #fff; border-radius: 5px; border: 1px solid #ccc; padding: 5px; gap: 10px; }
-        .evidence-box input { border: none; margin-bottom: 0; flex-grow: 1; outline: none; }
-        .btn-green { width: 100%; background: var(--btn-green); color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+        /* Secciones del mainApp */
+        #mainApp { display: none; margin-top: 10px; border-top: 2px dashed #ccc; padding-top: 20px; }
+        
+        /* Cajas de Fotos Grandes */
+        .photo-area { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+        .photo-card { width: 100%; height: 250px; background: #e9ecef; border: 3px dashed var(--gold); border-radius: 15px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        .photo-card img { width: 100%; height: 100%; object-fit: contain; z-index: 2; }
+        .photo-card span { position: absolute; font-weight: bold; color: var(--navy); font-size: 14px; text-align: center; padding: 10px; }
 
-        /* advResponse */
-        #responseArea { margin-top: 15px; display: none; }
-        .res-text { background: #fff; border-radius: 5px; padding: 10px; color: #333; font-size: 13px; min-height: 40px; border: 1px solid #ccc; white-space: pre-wrap; }
-        .btn-whatsapp { background: #25d366; color: #fff; border: none; padding: 8px 15px; border-radius: 5px; float: right; margin-top: 5px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        /* Botones de Acción Final */
+        .btn-action { width: 100%; padding: 18px; border-radius: 12px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-bottom: 10px; }
+        .btn-validate { background: var(--blue-btn); color: #fff; box-shadow: 0 4px 10px rgba(59, 102, 149, 0.4); }
+        .btn-solution { background: var(--green); color: #fff; box-shadow: 0 4px 10px rgba(47, 168, 102, 0.4); }
+
+        /* Área de Respuesta */
+        #responseBox { display: none; margin-top: 20px; background: #f8f9fa; border-left: 5px solid var(--gold); padding: 15px; border-radius: 8px; }
+        .res-content { font-size: 15px; line-height: 1.6; color: #000; font-weight: 500; white-space: pre-wrap; }
     </style>
 </head>
 <body>
 
-<div class="phone-container">
+<div class="app-container">
     <div class="header">
         <h1>SmartCargo <span>ADVISORY</span></h1>
         <p>Technical Consulting by MAY ROGA LLC</p>
-        <div class="intro-text">
-            Why SmartCargo? We provide stability to the entire logistics chain. 
-            We prevent fines and holds so the paying customer never loses money.
-        </div>
     </div>
 
     <div class="legal-shield">
-        <span>⚠️</span>
-        <p>LEGAL SHIELD: WE ARE PRIVATE ADVISORS. NOT IATA/TSA/DOT. WE PROVIDE TECHNICAL SOLUTIONS; WE DON'T CERTIFY DG OR HANDLE CARGO.</p>
+        <p>⚠️ LEGAL SHIELD: PRIVATE ADVISORS ONLY. NOT IATA, CBP, TSA, OR DOT. WE ADVISE TO PREVENT FINES; WE DO NOT CERTIFY OR INSPECT CARGO. CONSULT OFFICIAL REGS FOR DG.</p>
     </div>
 
-    <div class="white-card">
-        <label class="section-label">Role</label>
-        <div class="grid-roles">
-            <div class="role-btn" onclick="selRole('Shipper', this)">Shipper</div>
-            <div class="role-btn" onclick="selRole('Forwarder', this)">Forwarder</div>
-            <div class="role-btn" onclick="selRole('Trucker', this)">Trucker</div>
-            <div class="role-btn" onclick="selRole('Operator', this)">Operator</div>
-            <div class="role-btn" onclick="selRole('C5', this)">Courier $5</div>
-            <div class="role-btn" onclick="selRole('S15', this)">Standard $15</div>
-            <div class="role-btn" onclick="selRole('C35', this, true)">Critical (35)</div>
-            <div class="role-btn" onclick="selRole('P95', this)">Project $95</div>
+    <div class="control-panel">
+        <label class="label">Step 1: Select Role & Service</label>
+        <div class="grid-options">
+            <div class="opt-btn" onclick="selRole('Shipper', this)">Shipper</div>
+            <div class="opt-btn" onclick="selRole('Forwarder', this)">Forwarder</div>
+            <div class="opt-btn" onclick="selRole('Trucker', this)">Trucker</div>
+            <div class="opt-btn" onclick="selRole('Critical35', this)">Critical Advisory ($35)</div>
         </div>
-        
-        <input type="text" id="awb" placeholder="Reference / AWB">
-        <button class="btn-validate" onclick="unlockApp()">Validate & Access</button>
 
-        <div id="mainApp" class="main-app-box" style="display:none;">
-            <label class="section-label">mainApp</label>
-            <div class="grid-photos">
-                <div class="photo-box" onclick="document.getElementById('p1').click()"><img id="v1">1<input type="file" id="p1" hidden onchange="pv(event,1)"></div>
-                <div class="photo-box" onclick="document.getElementById('p2').click()"><img id="v2">2<input type="file" id="p2" hidden onchange="pv(event,2)"></div>
-                <div class="photo-box" onclick="document.getElementById('p3').click()"><img id="v3">3<input type="file" id="p3" hidden onchange="pv(event,3)"></div>
+        <input type="text" id="awb" placeholder="Enter AWB or Reference Number">
+        <button id="vBtn" class="btn-action btn-validate" onclick="unlock()">VALIDATE & ACCESS</button>
+
+        <div id="mainApp">
+            <label class="label">Step 2: Evidence (Large Photos)</label>
+            <div class="photo-area">
+                <div class="photo-card" onclick="document.getElementById('f1').click()">
+                    <img id="p1" style="display:none;">
+                    <span>📸 CAPTURE DOCUMENT (AWB/DGD)</span>
+                    <input type="file" id="f1" accept="image/*" hidden onchange="handlePic(event, 'p1')">
+                </div>
+                <div class="photo-card" onclick="document.getElementById('f2').click()">
+                    <img id="p2" style="display:none;">
+                    <span>📸 CAPTURE CARGO / PALLET</span>
+                    <input type="file" id="f2" accept="image/*" hidden onchange="handlePic(event, 'p2')">
+                </div>
             </div>
 
-            <label class="section-label">Cargo Evidence</label>
-            <div class="evidence-box">
-                <span onclick="startDictation()" style="cursor:pointer">🎤</span>
-                <input type="text" id="evidence" placeholder="Describe findings...">
-                <button onclick="document.getElementById('evidence').value=''" style="border:none; background:none; font-size:10px; cursor:pointer">🗑 Clear</button>
-            </div>
+            <label class="label">Step 3: Cargo Evidence / Findings</label>
+            <input type="text" id="findings" placeholder="Describe the situation here...">
+            
+            <button id="sBtn" class="btn-action btn-solution" onclick="generate()">GET TECHNICAL SOLUTION</button>
 
-            <button id="btn-solution" class="btn-green" onclick="getSolution()">Get Technical Solution</button>
-
-            <div id="responseArea">
-                <label class="section-label">advResponse</label>
-                <div id="resText" class="res-text"></div>
-                <button class="btn-whatsapp" onclick="sendWS()">WhatsApp</button>
-                <button class="btn-whatsapp" style="background:#444; margin-right:5px;" onclick="window.print()">PDF</button>
-                <button class="btn-whatsapp" style="background:var(--btn-blue); margin-right:5px;" onclick="speak()">🔊 Listen</button>
+            <div id="responseBox">
+                <label class="label">ADVISORY RESPONSE:</label>
+                <div id="resTxt" class="res-content"></div>
+                <div style="margin-top:15px; display:flex; gap:10px;">
+                    <button class="opt-btn" style="flex:1" onclick="window.print()">PDF</button>
+                    <button class="opt-btn" style="flex:1; background:#25d366; color:#fff;" onclick="shareWS()">WhatsApp</button>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<script src="app.js"></script>
+<script>
+    let role = "";
+    function selRole(r, e) {
+        role = r;
+        document.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('active'));
+        e.classList.add('active');
+    }
+
+    function unlock() {
+        if(!role || !document.getElementById('awb').value) return alert("Select Role and enter AWB");
+        document.getElementById('mainApp').style.display = "block";
+        document.getElementById('vBtn').style.display = "none";
+    }
+
+    function handlePic(ev, id) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = document.getElementById(id);
+            img.src = e.target.result;
+            img.style.display = "block";
+            img.nextElementSibling.style.display = "none";
+        };
+        reader.readAsDataURL(ev.target.files[0]);
+    }
+
+    async function generate() {
+        const btn = document.getElementById('sBtn');
+        const box = document.getElementById('responseBox');
+        const txt = document.getElementById('resTxt');
+        
+        btn.disabled = true;
+        btn.innerText = "ANALYZING... PLEASE WAIT";
+        box.style.display = "block";
+        txt.innerText = "Processing high-resolution data and legal standards...";
+
+        const fd = new FormData();
+        fd.append('prompt', document.getElementById('findings').value);
+        fd.append('role', role);
+        fd.append('awb', document.getElementById('awb').value);
+
+        try {
+            const r = await fetch('https://smartcargo-backend.onrender.com/advisory', { method: 'POST', body: fd });
+            const j = await r.json();
+            txt.innerText = j.data;
+        } catch (e) {
+            txt.innerText = "Error connecting to server. Please check your internet.";
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "GET TECHNICAL SOLUTION";
+        }
+    }
+
+    function shareWS() {
+        const t = document.getElementById('resTxt').innerText;
+        window.open(`https://wa.me/?text=${encodeURIComponent(t)}`);
+    }
+</script>
 </body>
 </html>
