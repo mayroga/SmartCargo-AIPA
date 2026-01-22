@@ -1,10 +1,25 @@
-fastapi
-uvicorn[standard]
-python-multipart
-stripe
-httpx
-openai
-python-dotenv
-google-genai
-Pillow
-google.generativeai
+# Framework web
+fastapi==0.109.1
+uvicorn[standard]==0.23.2
+python-multipart==0.0.6
+
+# Base de datos
+psycopg2-binary==2.9.9
+SQLAlchemy==2.0.20
+
+# Caching / estado rápido
+redis==5.3.1
+
+# IA
+openai==1.29.0
+google-genai==0.1.7
+
+# Utilidades
+python-dotenv==1.0.0
+Pillow==10.1.0
+
+# Seguridad y manejo de archivos
+boto3==1.30.22
+
+# Validaciones y utilidades
+pydantic==2.5.2
