@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>SMARTCARGO-AIPA by MAY ROGA LLC</title>
+<link rel="stylesheet" href="styles.css">
+<script src="scripts.js" defer></script>
+</head>
+<body>
+<h1>SMARTCARGO-AIPA | Identificación de carga</h1>
+<form id="cargoForm">
+    <input type="text" name="mawb" placeholder="MAWB" required>
+    <input type="text" name="hawb" placeholder="HAWB">
+    <input type="text" name="origin" placeholder="Origen" required>
+    <input type="text" name="destination" placeholder="Destino" required>
+    <select name="cargo_type" required>
+        <option value="">Tipo de carga</option>
+        <option value="GEN">GEN</option>
+        <option value="DG">DG</option>
+        <option value="HUM">HUM</option>
+        <option value="VAL">VAL</option>
+    </select>
+    <input type="date" name="flight_date" required>
+    <button type="submit">Crear Cargo</button>
+</form>
+<div id="status"></div>
+</body>
+</html>
