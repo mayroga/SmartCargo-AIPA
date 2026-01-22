@@ -2,22 +2,35 @@
 
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
-from backend.database import SessionLocal, Cargo, Document
-from backend.utils import cargo_summary
-from backend.storage import save_document, list_documents
+from sqlalchemy.orm import Session
+from typing import List
 import os
 
-app = FastAPI()
+from storage import save_document, list_documents, get_document_path, delete_document, validate_documents
+from models import Cargo, Document, Base, engine, SessionLocal
 
-# ----------------------------
-# ENDPOINTS FRONTEND
-# ----------------------------
+# -------------------
+# Inicialización DB
+# -------------------
+Base.metadata.create_all(bind=engine)
 
+# -------------------
+# FastAPI App
+# -------------------
+app = FastAPI(title="SmartCargo AIPA")
+
+# -------------------
+# Endpoints Frontend
+# -------------------
 @app.get("/", response_class=HTMLResponse)
 async def home():
+    """Carga la página principal"""
     with open("frontend/index.html", "r", encoding="utf-8") as f:
         return f.read()
 
+# -------------------
+# Crear Cargo
+# -------------------
 @app.post("/cargo/create")
 async def create_cargo(
     mawb: str = Form(...),
@@ -28,61 +41,80 @@ async def create_cargo(
     cargo_type: str = Form(...),
     flight_date: str = Form(...)
 ):
-    db = SessionLocal()
-    cargo = Cargo(
-        mawb=mawb, hawb=hawb, airline=airline,
-        origin=origin, destination=destination,
-        cargo_type=cargo_type, flight_date=flight_date
-    )
-    db.add(cargo)
-    db.commit()
-    db.refresh(cargo)
-    db.close()
-    return {"cargo_id": cargo.id, "message": "Cargo creado"}
+    db: Session = SessionLocal()
+    try:
+        cargo = Cargo(
+            mawb=mawb,
+            hawb=hawb,
+            airline=airline,
+            origin=origin,
+            destination=destination,
+            cargo_type=cargo_type,
+            flight_date=flight_date
+        )
+        db.add(cargo)
+        db.commit()
+        db.refresh(cargo)
+        return {"cargo_id": cargo.id, "message": "Cargo creado correctamente"}
+    finally:
+        db.close()
 
+# -------------------
+# Subir documento
+# -------------------
 @app.post("/cargo/upload")
 async def upload_document(
     cargo_id: int = Form(...),
     doc_type: str = Form(...),
-    file: UploadFile = File(...),
-    role: str = Form(...)
+    uploaded_by: str = Form(...),
+    file: UploadFile = File(...)
 ):
-    if role not in ["admin", "user", "auditor"]:
-        raise HTTPException(status_code=403, detail="Rol no autorizado")
-
-    meta = save_document(file, str(cargo_id), doc_type, uploaded_by=role)
-
-    # Guardar registro en DB
-    db = SessionLocal()
-    doc = Document(
-        cargo_id=cargo_id,
-        doc_type=doc_type,
-        version=str(meta["version"]),
-        status="pending",
-        responsible=role
-    )
-    db.add(doc)
-    db.commit()
-    db.close()
-
-    return {"message": f"{doc_type} cargado correctamente", "meta": meta}
-
-@app.get("/cargo/status/{cargo_id}/{role}")
-async def cargo_status(cargo_id: int, role: str):
-    db = SessionLocal()
-    cargo = db.query(Cargo).filter(Cargo.id==cargo_id).first()
-    documents = db.query(Document).filter(Document.cargo_id==cargo_id).all()
-    db.close()
-    summary = cargo_summary(cargo, documents, role)
-    return JSONResponse(content=summary)
-
-@app.get("/cargo/list_files/{cargo_id}/{role}")
-async def list_files(cargo_id: int, role: str):
-    """
-    Endpoint para listar archivos físicos en storage
-    """
+    db: Session = SessionLocal()
     try:
-        docs = list_documents(str(cargo_id), role)
-        return {"cargo_id": cargo_id, "role": role, "files": docs}
+        doc = save_document(db=db, file=file, cargo_id=cargo_id, doc_type=doc_type, uploaded_by=uploaded_by)
+        return {"message": f"Documento '{doc_type}' cargado correctamente", "filename": doc.filename, "version": doc.version}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        db.close()
+
+# -------------------
+# Listar documentos físicos de un cargo
+# -------------------
+@app.get("/cargo/list/{cargo_id}", response_class=JSONResponse)
+async def list_cargo_documents(cargo_id: int):
+    docs = list_documents(cargo_id)
+    return {"cargo_id": cargo_id, "documents": docs}
+
+# -------------------
+# Obtener ruta de documento
+# -------------------
+@app.get("/cargo/path/{cargo_id}/{filename}")
+async def document_path(cargo_id: int, filename: str):
+    try:
+        path = get_document_path(cargo_id, filename)
+        return {"cargo_id": cargo_id, "filename": filename, "path": path}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+# -------------------
+# Eliminar documento (auditoría y roles)
+# -------------------
+@app.delete("/cargo/delete/{cargo_id}/{filename}")
+async def remove_document(cargo_id: int, filename: str, deleted_by: str = Form(...)):
+    db: Session = SessionLocal()
+    try:
+        success = delete_document(db=db, cargo_id=cargo_id, filename=filename, deleted_by=deleted_by)
+        if not success:
+            raise HTTPException(status_code=404, detail="Documento no encontrado")
+        return {"cargo_id": cargo_id, "filename": filename, "status": "deleted"}
+    finally:
+        db.close()
+
+# -------------------
+# Validar documentos obligatorios
+# -------------------
+@app.post("/cargo/validate")
+async def validate_cargo_documents(cargo_id: int = Form(...), required_docs: List[str] = Form(...)):
+    result = validate_documents(cargo_id, required_docs)
+    return result
