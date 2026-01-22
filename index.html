@@ -3,168 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SmartCargo ADVISORY BY MAY ROGA LLC</title>
+    <title>SmartCargo - Avianca Specialist</title>
     <style>
-        :root { --navy: #0a192f; --gold: #c5a059; --red: #d32f2f; --blue-btn: #3b6695; --green: #2fa866; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { background: #000; font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; color: #fff; }
-
-        /* Contenedor Principal Adaptable */
-        .app-container { width: 100vw; min-height: 100vh; background: var(--navy); padding: 20px; display: flex; flex-direction: column; }
+        :root { --avianca-red: #d32f2f; --gold: #c5a059; --dark: #0a192f; }
+        body { background: #000; font-family: sans-serif; margin: 0; padding: 0; color: #fff; }
+        .app { width: 100vw; min-height: 100vh; background: var(--dark); padding: 15px; display: flex; flex-direction: column; }
         
-        /* Header y Branding */
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 1px solid rgba(197, 160, 89, 0.3); padding-bottom: 15px; }
-        .header h1 { font-size: 28px; margin: 0; color: #fff; text-transform: uppercase; }
-        .header h1 span { color: var(--gold); }
-        .header p { color: var(--gold); font-weight: bold; font-size: 14px; margin: 5px 0; }
+        /* Escudo Legal - Blindaje Total */
+        .shield { background: var(--avianca-red); border: 2px solid #fff; padding: 10px; border-radius: 8px; font-size: 10px; font-weight: bold; text-align: center; margin-bottom: 15px; }
 
-        /* Escudo Legal Grande */
-        .legal-shield { background: var(--red); border: 2px solid #fff; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .legal-shield p { margin: 0; font-size: 11px; font-weight: 800; text-transform: uppercase; line-height: 1.4; text-align: center; }
-
-        /* Panel Blanco de Controles */
-        .control-panel { background: #fff; border-radius: 20px; padding: 20px; color: #333; flex-grow: 1; }
-        .label { font-size: 14px; font-weight: bold; color: var(--navy); margin-bottom: 8px; display: block; }
-
-        /* Grid de Roles y Precios */
-        .grid-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .opt-btn { background: #f0f2f5; border: 2px solid #ddd; padding: 15px 10px; border-radius: 10px; font-size: 12px; font-weight: bold; text-align: center; cursor: pointer; transition: 0.3s; }
-        .opt-btn.active { background: var(--blue-btn); color: #fff; border-color: var(--navy); }
-
-        /* Inputs de Texto */
-        input[type="text"] { width: 100%; padding: 15px; border-radius: 10px; border: 2px solid #ddd; font-size: 16px; margin-bottom: 15px; outline: none; }
-        input[type="text"]:focus { border-color: var(--blue-btn); }
-
-        /* Secciones del mainApp */
-        #mainApp { display: none; margin-top: 10px; border-top: 2px dashed #ccc; padding-top: 20px; }
+        .card { background: #fff; border-radius: 20px; padding: 20px; color: #333; flex-grow: 1; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
-        /* Cajas de Fotos Grandes */
-        .photo-area { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
-        .photo-card { width: 100%; height: 250px; background: #e9ecef; border: 3px dashed var(--gold); border-radius: 15px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
-        .photo-card img { width: 100%; height: 100%; object-fit: contain; z-index: 2; }
-        .photo-card span { position: absolute; font-weight: bold; color: var(--navy); font-size: 14px; text-align: center; padding: 10px; }
+        /* Grid de Fotos Gigantes para ver Detalles Legibles */
+        .photo-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin: 15px 0; }
+        .photo-box { height: 280px; background: #f0f2f5; border: 3px dashed var(--gold); border-radius: 15px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+        .photo-box img { width: 100%; height: 100%; object-fit: contain; }
+        .photo-box span { position: absolute; font-size: 12px; font-weight: bold; color: var(--dark); background: rgba(255,255,255,0.7); padding: 5px 10px; border-radius: 5px; }
 
-        /* Botones de Acción Final */
-        .btn-action { width: 100%; padding: 18px; border-radius: 12px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-bottom: 10px; }
-        .btn-validate { background: var(--blue-btn); color: #fff; box-shadow: 0 4px 10px rgba(59, 102, 149, 0.4); }
-        .btn-solution { background: var(--green); color: #fff; box-shadow: 0 4px 10px rgba(47, 168, 102, 0.4); }
+        /* Checklist de Inspección */
+        .checklist { font-size: 11px; color: #555; margin-bottom: 15px; border: 1px solid #ddd; padding: 10px; border-radius: 8px; }
+        
+        .btn-exec { width: 100%; padding: 20px; background: var(--avianca-red); color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        .btn-exec:disabled { background: #ccc; }
 
-        /* Área de Respuesta */
-        #responseBox { display: none; margin-top: 20px; background: #f8f9fa; border-left: 5px solid var(--gold); padding: 15px; border-radius: 8px; }
-        .res-content { font-size: 15px; line-height: 1.6; color: #000; font-weight: 500; white-space: pre-wrap; }
+        input, textarea { width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #ccc; margin-bottom: 10px; font-size: 16px; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
-<div class="app-container">
-    <div class="header">
-        <h1>SmartCargo <span>ADVISORY</span></h1>
-        <p>Technical Consulting by MAY ROGA LLC</p>
+<div class="app">
+    <div class="shield">
+        PRIVATE STRATEGIC ADVISORY BY MAY ROGA LLC. NOT A GOVERNMENT ENTITY. SPECIALIZED IN AVIANCA CARGO HUB STANDARDS.
     </div>
 
-    <div class="legal-shield">
-        <p>⚠️ LEGAL SHIELD: PRIVATE ADVISORS ONLY. NOT IATA, CBP, TSA, OR DOT. WE ADVISE TO PREVENT FINES; WE DO NOT CERTIFY OR INSPECT CARGO. CONSULT OFFICIAL REGS FOR DG.</p>
-    </div>
+    <div class="card">
+        <h2 style="margin:0; color:var(--dark); font-size: 18px;">Cargo Inspection Expert</h2>
+        <p style="font-size: 12px; color: var(--gold); margin-bottom: 15px;">Target: Zero Rejections / Max Profit</p>
 
-    <div class="control-panel">
-        <label class="label">Step 1: Select Role & Service</label>
-        <div class="grid-options">
-            <div class="opt-btn" onclick="selRole('Shipper', this)">Shipper</div>
-            <div class="opt-btn" onclick="selRole('Forwarder', this)">Forwarder</div>
-            <div class="opt-btn" onclick="selRole('Trucker', this)">Trucker</div>
-            <div class="opt-btn" onclick="selRole('Critical35', this)">Critical Advisory ($35)</div>
+        <input type="text" id="awb" placeholder="AWB / Manifest Number">
+
+        <div class="checklist">
+            <strong>Critical Check:</strong> [ ] ISPM-15 Stamp | [ ] PMC Net Tension | [ ] Legible Labels | [ ] 3 Originals/6 Copies | [ ] DG Segregation
         </div>
 
-        <input type="text" id="awb" placeholder="Enter AWB or Reference Number">
-        <button id="vBtn" class="btn-action btn-validate" onclick="unlock()">VALIDATE & ACCESS</button>
-
-        <div id="mainApp">
-            <label class="label">Step 2: Evidence (Large Photos)</label>
-            <div class="photo-area">
-                <div class="photo-card" onclick="document.getElementById('f1').click()">
-                    <img id="p1" style="display:none;">
-                    <span>📸 CAPTURE DOCUMENT (AWB/DGD)</span>
-                    <input type="file" id="f1" accept="image/*" hidden onchange="handlePic(event, 'p1')">
-                </div>
-                <div class="photo-card" onclick="document.getElementById('f2').click()">
-                    <img id="p2" style="display:none;">
-                    <span>📸 CAPTURE CARGO / PALLET</span>
-                    <input type="file" id="f2" accept="image/*" hidden onchange="handlePic(event, 'p2')">
-                </div>
+        <div class="photo-grid">
+            <div class="photo-box" onclick="document.getElementById('f1').click()">
+                <img id="v1" style="display:none;">
+                <span>📸 SCAN DOCUMENTS (Check Legibility)</span>
+                <input type="file" id="f1" hidden onchange="pv(event,'v1')">
             </div>
-
-            <label class="label">Step 3: Cargo Evidence / Findings</label>
-            <input type="text" id="findings" placeholder="Describe the situation here...">
-            
-            <button id="sBtn" class="btn-action btn-solution" onclick="generate()">GET TECHNICAL SOLUTION</button>
-
-            <div id="responseBox">
-                <label class="label">ADVISORY RESPONSE:</label>
-                <div id="resTxt" class="res-content"></div>
-                <div style="margin-top:15px; display:flex; gap:10px;">
-                    <button class="opt-btn" style="flex:1" onclick="window.print()">PDF</button>
-                    <button class="opt-btn" style="flex:1; background:#25d366; color:#fff;" onclick="shareWS()">WhatsApp</button>
-                </div>
+            <div class="photo-box" onclick="document.getElementById('f2').click()">
+                <img id="v2" style="display:none;">
+                <span>📸 INSPECT CARGO / PMC / BOXES</span>
+                <input type="file" id="f2" hidden onchange="pv(event,'v2')">
             </div>
+        </div>
+
+        <textarea id="obs" placeholder="Describe the findings (e.g. 'PMC damaged at base', 'Labels faded', 'DG incompatible')"></textarea>
+
+        <button id="exec" class="btn-exec" onclick="process()">Execute Technical Advisory</button>
+
+        <div id="resBox" style="display:none; margin-top:20px; background:#eef2f7; padding:15px; border-radius:10px; border-left:5px solid var(--gold);">
+            <div id="resTxt" style="font-size: 14px; line-height:1.5; color:#0a192f; white-space:pre-wrap;"></div>
+            <button onclick="window.print()" style="margin-top:10px; width:100%; padding:10px; border-radius:8px; border:1px solid #333; background:#fff;">Generate PDF Report</button>
         </div>
     </div>
 </div>
 
 <script>
-    let role = "";
-    function selRole(r, e) {
-        role = r;
-        document.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('active'));
-        e.classList.add('active');
-    }
-
-    function unlock() {
-        if(!role || !document.getElementById('awb').value) return alert("Select Role and enter AWB");
-        document.getElementById('mainApp').style.display = "block";
-        document.getElementById('vBtn').style.display = "none";
-    }
-
-    function handlePic(ev, id) {
-        const reader = new FileReader();
-        reader.onload = e => {
-            const img = document.getElementById(id);
-            img.src = e.target.result;
-            img.style.display = "block";
-            img.nextElementSibling.style.display = "none";
+    function pv(e, id) {
+        const r = new FileReader();
+        r.onload = x => {
+            const i = document.getElementById(id);
+            i.src = x.target.result;
+            i.style.display = "block";
         };
-        reader.readAsDataURL(ev.target.files[0]);
+        r.readAsDataURL(e.target.files[0]);
     }
 
-    async function generate() {
-        const btn = document.getElementById('sBtn');
-        const box = document.getElementById('responseBox');
+    async function process() {
+        const btn = document.getElementById('exec');
         const txt = document.getElementById('resTxt');
-        
+        const box = document.getElementById('resBox');
+
+        if(!document.getElementById('awb').value) return alert("Enter AWB Number");
+
         btn.disabled = true;
-        btn.innerText = "ANALYZING... PLEASE WAIT";
+        btn.innerText = "VERIFYING STANDARDS...";
         box.style.display = "block";
-        txt.innerText = "Processing high-resolution data and legal standards...";
+        txt.innerText = "Analyzing Documentation and Physical Cargo Integrity against Avianca/IATA standards...";
 
         const fd = new FormData();
-        fd.append('prompt', document.getElementById('findings').value);
-        fd.append('role', role);
+        fd.append('prompt', document.getElementById('obs').value);
+        fd.append('role', 'Expert Advisor');
         fd.append('awb', document.getElementById('awb').value);
 
         try {
-            const r = await fetch('https://smartcargo-backend.onrender.com/advisory', { method: 'POST', body: fd });
-            const j = await r.json();
-            txt.innerText = j.data;
+            const res = await fetch('https://tu-url-de-render.com/advisory', { method: 'POST', body: fd });
+            const json = await res.json();
+            txt.innerText = json.data;
         } catch (e) {
-            txt.innerText = "Error connecting to server. Please check your internet.";
+            txt.innerText = "Connection lost. Please ensure your device is online inside the terminal.";
         } finally {
             btn.disabled = false;
-            btn.innerText = "GET TECHNICAL SOLUTION";
+            btn.innerText = "Execute Technical Advisory";
         }
-    }
-
-    function shareWS() {
-        const t = document.getElementById('resTxt').innerText;
-        window.open(`https://wa.me/?text=${encodeURIComponent(t)}`);
     }
 </script>
 </body>
