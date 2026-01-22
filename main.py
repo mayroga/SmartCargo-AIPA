@@ -1,105 +1,67 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 import google.generativeai as genai
 import os
 
-app = FastAPI(title="SmartCargo Advisory Backend")
+app = FastAPI()
 
-# 1. CONFIGURACIÓN DE SEGURIDAD (CORS)
-# Permite la comunicación con el frontend en Render o local
+# Configuración de CORS para evitar errores de conexión
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 2. CONFIGURACIÓN DEL MOTOR DE ASESORÍA
-# La API Key debe estar configurada en las variables de entorno de Render
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-genai.configure(api_key=GOOGLE_API_KEY)
+# Configuración de Gemini con instrucciones de SmartCargo
+genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# 3. PROMPT MAESTRO (INSTRUCCIONES DEL SISTEMA)
-# Aquí se integran todas tus reglas de negocio y blindaje legal
-SYSTEM_PROMPT = """
-You are the high-level professional advisor for 'SmartCargo Advisory by MAY ROGA LLC'.
-Your purpose is to provide stability to the logistics chain and prevent fines or holds.
-
-STRICT RULES:
-1. MEASUREMENTS: Always provide dimensions in both [Inches] INC and [Centimeters] CM.
-2. LEGAL SHIELD: Never use words like 'audit', 'AI', or 'Artificial Intelligence'.
-3. AUTHORITY: Do NOT claim to be IATA, DOT, TSA, CBP, or any government entity. State you are a private advisor.
-4. TONE: Professional, expert, and proactive. Use words that suggest/advise (e.g., 'we suggest', 'it is recommended') to avoid legal liabilities.
-5. KNOWLEDGE SCOPE: 
-   - Full coverage of the 50 U.S. states and the entire health system (doctors, dentists, psychologists).
-   - Expert in Avianca-related logistics and procedures.
-   - Expert in maritime, terrestrial, and aerial advisory.
-6. PROBLEM SOLVING: If data is missing in the database, you must fill the gap based on professional standards to provide a solution.
-7. LANGUAGE: If the user asks in Spanish, respond in Spanish. If in English, respond in English.
+# INSTRUCCIONES DE SEGURIDAD Y ESPECIALIDAD
+SYSTEM_BRAIN = """
+You are 'SmartCargo Advisory by MAY ROGA LLC'. 
+OFFICIAL RULES:
+1. FOCUS: Maritime, Terrestrial, and Aerial logistics advisor (Specialist in AVIANCA cargo).
+2. COMPLIANCE: Expert in IATA DGR, CBP, DOT, and TSA regulations.
+3. LEGAL: You are NOT a government body. Do NOT use words like 'audit', 'AI', or 'Intelligence'.
+4. MEASUREMENTS: Always provide dimensions in BOTH [Inches] INC and [Centimeters] CM.
+5. LIABILITY: Use advisory language: 'We suggest', 'It is recommended', 'Action proposed'.
+6. SCOPE: Cover all 50 states and health systems. If data is missing, suggest a professional alternative.
+7. STYLE: Professional, interesting, and precise. Never mix words or lose the thread.
 """
 
-# 4. RUTAS DE LA API
-
-@app.get("/")
-async def root():
-    return {"message": "SmartCargo Advisory API is running"}
-
 @app.post("/advisory")
-async def get_technical_solution(
+async def get_advisory(
     prompt: str = Form(...),
     role: str = Form(...),
     awb: str = Form(...),
-    lang: str = Form("en")
 ):
-    """
-    Recibe la consulta técnica y devuelve la asesoría estratégica.
-    """
     try:
-        # Construcción del contexto para el motor
-        user_context = f"""
-        User Role: {role}
-        Reference/AWB: {awb}
-        Technical Situation: {prompt}
+        # Estructura de la consulta para el motor
+        context = f"""
+        {SYSTEM_BRAIN}
+        ---
+        CLIENT DATA:
+        Role: {role}
+        AWB/Reference: {awb}
+        Situation Found: {prompt}
+        ---
+        Please provide a professional technical solution including risks and step-by-step advice.
         """
         
-        # Generación de la respuesta
-        response = model.generate_content([SYSTEM_PROMPT, user_context])
+        # Generar contenido sin bloquear el hilo principal
+        response = model.generate_content(context)
         
         if not response.text:
-            raise HTTPException(status_code=500, detail="Empty response from advisory engine")
+            return {"data": "Incomplete data. Please provide more details about the cargo."}
 
-        return {
-            "status": "success",
-            "data": response.text,
-            "reference": awb
-        }
+        return {"data": response.text}
 
     except Exception as e:
-        return {
-            "status": "error",
-            "data": "The technical brain is currently updating. Please try again in a few moments or contact support."
-        }
+        # Error amigable para evitar que el frontend se bloquee
+        return {"data": "Technical interruption. Please retry in 30 seconds."}
 
-@app.post("/upload-evidence")
-async def upload_evidence(
-    file: UploadFile = File(...),
-    description: str = Form(...)
-):
-    """
-    Procesa las imágenes de carga o documentos enviadas por el usuario.
-    """
-    # Aquí se integra la lógica de procesamiento de imagen si es necesario
-    return {
-        "info": "Evidence received",
-        "filename": file.filename,
-        "analysis": "Image queued for technical verification"
-    }
-
-# 5. INICIO DEL SERVIDOR
 if __name__ == "__main__":
     import uvicorn
-    # Puerto 10000 para compatibilidad directa con Render
+    # Puerto estandar para Render
     uvicorn.run(app, host="0.0.0.0", port=10000)
