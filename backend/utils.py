@@ -1,12 +1,9 @@
 # backend/utils.py
 
 from typing import List, Dict
-from rules import validate_cargo
-from models import Cargo, Document
+from .rules import validate_cargo   # <- Import corregido con punto relativo
+from .models import Cargo, Document
 
-# --------------------------------------
-# Funciones auxiliares
-# --------------------------------------
 def cargo_summary(cargo: Cargo, documents: List[Document], role: str = "user") -> Dict:
     """
     Genera resumen de un cargo para frontend según rol:
