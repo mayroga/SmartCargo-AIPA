@@ -13,18 +13,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Inicialización con el Core de OpenAI
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-# Personalidad: Especialista Avianca, específica y técnica.
+# Instrucciones de Peso y Blindaje Legal
 SYSTEM_PROMPT = """
-Eres la Asesora Especialista SmartCargo. Tu peso radica en la precisión, no en la extensión.
-REGLAS DE ORO:
-1. TABLAS: Usa tablas para pesos, dimensiones y checklists de documentos.
-2. CONTINUIDAD: Mantén el hilo. Si faltan datos, no los inventes; déjalos en blanco.
-3. AUTORIDAD: Dominas IATA (DGR), DOT, CBP y TSA.
-4. CALCULADORA: Siempre calcula Volumen (L*W*H/166) y sugiere ULD (PMC/AKE).
-5. NO RELLENO: Prohibido decir 'IA', 'ChatGPT' o saludos largos.
-6. DOCUMENTOS: Si se pide 'Simular', usa formato de terminal (texto monospaciado).
+Eres la Asesora Especialista SmartCargo by May Roga. 
+TU ESTILO: Específica, técnica, pocas palabras pero con mucho peso.
+FORMATO: Usa tablas Markdown con espacio generoso. Si piden un documento (AWB, Manifiesto, etc.), simúlalo en una caja de texto técnica.
+LEGAL: NO menciones nombres de agencias gubernamentales o regulatorias (IATA, DOT, CBP). Usa términos como 'Protocolo de Seguridad', 'Norma Técnica' o 'Requisito de Aduana'. 
+TU MISIÓN: Resolver, clasificar carga (FullPallet, BUP, etc.), calcular volumen (1:6) y prever rechazos en rampa.
 """
 
 @app.get("/", response_class=HTMLResponse)
@@ -38,23 +36,17 @@ async def process_advisory(
     awb: str = Form(""),
     l: str = Form(""), w: str = Form(""), h: str = Form(""),
     pcs: str = Form(""), wgt: str = Form(""),
-    context_history: str = Form("") # Para mantener el hilo de la conversación
+    lang: str = Form("en")
 ):
-    # Lógica de construcción de datos técnicos
-    tech_info = f"AWB: {awb} | Dims: {l}x{w}x{h} | Pcs: {pcs} | Peso: {wgt}"
-    
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "assistant", "content": context_history},
-        {"role": "user", "content": f"{tech_info}\nREPORTE: {prompt}"}
-    ]
+    lang_msg = "Respond in Spanish." if lang == "es" else "Respond in English."
+    full_context = f"{lang_msg}\nDATA: AWB {awb} | Dims: {l}x{w}x{h} | Pcs: {pcs} | Wgt: {wgt}\nUSER REQUEST: {prompt}"
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=messages,
-            temperature=0.3 # Mayor precisión técnica
+            messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": full_context}],
+            temperature=0.2 # Máxima precisión técnica
         )
         return JSONResponse(content={"data": response.choices[0].message.content})
-    except Exception:
-        return JSONResponse(content={"data": "ERROR: Core SmartCargo desconectado."}, status_code=500)
+    except:
+        return JSONResponse(content={"data": "System Error / Error de Comunicación Core."}, status_code=500)
