@@ -1,11 +1,21 @@
 # models.py
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, create_engine
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from datetime import datetime
 
 Base = declarative_base()
 
+# -------------------------
+# Configuración de base de datos
+# -------------------------
+DATABASE_URL = "sqlite:///./smartcargo.db"  # o tu URL real, puede ser PostgreSQL, MySQL, etc.
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# -------------------------
+# Modelos
+# -------------------------
 class Cargo(Base):
     __tablename__ = "cargos"
 
@@ -24,7 +34,6 @@ class Cargo(Base):
     updated_by = Column(String, default="system")
     is_active = Column(Boolean, default=True)
 
-    # Relación con documentos
     documents = relationship("Document", back_populates="cargo", cascade="all, delete-orphan")
 
 
@@ -33,12 +42,12 @@ class Document(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     cargo_id = Column(Integer, ForeignKey("cargos.id"), nullable=False)
-    doc_type = Column(String, nullable=False)  # Commercial Invoice, AWB, etc.
-    filename = Column(String, nullable=False)  # Nombre físico en S3 o local
-    version = Column(String, nullable=False, default="v1")  # Versionado automático
-    status = Column(String, nullable=False, default="pending")  # pending, approved, rejected
-    responsible = Column(String, nullable=False, default="user")  # Quien subió o revisó
+    doc_type = Column(String, nullable=False)
+    filename = Column(String, nullable=False)
+    version = Column(String, nullable=False, default="v1")
+    status = Column(String, nullable=False, default="pending")
+    responsible = Column(String, nullable=False, default="user")
     upload_date = Column(DateTime, default=datetime.utcnow)
-    audit_notes = Column(String, nullable=True)  # Comentarios de auditoría
+    audit_notes = Column(String, nullable=True)
 
     cargo = relationship("Cargo", back_populates="documents")
