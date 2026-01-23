@@ -1,82 +1,95 @@
 // scripts.js
 
-const cargoForm = document.getElementById("cargoForm");
-const cargoTableBody = document.querySelector("#cargoTable tbody");
-const translateBtn = document.getElementById("translateBtn");
-const printBtn = document.getElementById("printBtn");
-const whatsappBtn = document.getElementById("whatsappBtn");
+document.addEventListener("DOMContentLoaded", () => {
+    const createForm = document.getElementById("createCargoForm");
+    const cargoTableBody = document.querySelector("#cargoTable tbody");
+    const langToggle = document.getElementById("langToggle");
+    const printBtn = document.getElementById("printBtn");
+    const whatsappBtn = document.getElementById("whatsappBtn");
 
-let isSpanish = false;
+    let lang = "en";
 
-// Crear cargo
-cargoForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const formData = new FormData(cargoForm);
-    const data = Object.fromEntries(formData.entries());
-
-    const res = await fetch("/cargo/create", {
-        method: "POST",
-        body: new URLSearchParams(data)
+    // -------------------
+    // Crear Cargo
+    // -------------------
+    createForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const formData = new FormData(createForm);
+        const res = await fetch("/cargo/create", {
+            method: "POST",
+            body: formData
+        });
+        const data = await res.json();
+        alert(data.message);
+        loadCargos();
+        createForm.reset();
     });
 
-    const result = await res.json();
-    alert(result.message);
-    cargoForm.reset();
-    loadCargos();
-});
+    // -------------------
+    // Cargar tabla de cargos
+    // -------------------
+    async function loadCargos() {
+        // Aquí se pueden cargar todos los cargos y sus documentos
+        // Ejemplo de dummy:
+        const dummyCargo = {
+            cargo_id: 1,
+            mawb: "729-93133106",
+            hawb: "",
+            origin: "MIAMI",
+            destination: "SAN JOSE",
+            type: "SPARE PARTS",
+            flight_date: "2025-10-21",
+            documents: [
+                {doc_type:"Air Waybill", version:"v1", status:"pending", responsible:"admin", upload_date:"2026-01-22", audit_notes:"Revisar AWB físico"},
+                {doc_type:"Commercial Invoice", version:"v1", status:"approved", responsible:"admin", upload_date:"2026-01-22", audit_notes:"Factura OK"}
+            ]
+        };
 
-// Cargar cargos y documentos
-async function loadCargos() {
-    cargoTableBody.innerHTML = "";
-    const res = await fetch("/cargo/list/1"); // Para demo, cargo_id=1
-    const data = await res.json();
-    if (data.documents) {
-        data.documents.forEach(doc => {
-            const row = document.createElement("tr");
-            row.innerHTML = `
-                <td>${data.cargo_id}</td>
-                <td>${doc.mawb || ""}</td>
-                <td>${doc.hawb || ""}</td>
-                <td>${doc.origin || ""}</td>
-                <td>${doc.destination || ""}</td>
-                <td>${doc.cargo_type || ""}</td>
-                <td>${doc.flight_date || ""}</td>
-                <td>${doc.filename || ""}</td>
-                <td>${doc.version || ""}</td>
-                <td>${doc.status || ""}</td>
-                <td>${doc.responsible || ""}</td>
-                <td>${doc.upload_date || ""}</td>
-                <td>${doc.audit_notes || ""}</td>
-            `;
-            cargoTableBody.appendChild(row);
+        cargoTableBody.innerHTML = "";
+        dummyCargo.documents.forEach(doc => {
+            const row = `<tr>
+                <td>${dummyCargo.cargo_id}</td>
+                <td>${dummyCargo.mawb}</td>
+                <td>${dummyCargo.hawb}</td>
+                <td>${dummyCargo.origin}</td>
+                <td>${dummyCargo.destination}</td>
+                <td>${dummyCargo.type}</td>
+                <td>${dummyCargo.flight_date}</td>
+                <td>${doc.doc_type}</td>
+                <td>${doc.version}</td>
+                <td>${doc.status}</td>
+                <td>${doc.responsible}</td>
+                <td>${doc.upload_date}</td>
+                <td>${doc.audit_notes}</td>
+                <td><button onclick="alert('Validar / Añadir notas')">Audit</button></td>
+            </tr>`;
+            cargoTableBody.innerHTML += row;
         });
     }
-}
 
-// Traducción inglés/español
-translateBtn.addEventListener("click", () => {
-    isSpanish = !isSpanish;
-    document.querySelector("h1").textContent = isSpanish ? "SmartCargo AIPA" : "SmartCargo AIPA";
-    document.querySelector("h2").textContent = isSpanish ? "Gestión de Carga y Documentos" : "Cargo & Document Management";
-    cargoForm.querySelector("button").textContent = isSpanish ? "Crear Cargo" : "Create Cargo";
-    printBtn.textContent = isSpanish ? "Imprimir / PDF" : "Print / PDF";
-    whatsappBtn.textContent = isSpanish ? "Enviar WhatsApp" : "Send WhatsApp";
-});
+    loadCargos();
 
-// Imprimir / PDF
-printBtn.addEventListener("click", () => {
-    window.print();
-});
-
-// WhatsApp
-whatsappBtn.addEventListener("click", () => {
-    let text = "Cargo & Documents:\n";
-    document.querySelectorAll("#cargoTable tbody tr").forEach(row => {
-        text += Array.from(row.children).map(td => td.textContent).join(" | ") + "\n";
+    // -------------------
+    // Traducción
+    // -------------------
+    langToggle.addEventListener("click", () => {
+        lang = lang === "en" ? "es" : "en";
+        alert(`Language changed to ${lang}`);
+        // Aquí se puede agregar traducción de todos los textos
     });
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
-});
 
-// Inicial carga
-loadCargos();
+    // -------------------
+    // PDF / Imprimir
+    // -------------------
+    printBtn.addEventListener("click", () => {
+        window.print();
+    });
+
+    // -------------------
+    // WhatsApp
+    // -------------------
+    whatsappBtn.addEventListener("click", () => {
+        const message = "Cargo report: " + dummyCargo.mawb;
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, "_blank");
+    });
+});
