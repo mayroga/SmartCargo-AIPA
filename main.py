@@ -1,33 +1,35 @@
 # main.py
-from fastapi import FastAPI, Form, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse
+
+from fastapi import FastAPI, Form, UploadFile, File, HTTPException, Depends
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime
+import os
+from dotenv import load_dotenv
 
-from storage import save_document, list_documents, get_document_path, delete_document, validate_documents
 from models import Cargo, Document, Base, engine, SessionLocal
+from storage import save_document, list_documents, get_document_path, delete_document, validate_documents
+from utils import admin_auth
+
+load_dotenv()
 
 # -------------------
-# Inicialización DB
+# Base de datos
 # -------------------
 Base.metadata.create_all(bind=engine)
 
 # -------------------
-# FastAPI App
+# App FastAPI
 # -------------------
 app = FastAPI(title="SmartCargo AIPA")
-
-# Montar archivos estáticos
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # -------------------
-# Endpoints Frontend
+# Home Page
 # -------------------
 @app.get("/", response_class=HTMLResponse)
 async def home():
-    """Carga la página principal"""
     with open("frontend/index.html", "r", encoding="utf-8") as f:
         return f.read()
 
@@ -53,7 +55,7 @@ async def create_cargo(
             origin=origin,
             destination=destination,
             cargo_type=cargo_type,
-            flight_date=datetime.strptime(flight_date, "%Y-%m-%d")
+            flight_date=flight_date
         )
         db.add(cargo)
         db.commit()
@@ -82,7 +84,7 @@ async def upload_document(
         db.close()
 
 # -------------------
-# Listar documentos físicos de un cargo
+# Listar documentos de un cargo
 # -------------------
 @app.get("/cargo/list/{cargo_id}", response_class=JSONResponse)
 async def list_cargo_documents(cargo_id: int):
@@ -96,7 +98,7 @@ async def list_cargo_documents(cargo_id: int):
 async def document_path(cargo_id: int, filename: str):
     try:
         path = get_document_path(cargo_id, filename)
-        return {"cargo_id": cargo_id, "filename": filename, "path": str(path)}
+        return {"cargo_id": cargo_id, "filename": filename, "path": path}
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -119,5 +121,19 @@ async def remove_document(cargo_id: int, filename: str, deleted_by: str = Form(.
 # -------------------
 @app.post("/cargo/validate")
 async def validate_cargo_documents(cargo_id: int = Form(...), required_docs: List[str] = Form(...)):
-    result = validate_documents(cargo_id, required_docs)
-    return result
+    db: Session = SessionLocal()
+    try:
+        result = validate_documents(db, cargo_id, required_docs)
+        return {"cargo_id": cargo_id, "validation": result}
+    finally:
+        db.close()
+
+# -------------------
+# Panel privado admin con IA SmartCargo-AIPA
+# -------------------
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_panel(username: str = Form(...), password: str = Form(...)):
+    if not admin_auth(username, password):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    with open("frontend/admin.html", "r", encoding="utf-8") as f:
+        return f.read()
