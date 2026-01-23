@@ -1,46 +1,34 @@
 # main.py
-
-from fastapi import FastAPI, Form, UploadFile, File, HTTPException, Depends
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Form, UploadFile, File, HTTPException
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from datetime import datetime
 from typing import List
-import os
-from dotenv import load_dotenv
-
-from models import Cargo, Document, Base, engine, SessionLocal
+import uuid
 from storage import save_document, list_documents, get_document_path, delete_document, validate_documents
-from utils import admin_auth
+from models import Cargo, Document, Base, engine, SessionLocal
+from utils import generate_pdf_report
+from rules import REQUIRED_DOCS
 
-load_dotenv()
-
-# -------------------
-# Base de datos
-# -------------------
+# Inicializar DB
 Base.metadata.create_all(bind=engine)
 
-# -------------------
-# App FastAPI
-# -------------------
+# FastAPI
 app = FastAPI(title="SmartCargo AIPA")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# -------------------
-# Home Page
-# -------------------
+# Frontend
 @app.get("/", response_class=HTMLResponse)
 async def home():
     with open("frontend/index.html", "r", encoding="utf-8") as f:
         return f.read()
 
-# -------------------
 # Crear Cargo
-# -------------------
 @app.post("/cargo/create")
 async def create_cargo(
     mawb: str = Form(...),
     hawb: str = Form(""),
-    airline: str = Form("Avianca Cargo"),
     origin: str = Form(...),
     destination: str = Form(...),
     cargo_type: str = Form(...),
@@ -51,11 +39,10 @@ async def create_cargo(
         cargo = Cargo(
             mawb=mawb,
             hawb=hawb,
-            airline=airline,
             origin=origin,
             destination=destination,
             cargo_type=cargo_type,
-            flight_date=flight_date
+            flight_date=datetime.strptime(flight_date, "%Y-%m-%d")
         )
         db.add(cargo)
         db.commit()
@@ -64,9 +51,7 @@ async def create_cargo(
     finally:
         db.close()
 
-# -------------------
 # Subir documento
-# -------------------
 @app.post("/cargo/upload")
 async def upload_document(
     cargo_id: int = Form(...),
@@ -83,28 +68,22 @@ async def upload_document(
     finally:
         db.close()
 
-# -------------------
-# Listar documentos de un cargo
-# -------------------
+# Listar documentos
 @app.get("/cargo/list/{cargo_id}", response_class=JSONResponse)
 async def list_cargo_documents(cargo_id: int):
     docs = list_documents(cargo_id)
     return {"cargo_id": cargo_id, "documents": docs}
 
-# -------------------
-# Obtener ruta de documento
-# -------------------
+# Obtener ruta
 @app.get("/cargo/path/{cargo_id}/{filename}")
 async def document_path(cargo_id: int, filename: str):
     try:
         path = get_document_path(cargo_id, filename)
-        return {"cargo_id": cargo_id, "filename": filename, "path": path}
+        return {"cargo_id": cargo_id, "filename": filename, "path": str(path)}
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-# -------------------
 # Eliminar documento
-# -------------------
 @app.delete("/cargo/delete/{cargo_id}/{filename}")
 async def remove_document(cargo_id: int, filename: str, deleted_by: str = Form(...)):
     db: Session = SessionLocal()
@@ -116,24 +95,10 @@ async def remove_document(cargo_id: int, filename: str, deleted_by: str = Form(.
     finally:
         db.close()
 
-# -------------------
-# Validar documentos obligatorios
-# -------------------
+# Validar documentos y generar PDF
 @app.post("/cargo/validate")
-async def validate_cargo_documents(cargo_id: int = Form(...), required_docs: List[str] = Form(...)):
-    db: Session = SessionLocal()
-    try:
-        result = validate_documents(db, cargo_id, required_docs)
-        return {"cargo_id": cargo_id, "validation": result}
-    finally:
-        db.close()
-
-# -------------------
-# Panel privado admin con IA SmartCargo-AIPA
-# -------------------
-@app.get("/admin", response_class=HTMLResponse)
-async def admin_panel(username: str = Form(...), password: str = Form(...)):
-    if not admin_auth(username, password):
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    with open("frontend/admin.html", "r", encoding="utf-8") as f:
-        return f.read()
+async def validate_and_pdf(cargo_id: int = Form(...)):
+    validation = validate_documents(cargo_id, REQUIRED_DOCS)
+    pdf_file = f"storage/advisory_{uuid.uuid4()}.pdf"
+    generate_pdf_report({"cargo_id": cargo_id, **validation, "checklist": {doc: "OK" for doc in REQUIRED_DOCS}}, pdf_file)
+    return {"cargo_id": cargo_id, **validation, "pdf": pdf_file}
