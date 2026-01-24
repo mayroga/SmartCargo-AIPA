@@ -1,34 +1,44 @@
 # main.py
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from datetime import datetime
 from typing import List
-import uuid
+from datetime import datetime
+
 from storage import save_document, list_documents, get_document_path, delete_document, validate_documents
 from models import Cargo, Document, Base, engine, SessionLocal
-from utils import generate_pdf_report
-from rules import REQUIRED_DOCS
 
-# Inicializar DB
+# -------------------
+# Inicialización DB
+# -------------------
 Base.metadata.create_all(bind=engine)
 
-# FastAPI
+# -------------------
+# FastAPI App
+# -------------------
 app = FastAPI(title="SmartCargo AIPA")
+
+# Montar archivos estáticos
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Frontend
+# -------------------
+# Endpoints Frontend
+# -------------------
 @app.get("/", response_class=HTMLResponse)
 async def home():
+    """Carga la página principal"""
     with open("frontend/index.html", "r", encoding="utf-8") as f:
         return f.read()
 
+# -------------------
 # Crear Cargo
+# -------------------
 @app.post("/cargo/create")
 async def create_cargo(
     mawb: str = Form(...),
     hawb: str = Form(""),
+    airline: str = Form("Avianca Cargo"),
     origin: str = Form(...),
     destination: str = Form(...),
     cargo_type: str = Form(...),
@@ -39,6 +49,7 @@ async def create_cargo(
         cargo = Cargo(
             mawb=mawb,
             hawb=hawb,
+            airline=airline,
             origin=origin,
             destination=destination,
             cargo_type=cargo_type,
@@ -51,7 +62,9 @@ async def create_cargo(
     finally:
         db.close()
 
+# -------------------
 # Subir documento
+# -------------------
 @app.post("/cargo/upload")
 async def upload_document(
     cargo_id: int = Form(...),
@@ -68,13 +81,17 @@ async def upload_document(
     finally:
         db.close()
 
-# Listar documentos
+# -------------------
+# Listar documentos físicos de un cargo
+# -------------------
 @app.get("/cargo/list/{cargo_id}", response_class=JSONResponse)
 async def list_cargo_documents(cargo_id: int):
     docs = list_documents(cargo_id)
     return {"cargo_id": cargo_id, "documents": docs}
 
-# Obtener ruta
+# -------------------
+# Obtener ruta de documento
+# -------------------
 @app.get("/cargo/path/{cargo_id}/{filename}")
 async def document_path(cargo_id: int, filename: str):
     try:
@@ -83,7 +100,9 @@ async def document_path(cargo_id: int, filename: str):
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+# -------------------
 # Eliminar documento
+# -------------------
 @app.delete("/cargo/delete/{cargo_id}/{filename}")
 async def remove_document(cargo_id: int, filename: str, deleted_by: str = Form(...)):
     db: Session = SessionLocal()
@@ -95,10 +114,10 @@ async def remove_document(cargo_id: int, filename: str, deleted_by: str = Form(.
     finally:
         db.close()
 
-# Validar documentos y generar PDF
+# -------------------
+# Validar documentos obligatorios
+# -------------------
 @app.post("/cargo/validate")
-async def validate_and_pdf(cargo_id: int = Form(...)):
-    validation = validate_documents(cargo_id, REQUIRED_DOCS)
-    pdf_file = f"storage/advisory_{uuid.uuid4()}.pdf"
-    generate_pdf_report({"cargo_id": cargo_id, **validation, "checklist": {doc: "OK" for doc in REQUIRED_DOCS}}, pdf_file)
-    return {"cargo_id": cargo_id, **validation, "pdf": pdf_file}
+async def validate_cargo_documents(cargo_id: int = Form(...), required_docs: List[str] = Form(...)):
+    result = validate_documents(cargo_id, required_docs)
+    return result
