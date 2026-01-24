@@ -1,18 +1,20 @@
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from typing import List
 from datetime import datetime
-import tempfile
 
-from backend/models import Base, engine, SessionLocal, Cargo, Document
-from storage import save_document, list_documents
-from backend/rules import advisory_result
+from backend.models import Base, engine, SessionLocal, Cargo, Document
+from backend.storage import (
+    save_document,
+    list_documents,
+    get_document_path,
+    delete_document,
+    validate_documents
+)
+from backend.rules import validate_cargo
 
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.pagesizes import LETTER
-from reportlab.lib import colors
 
 Base.metadata.create_all(bind=engine)
 
