@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 import tempfile
 
-from models import Base, engine, SessionLocal, Cargo, Document
+from backend/models import Base, engine, SessionLocal, Cargo, Document
 from storage import save_document, list_documents
-from rules import advisory_result
+from backend/rules import advisory_result
 
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
