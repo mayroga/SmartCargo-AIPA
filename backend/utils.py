@@ -1,29 +1,27 @@
 # utils.py
-from reportlab.platypus import SimpleDocTemplate, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
-from datetime import datetime
+from rules import validate_cargo
 
-DISCLAIMER = (
-    "Automated Advisory Report. "
-    "This system does not approve, reject, or replace "
-    "carrier, operator, or authority decisions."
-)
+def cargo_summary(cargo_id: int, role: str) -> dict:
+    validation = validate_cargo(cargo_id)
+    status = validation["status"]
 
-def generate_pdf_report(data, filename):
-    styles = getSampleStyleSheet()
-    doc = SimpleDocTemplate(filename)
-    story = []
+    # Roles pueden ver detalles o solo status resumido
+    if role.lower() == "admin":
+        return {"cargo_id": cargo_id, "status": status, "missing_docs": validation["missing_docs"]}
+    else:
+        return {"cargo_id": cargo_id, "status": status}
 
-    story.append(Paragraph("<b>Advisory Cargo Document Report</b>", styles["Title"]))
-    story.append(Paragraph(f"Date: {datetime.utcnow()}", styles["Normal"]))
-    story.append(Paragraph(f"Cargo ID: {data.get('cargo_id')}", styles["Normal"]))
-    story.append(Paragraph(f"Status: {data.get('status')}", styles["Normal"]))
-    story.append(Paragraph("<br/>Checklist:", styles["Normal"]))
 
-    for k, v in data.get("checklist", {}).items():
-        story.append(Paragraph(f"- {k}: {v}", styles["Normal"]))
+backend/rules.py
+# rules.py
+from storage import list_documents
 
-    story.append(Paragraph("<br/>", styles["Normal"]))
-    story.append(Paragraph(DISCLAIMER, styles["Italic"]))
+REQUIRED_DOCS_AVIANCA = [
+    "Commercial Invoice", "Packing List", "AWB"
+]
 
-    doc.build(story)
+def validate_cargo(cargo_id: int) -> dict:
+    present = [f.split("_")[0] for f in list_documents(cargo_id)]
+    missing = [doc for doc in REQUIRED_DOCS_AVIANCA if doc not in present]
+    status = "accepted" if not missing else "pending"
+    return {"cargo_id": cargo_id, "status": status, "missing_docs": missing}
