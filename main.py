@@ -1,206 +1,123 @@
+# main.py
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-
 from sqlalchemy.orm import Session
-from datetime import datetime
 from typing import List
-import tempfile
-import os
+from datetime import datetime
 
-# PDF
-from reportlab.lib.pagesizes import LETTER
-from reportlab.platypus import (
-    SimpleDocTemplate,
-    Paragraph,
-    Table,
-    TableStyle
-)
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
+from storage import save_document, list_documents, get_document_path, delete_document, validate_documents
+from models import Cargo, Document, Base, engine, SessionLocal
 
-# DB
-from backend.models import Base, engine, SessionLocal, Cargo, Document
-
-
-# Rules
-from backend.rules import validate_cargo, advisory_result
-
-# Storage
-from storage import save_document
-
-# -------------------- APP --------------------
-app = FastAPI(title="SmartCargo-AIPA")
-
+# -------------------
+# Inicialización DB
+# -------------------
 Base.metadata.create_all(bind=engine)
 
+# -------------------
+# FastAPI App
+# -------------------
+app = FastAPI(title="SmartCargo AIPA")
+
+# Montar archivos estáticos
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-
-# -------------------- HOME --------------------
+# -------------------
+# Endpoints Frontend
+# -------------------
 @app.get("/", response_class=HTMLResponse)
-def home():
-    try:
-        with open("static/index.html", "r", encoding="utf-8") as f:
-            return f.read()
-    except FileNotFoundError:
-        return "<h1>index.html not found</h1>"
+async def home():
+    """Carga la página principal"""
+    with open("frontend/index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
-
-# -------------------- CARGO --------------------
+# -------------------
+# Crear Cargo
+# -------------------
 @app.post("/cargo/create")
-def create_cargo(
+async def create_cargo(
     mawb: str = Form(...),
     hawb: str = Form(""),
+    airline: str = Form("Avianca Cargo"),
     origin: str = Form(...),
     destination: str = Form(...),
     cargo_type: str = Form(...),
     flight_date: str = Form(...)
 ):
-    db = SessionLocal()
+    db: Session = SessionLocal()
+    try:
+        cargo = Cargo(
+            mawb=mawb,
+            hawb=hawb,
+            airline=airline,
+            origin=origin,
+            destination=destination,
+            cargo_type=cargo_type,
+            flight_date=datetime.strptime(flight_date, "%Y-%m-%d")
+        )
+        db.add(cargo)
+        db.commit()
+        db.refresh(cargo)
+        return {"cargo_id": cargo.id, "message": "Cargo creado correctamente"}
+    finally:
+        db.close()
 
-    cargo = Cargo(
-        mawb=mawb,
-        hawb=hawb,
-        origin=origin,
-        destination=destination,
-        cargo_type=cargo_type,
-        flight_date=flight_date
-    )
-
-    db.add(cargo)
-    db.commit()
-    db.refresh(cargo)
-    db.close()
-
-    return {"cargo_id": cargo.id}
-
-
-@app.get("/cargo/all")
-def list_cargos():
-    db = SessionLocal()
-    cargos = db.query(Cargo).all()
-    result = []
-
-    for c in cargos:
-        docs = db.query(Document).filter(Document.cargo_id == c.id).all()
-        result.append({
-            "id": c.id,
-            "mawb": c.mawb,
-            "hawb": c.hawb,
-            "origin": c.origin,
-            "destination": c.destination,
-            "cargo_type": c.cargo_type,
-            "flight_date": str(c.flight_date),
-            "documents": [
-                {
-                    "type": d.doc_type,
-                    "version": d.version,
-                    "status": d.status,
-                    "responsible": d.responsible,
-                    "audit_notes": d.audit_notes,
-                    "upload_date": str(d.upload_date)
-                } for d in docs
-            ]
-        })
-
-    db.close()
-    return result
-
-
-# -------------------- DOCUMENTS --------------------
+# -------------------
+# Subir documento
+# -------------------
 @app.post("/cargo/upload")
-def upload_document(
+async def upload_document(
     cargo_id: int = Form(...),
     doc_type: str = Form(...),
-    responsible: str = Form(...),
+    uploaded_by: str = Form(...),
     file: UploadFile = File(...)
 ):
-    db = SessionLocal()
-
-    cargo = db.query(Cargo).filter(Cargo.id == cargo_id).first()
-    if not cargo:
+    db: Session = SessionLocal()
+    try:
+        doc = save_document(db=db, file=file, cargo_id=cargo_id, doc_type=doc_type, uploaded_by=uploaded_by)
+        return {"message": f"Documento '{doc_type}' cargado correctamente", "filename": doc.filename, "version": doc.version}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
         db.close()
-        raise HTTPException(status_code=404, detail="Cargo not found")
 
-    doc = save_document(db, cargo_id, doc_type, responsible, file)
-    db.close()
+# -------------------
+# Listar documentos físicos de un cargo
+# -------------------
+@app.get("/cargo/list/{cargo_id}", response_class=JSONResponse)
+async def list_cargo_documents(cargo_id: int):
+    docs = list_documents(cargo_id)
+    return {"cargo_id": cargo_id, "documents": docs}
 
-    return {"status": "uploaded", "version": doc.version}
+# -------------------
+# Obtener ruta de documento
+# -------------------
+@app.get("/cargo/path/{cargo_id}/{filename}")
+async def document_path(cargo_id: int, filename: str):
+    try:
+        path = get_document_path(cargo_id, filename)
+        return {"cargo_id": cargo_id, "filename": filename, "path": str(path)}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
-
-# -------------------- PDF ASESOR --------------------
-@app.get("/cargo/report/pdf/{cargo_id}")
-def advisory_pdf(cargo_id: int):
-    db = SessionLocal()
-
-    cargo = db.query(Cargo).filter(Cargo.id == cargo_id).first()
-    if not cargo:
+# -------------------
+# Eliminar documento
+# -------------------
+@app.delete("/cargo/delete/{cargo_id}/{filename}")
+async def remove_document(cargo_id: int, filename: str, deleted_by: str = Form(...)):
+    db: Session = SessionLocal()
+    try:
+        success = delete_document(db=db, cargo_id=cargo_id, filename=filename, deleted_by=deleted_by)
+        if not success:
+            raise HTTPException(status_code=404, detail="Documento no encontrado")
+        return {"cargo_id": cargo_id, "filename": filename, "status": "deleted"}
+    finally:
         db.close()
-        raise HTTPException(status_code=404, detail="Cargo not found")
 
-    docs = db.query(Document).filter(Document.cargo_id == cargo_id).all()
-
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    pdf = SimpleDocTemplate(tmp.name, pagesize=LETTER)
-    styles = getSampleStyleSheet()
-    elements = []
-
-    elements.append(Paragraph(
-        "<b>SmartCargo-AIPA by May Roga LLC</b>",
-        styles["Title"]
-    ))
-
-    elements.append(Paragraph(
-        "Cargo Documentation Advisory Report<br/><br/>",
-        styles["Normal"]
-    ))
-
-    elements.append(Paragraph(
-        f"<b>MAWB:</b> {cargo.mawb}<br/>"
-        f"<b>Origin:</b> {cargo.origin} → {cargo.destination}<br/>"
-        f"<b>Type:</b> {cargo.cargo_type}<br/><br/>",
-        styles["Normal"]
-    ))
-
-    table_data = [["Document", "Version", "Status", "Responsible", "Audit Notes"]]
-
-    for d in docs:
-        table_data.append([
-            d.doc_type,
-            d.version,
-            d.status.upper(),
-            d.responsible,
-            d.audit_notes or ""
-        ])
-
-    table = Table(table_data, repeatRows=1)
-    table.setStyle(TableStyle([
-        ("GRID", (0,0), (-1,-1), 1, colors.black),
-        ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
-        ("ALIGN", (1,1), (-1,-1), "CENTER")
-    ]))
-
-    elements.append(table)
-    elements.append(Paragraph("<br/>", styles["Normal"]))
-
-    result = advisory_result(docs)
-
-    elements.append(Paragraph(
-        f"<b>Advisory Result:</b> {result}",
-        styles["Heading2"]
-    ))
-
-    elements.append(Paragraph(
-        "<i>This report is advisory only. Final acceptance remains with the carrier and authorities.</i>",
-        styles["Normal"]
-    ))
-
-    pdf.build(elements)
-    db.close()
-
-    return FileResponse(
-        tmp.name,
-        media_type="application/pdf",
-        filename="SmartCargo-AIPA-Advisory.pdf"
-    )
+# -------------------
+# Validar documentos obligatorios
+# -------------------
+@app.post("/cargo/validate")
+async def validate_cargo_documents(cargo_id: int = Form(...), required_docs: List[str] = Form(...)):
+    result = validate_documents(cargo_id, required_docs)
+    return result
