@@ -5,15 +5,15 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
 
-from backend.models import Base, engine, SessionLocal, Cargo, Document
-from backend.storage import (
+from backend/models import Base, engine, SessionLocal, Cargo, Document
+from storage import (
     save_document,
     list_documents,
     get_document_path,
     delete_document,
     validate_documents
 )
-from backend.rules import validate_cargo
+from backend/rules import validate_cargo
 
 
 Base.metadata.create_all(bind=engine)
