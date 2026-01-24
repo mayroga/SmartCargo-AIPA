@@ -1,5 +1,5 @@
 # utils.py
-from rules import validate_cargo
+from backend/rules import validate_cargo
 
 def cargo_summary(cargo_id: int, role: str) -> dict:
     validation = validate_cargo(cargo_id)
