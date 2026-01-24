@@ -2,57 +2,41 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SmartCargo AIPA</title>
-<link rel="stylesheet" href="/static/styles.css">
+<script src="/static/scripts.js" defer></script>
+<style>
+body { font-family: Arial; padding:20px; }
+table { width:100%; border-collapse: collapse; }
+th,td { border:1px solid #ccc; padding:6px; }
+</style>
 </head>
 <body>
-<header>
-    <h1>SmartCargo AIPA</h1>
-    <button id="translateBtn">Español / English</button>
-</header>
 
-<section>
-    <h2>Cargo & Document Management</h2>
+<h1>SmartCargo AIPA</h1>
+<button onclick="toggleLang()">Español / English</button>
 
-    <form id="cargoForm">
-        <input type="text" name="mawb" placeholder="MAWB" required>
-        <input type="text" name="hawb" placeholder="HAWB">
-        <input type="text" name="origin" placeholder="Origin" required>
-        <input type="text" name="destination" placeholder="Destination" required>
-        <input type="text" name="cargo_type" placeholder="Cargo Type" required>
-        <input type="date" name="flight_date" required>
-        <button type="submit">Create Cargo</button>
-    </form>
+<h2>Create Cargo (AWB)</h2>
+<form id="cargoForm">
+<input name="mawb" placeholder="MAWB" required>
+<input name="hawb" placeholder="HAWB">
+<input name="origin" placeholder="Origin" required>
+<input name="destination" placeholder="Destination" required>
+<input name="cargo_type" placeholder="Cargo Type" required>
+<input name="flight_date" type="date" required>
+<button>Create</button>
+</form>
 
-    <table id="cargoTable">
-        <thead>
-            <tr>
-                <th>ID Cargo</th>
-                <th>MAWB</th>
-                <th>HAWB</th>
-                <th>Origin</th>
-                <th>Destination</th>
-                <th>Type</th>
-                <th>Flight Date</th>
-                <th>Documents</th>
-                <th>Version</th>
-                <th>Status</th>
-                <th>Responsible</th>
-                <th>Upload Date</th>
-                <th>Audit Notes</th>
-            </tr>
-        </thead>
-        <tbody>
-        </tbody>
-    </table>
+<h2>Cargo & Documents</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th><th>MAWB</th><th>Route</th><th>Docs</th><th>PDF</th><th>WhatsApp</th>
+</tr>
+</thead>
+<tbody id="cargoTable"></tbody>
+</table>
 
-    <div class="buttons">
-        <button id="printBtn">Print / PDF</button>
-        <button id="whatsappBtn">Send WhatsApp</button>
-    </div>
-</section>
+<p><b>Disclaimer:</b> Advisory system only. No operational approval.</p>
 
-<script src="/static/scripts.js"></script>
 </body>
 </html>
