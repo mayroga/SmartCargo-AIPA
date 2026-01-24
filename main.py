@@ -1,32 +1,49 @@
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+
 from sqlalchemy.orm import Session
-from typing import List
 from datetime import datetime
+from typing import List
+import tempfile
+import os
 
-from backend/models import Base, engine, SessionLocal, Cargo, Document
-from storage import (
-    save_document,
-    list_documents,
-    get_document_path,
-    delete_document,
-    validate_documents
+# PDF
+from reportlab.lib.pagesizes import LETTER
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Table,
+    TableStyle
 )
-from backend/rules import validate_cargo
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
 
+# DB
+from backend.models import Base, engine, SessionLocal, Cargo, Document
+
+# Rules
+from backend.rules import validate_cargo, advisory_result
+
+# Storage
+from storage import save_document
+
+# -------------------- APP --------------------
+app = FastAPI(title="SmartCargo-AIPA")
 
 Base.metadata.create_all(bind=engine)
-
-app = FastAPI(title="SmartCargo-AIPA")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
+# -------------------- HOME --------------------
 @app.get("/", response_class=HTMLResponse)
 def home():
-    with open("static/index.html", "r", encoding="utf-8") as f:
-        return f.read()
+    try:
+        with open("static/index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "<h1>index.html not found</h1>"
 
 
 # -------------------- CARGO --------------------
@@ -40,6 +57,7 @@ def create_cargo(
     flight_date: str = Form(...)
 ):
     db = SessionLocal()
+
     cargo = Cargo(
         mawb=mawb,
         hawb=hawb,
@@ -48,10 +66,12 @@ def create_cargo(
         cargo_type=cargo_type,
         flight_date=flight_date
     )
+
     db.add(cargo)
     db.commit()
     db.refresh(cargo)
     db.close()
+
     return {"cargo_id": cargo.id}
 
 
@@ -60,6 +80,7 @@ def list_cargos():
     db = SessionLocal()
     cargos = db.query(Cargo).all()
     result = []
+
     for c in cargos:
         docs = db.query(Document).filter(Document.cargo_id == c.id).all()
         result.append({
@@ -81,6 +102,7 @@ def list_cargos():
                 } for d in docs
             ]
         })
+
     db.close()
     return result
 
@@ -94,8 +116,15 @@ def upload_document(
     file: UploadFile = File(...)
 ):
     db = SessionLocal()
+
+    cargo = db.query(Cargo).filter(Cargo.id == cargo_id).first()
+    if not cargo:
+        db.close()
+        raise HTTPException(status_code=404, detail="Cargo not found")
+
     doc = save_document(db, cargo_id, doc_type, responsible, file)
     db.close()
+
     return {"status": "uploaded", "version": doc.version}
 
 
@@ -103,16 +132,28 @@ def upload_document(
 @app.get("/cargo/report/pdf/{cargo_id}")
 def advisory_pdf(cargo_id: int):
     db = SessionLocal()
+
     cargo = db.query(Cargo).filter(Cargo.id == cargo_id).first()
+    if not cargo:
+        db.close()
+        raise HTTPException(status_code=404, detail="Cargo not found")
+
     docs = db.query(Document).filter(Document.cargo_id == cargo_id).all()
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    doc = SimpleDocTemplate(tmp.name, pagesize=LETTER)
+    pdf = SimpleDocTemplate(tmp.name, pagesize=LETTER)
     styles = getSampleStyleSheet()
     elements = []
 
-    elements.append(Paragraph("<b>SmartCargo-AIPA by May Roga LLC</b>", styles["Title"]))
-    elements.append(Paragraph("Cargo Documentation Advisory Report<br/><br/>", styles["Normal"]))
+    elements.append(Paragraph(
+        "<b>SmartCargo-AIPA by May Roga LLC</b>",
+        styles["Title"]
+    ))
+
+    elements.append(Paragraph(
+        "Cargo Documentation Advisory Report<br/><br/>",
+        styles["Normal"]
+    ))
 
     elements.append(Paragraph(
         f"<b>MAWB:</b> {cargo.mawb}<br/>"
@@ -122,6 +163,7 @@ def advisory_pdf(cargo_id: int):
     ))
 
     table_data = [["Document", "Version", "Status", "Responsible", "Audit Notes"]]
+
     for d in docs:
         table_data.append([
             d.doc_type,
@@ -131,26 +173,33 @@ def advisory_pdf(cargo_id: int):
             d.audit_notes or ""
         ])
 
-    table = Table(table_data)
+    table = Table(table_data, repeatRows=1)
     table.setStyle(TableStyle([
         ("GRID", (0,0), (-1,-1), 1, colors.black),
-        ("BACKGROUND", (0,0), (-1,0), colors.lightgrey)
+        ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
+        ("ALIGN", (1,1), (-1,-1), "CENTER")
     ]))
-    elements.append(table)
 
+    elements.append(table)
     elements.append(Paragraph("<br/>", styles["Normal"]))
+
+    result = advisory_result(docs)
+
     elements.append(Paragraph(
-        f"<b>Advisory Result:</b> {advisory_result(docs)}",
+        f"<b>Advisory Result:</b> {result}",
         styles["Heading2"]
     ))
 
     elements.append(Paragraph(
-        "<i>This report is advisory only. "
-        "Final operational acceptance remains with the carrier and authorities.</i>",
+        "<i>This report is advisory only. Final acceptance remains with the carrier and authorities.</i>",
         styles["Normal"]
     ))
 
-    doc.build(elements)
+    pdf.build(elements)
     db.close()
 
-    return FileResponse(tmp.name, filename="SmartCargo-AIPA-Advisory.pdf")
+    return FileResponse(
+        tmp.name,
+        media_type="application/pdf",
+        filename="SmartCargo-AIPA-Advisory.pdf"
+    )
