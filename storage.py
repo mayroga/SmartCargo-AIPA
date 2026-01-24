@@ -6,11 +6,11 @@ from typing import List
 import boto3
 from models import Document, Cargo, SessionLocal
 
-# Carpeta local para backup
+# Local folder backup
 BASE_DIR = Path("storage/uploads")
 BASE_DIR.mkdir(parents=True, exist_ok=True)
 
-# Configuración S3
+# S3 setup
 S3_BUCKET = os.getenv("S3_BUCKET")
 S3_CLIENT = boto3.client(
     "s3",
@@ -19,7 +19,7 @@ S3_CLIENT = boto3.client(
     region_name=os.getenv("AWS_REGION")
 )
 
-# Tipos de documentos permitidos
+# Allowed documents
 TIPOS_DOCUMENTO = [
     "Commercial Invoice", "Packing List", "Shipper's Letter of Instruction",
     "AWB", "Certificado", "MSDS", "Permiso País Destino"
@@ -41,7 +41,7 @@ def save_document(db, file, cargo_id: int, doc_type: str, uploaded_by: str) -> D
     with open(filepath, "wb") as f:
         f.write(file.file.read())
 
-    # Subir a S3 si configurado
+    # Subir a S3
     if S3_BUCKET:
         S3_CLIENT.upload_file(str(filepath), S3_BUCKET, f"{cargo_id}/{filename}")
 
