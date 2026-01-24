@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 import boto3
-from models import Document, Cargo, SessionLocal
+from backend/models import Document, Cargo, SessionLocal
 
 # Local folder backup
 BASE_DIR = Path("storage/uploads")
