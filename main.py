@@ -20,10 +20,11 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
 # DB
-from backend/models import Base, engine, SessionLocal, Cargo, Document
+from backend.models import Base, engine, SessionLocal, Cargo, Document
+
 
 # Rules
-from backend/rules import validate_cargo, advisory_result
+from backend.rules import validate_cargo, advisory_result
 
 # Storage
 from storage import save_document
