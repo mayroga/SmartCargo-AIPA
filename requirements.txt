@@ -11,3 +11,4 @@ SQLAlchemy
 psycopg2-binary
 redis
 boto3
+reportlab
