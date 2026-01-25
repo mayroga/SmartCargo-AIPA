@@ -1,20 +1,18 @@
-# backend/ai_helper.py
-# Asesor SmartCargo-AIPA (NO valida, SOLO explica)
+def generate_advisor_message(validation_result: dict) -> str:
+    """
+    Explica de manera educativa cada semáforo/documento.
+    No reemplaza operador aéreo.
+    """
+    messages = []
+    for doc in validation_result.get("documents", []):
+        if doc["status"] == "🟢":
+            messages.append(f"{doc['doc_type']} está correcto y cumple normas operativas.")
+        elif doc["status"] == "🔴":
+            messages.append(f"{doc['doc_type']} tiene error: {doc['observation']}. Revisar antes de enviar.")
+        else:
+            messages.append(f"{doc['doc_type']} requiere atención: {doc['observation']}")
 
-def advisor_explanation(semaphore: str, motivos: list) -> str:
-    if semaphore.startswith("🟢"):
-        return (
-            "La carga cumple con los documentos mínimos requeridos. "
-            "No se detectan riesgos operativos inmediatos para presentación en counter."
-        )
+    for motivo in validation_result.get("motivos", []):
+        messages.append(f"Motivo: {motivo}")
 
-    if semaphore.startswith("🟡"):
-        return (
-            "La carga puede presentarse, pero existen observaciones que "
-            "podrían generar hold o reproceso en counter si no se corrigen."
-        )
-
-    return (
-        "La carga NO debe enviarse. "
-        "Existen incumplimientos documentales u operativos que impedirán su aceptación."
-    )
+    return "\n".join(messages)
