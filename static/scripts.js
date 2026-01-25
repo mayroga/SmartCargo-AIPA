@@ -1,167 +1,108 @@
-// -------------------
-// scripts.js - SmartCargo AIPA
-// -------------------
+// scripts.js – SmartCargo-AIPA (PRODUCCIÓN)
 
-const cargoForm = document.getElementById("cargoForm");
-const cargoTableBody = document.querySelector("#cargoTable tbody");
-const translateBtn = document.getElementById("translateBtn");
-const printBtn = document.getElementById("printBtn");
-const whatsappBtn = document.getElementById("whatsappBtn");
-const roleSelect = document.getElementById("roleSelect");
-
-let isSpanish = false;
-let currentRole = roleSelect.value || "owner";
-
-// -------------------
-// Validar cargo
-// -------------------
-cargoForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const formData = new FormData(cargoForm);
-    const data = Object.fromEntries(formData.entries());
-
-    try {
-        const res = await fetch("/cargo/validate", {
-            method: "POST",
-            body: new URLSearchParams(data)
-        });
-        if (!res.ok) throw new Error(`Error ${res.status}`);
-        const result = await res.json();
-        displayCargo(result);
-        alert(`${result.status}\n${result.motivos.join("\n")}`);
-    } catch (err) {
-        alert(`Error validando cargo: ${err}`);
-    }
-});
-
-// -------------------
-// Mostrar cargo validado en tabla
-// -------------------
-function displayCargo(result) {
-    cargoTableBody.innerHTML = "";
-
-    const row = document.createElement("tr");
-
-    // Mostrar documentos con detalles
-    let docsHTML = "";
-    for (const [docType, status] of Object.entries(result.detalles || {})) {
-        docsHTML += `<b>${docType}:</b> ${status}<br>`;
-    }
-
-    row.innerHTML = `
-        <td>${result.cargo_id}</td>
-        <td>${result.weight || "-"} kg</td>
-        <td>${result.volume || "-"} m³</td>
-        <td>${result.status}</td>
-        <td>${result.motivos.join(", ") || "-"}</td>
-        <td>${docsHTML}</td>
-        <td>${new Date().toLocaleDateString()}</td>
-        <td>${result.legal || "-"}</td>
-    `;
-    cargoTableBody.appendChild(row);
-}
-
-// -------------------
-// Cargar todos los cargos
-// -------------------
-async function loadCargos() {
-    cargoTableBody.innerHTML = "";
-    try {
-        const res = await fetch("/cargo/list_all");
-        if (!res.ok) throw new Error(`Error ${res.status}`);
-        const cargos = await res.json();
-
-        cargos.forEach(cargo => {
-            const row = document.createElement("tr");
-
-            // Semáforo profesional según documentos
-            let semaforo = "—";
-            if (cargo.status) {
-                semaforo = cargo.status;
-            } else if (cargo.documents.some(d => d.status === "🔴 NO ACEPTABLE")) {
-                semaforo = "🔴";
-            } else {
-                semaforo = "🟢";
-            }
-
-            // Detalles de documentos
-            let docsHTML = "";
-            cargo.documents.forEach(d => {
-                docsHTML += `<b>${d.doc_type}:</b> ${d.status || "-"}<br>`;
-            });
-
-            row.innerHTML = `
-                <td>${cargo.id}</td>
-                <td>${cargo.weight || "-"} kg</td>
-                <td>${cargo.volume || "-"} m³</td>
-                <td>${semaforo}</td>
-                <td>${cargo.documents.map(d => d.doc_type).join(", ") || "-"}</td>
-                <td>${cargo.documents.map(d => d.responsible || "").join(", ") || "-"}</td>
-                <td>${cargo.flight_date || "-"}</td>
-                <td>${docsHTML}</td>
-            `;
-            cargoTableBody.appendChild(row);
-        });
-    } catch (err) {
-        alert(`Error cargando cargos: ${err}`);
-    }
-}
-
-// -------------------
-// Cambiar rol
-// -------------------
-roleSelect.addEventListener("change", (e) => {
-    currentRole = e.target.value;
+document.addEventListener("DOMContentLoaded", () => {
+    loadDashboard();
     loadCargos();
 });
 
-// -------------------
-// Traducción Español / Inglés
-// -------------------
-translateBtn.addEventListener("click", () => {
-    isSpanish = !isSpanish;
+// =======================
+// VALIDAR CARGA
+// =======================
+const cargoForm = document.getElementById("cargoForm");
 
-    document.querySelector("h1").textContent = "SmartCargo AIPA";
-    document.querySelector("h2").textContent = isSpanish ? "Validación de Carga y Documentos" : "Cargo & Document Validation";
+if (cargoForm) {
+    cargoForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
 
-    cargoForm.querySelector("button").textContent = isSpanish ? "Validar Carga" : "Validate Cargo";
-    printBtn.textContent = isSpanish ? "Imprimir / PDF" : "Print / PDF";
-    whatsappBtn.textContent = isSpanish ? "Enviar WhatsApp" : "Send WhatsApp";
+        const payload = {
+            mawb: cargoForm.mawb.value,
+            hawb: cargoForm.hawb.value,
+            origin: cargoForm.origin.value,
+            destination: cargoForm.destination.value,
+            cargo_type: cargoForm.cargo_type.value,
+            flight_date: cargoForm.flight_date.value
+        };
 
-    const headers = document.querySelectorAll("#cargoTable thead th");
-    if (isSpanish) {
-        const titles = ["ID Cargo", "Peso", "Volumen", "Semáforo", "Documentos", "Detalles Doc", "Fecha", "Alertas / Legal"];
-        headers.forEach((th, i) => th.textContent = titles[i]);
-    } else {
-        const titles = ["Cargo ID", "Weight", "Volume", "Semaphore", "Documents", "Doc Details", "Date", "Alerts / Legal"];
-        headers.forEach((th, i) => th.textContent = titles[i]);
-    }
+        try {
+            const res = await fetch("/cargo/validate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
 
-    // Cambiar roles al idioma correspondiente
-    roleSelect.options[0].text = isSpanish ? "Dueño" : "Owner";
-    roleSelect.options[1].text = isSpanish ? "Forwarder / Agente" : "Forwarder / Agent";
-    roleSelect.options[2].text = isSpanish ? "Camionero" : "Driver";
-    roleSelect.options[3].text = isSpanish ? "Warehouse / Admin" : "Warehouse / Admin";
-});
+            const data = await res.json();
 
-// -------------------
-// Imprimir / Export PDF
-// -------------------
-printBtn.addEventListener("click", () => window.print());
+            if (!res.ok) {
+                alert("⚠️ Error de validación:\n" + (data.detail || "Datos incompletos"));
+                return;
+            }
 
-// -------------------
-// Enviar por WhatsApp
-// -------------------
-whatsappBtn.addEventListener("click", () => {
-    let text = isSpanish ? "Carga y Documentos:\n" : "Cargo & Documents:\n";
-    document.querySelectorAll("#cargoTable tbody tr").forEach(row => {
-        text += Array.from(row.children).map(td => td.textContent).join(" | ") + "\n";
+            renderValidationResult(data);
+            loadDashboard();
+            loadCargos();
+
+        } catch (err) {
+            alert("❌ Error de conexión con el servidor");
+            console.error(err);
+        }
     });
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
-});
+}
 
-// -------------------
-// Carga inicial
-// -------------------
-loadCargos();
+// =======================
+// DASHBOARD
+// =======================
+async function loadDashboard() {
+    const res = await fetch("/cargo/list_all");
+    const cargos = await res.json();
+
+    document.getElementById("total-awb").textContent = cargos.length;
+    document.getElementById("ok-count").textContent =
+        cargos.filter(c => c.semaphore === "OK").length;
+    document.getElementById("warn-count").textContent =
+        cargos.filter(c => c.semaphore === "REVISAR").length;
+    document.getElementById("crit-count").textContent =
+        cargos.filter(c => c.semaphore === "BLOQUEADO").length;
+}
+
+// =======================
+// TABLA DOCUMENTAL
+// =======================
+async function loadCargos() {
+    const tbody = document.querySelector("#cargoTable tbody");
+    tbody.innerHTML = "";
+
+    const res = await fetch("/cargo/list_all");
+    const cargos = await res.json();
+
+    cargos.forEach(cargo => {
+        cargo.documents.forEach(doc => {
+            const tr = document.createElement("tr");
+
+            tr.innerHTML = `
+                <td>${cargo.mawb}</td>
+                <td>${doc.doc_type}</td>
+                <td class="${statusClass(doc.status)}">${doc.status}</td>
+                <td>${doc.observation || "—"}</td>
+                <td>${doc.norm || "IATA"}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    });
+}
+
+// =======================
+function statusClass(status) {
+    if (status === "Aprobado") return "ok";
+    if (status === "Observación") return "warn";
+    return "crit";
+}
+
+// =======================
+function renderValidationResult(data) {
+    alert(
+        `Resultado: ${data.semaphore}\n` +
+        data.documents.map(d => `${d.doc_type}: ${d.status}`).join("\n")
+    );
+}
