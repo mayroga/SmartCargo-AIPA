@@ -1,48 +1,74 @@
 # backend/rules.py
-from datetime import datetime
+from datetime import datetime, timedelta
+
+# Documentos obligatorios SmartCargo-AIPA
+MANDATORY_DOCS = [
+    "Commercial Invoice",
+    "Packing List",
+    "SLI",
+    "MSDS",
+    "Certificado de origen",
+    "Certificado de fumigación",
+    "Licencia transporte materiales peligrosos",
+    "Bill of Lading / MAWB / HAWB",
+    "Documentos de seguros",
+    "Documentos de aduanas",
+    "Harmonized codes y descripción de mercancía"
+]
 
 def validate_cargo_documents(cargo):
     """
-    Aplica el checklist de Avianca, IATA, CBP, TSA, DOT.
+    Validación avanzada de cargo para Avianca/IATA/CBP/TSA/DOT.
     Devuelve:
-      semáforo: 🔴 NO ACEPTABLE / 🟡 ACEPTABLE CON RIESGO / 🟢 LISTO PARA COUNTER
-      motivos: lista de razones claras
+    - semaforo: 🟢, 🟡, 🔴
+    - motivos: lista de alertas y documentos faltantes
+    - detalles: diccionario completo de revisión de documentos
     """
-
     motivos = []
-    semaforo = "🟢 LISTO PARA COUNTER"
+    detalles = {}
+    semaforo = "🟢 LISTO"
 
-    # Convertir documentos en diccionario para fácil acceso
-    docs = {doc.doc_type: doc for doc in cargo.documents}
+    # Diccionario de documentos existentes
+    existing_docs = {doc.doc_type: doc for doc in cargo.documents}
 
-    # Documentos obligatorios
-    required_docs = ["Commercial Invoice", "Packing List", "SLI", "MSDS"]
-
-    for doc_name in required_docs:
-        if doc_name not in docs:
+    # Validación de documentos obligatorios
+    for doc_name in MANDATORY_DOCS:
+        if doc_name not in existing_docs:
             motivos.append(f"Falta {doc_name}")
-    
-    # Packing List vs Invoice (consistencia mínima)
-    if "Commercial Invoice" in docs and "Packing List" in docs:
-        invoice = docs["Commercial Invoice"]
-        packing = docs["Packing List"]
-        if invoice.filename != packing.filename:
+            detalles[doc_name] = "❌ Faltante"
+        else:
+            doc = existing_docs[doc_name]
+            # Revisar vencimiento si aplica
+            if hasattr(doc, "expiration_date") and doc.expiration_date:
+                if doc.expiration_date < datetime.today():
+                    motivos.append(f"{doc_name} vencido")
+                    detalles[doc_name] = "⚠️ Vencido"
+                else:
+                    detalles[doc_name] = "✅ Vigente"
+            else:
+                detalles[doc_name] = "✅ Cargado"
+
+    # Validación de peso y volumen
+    if cargo.weight > 1000:
+        motivos.append(f"Peso {cargo.weight} kg excede límite de Avianca")
+    if cargo.volume > 10:
+        motivos.append(f"Volumen {cargo.volume} m³ excede límite permitido")
+
+    # Consistencia entre documentos clave
+    ci = existing_docs.get("Commercial Invoice")
+    pl = existing_docs.get("Packing List")
+    if ci and pl:
+        if getattr(ci, "filename", "") != getattr(pl, "filename", ""):
             motivos.append("Packing List no coincide con Invoice")
 
-    # MSDS vigente
-    if "MSDS" in docs:
-        msds = docs["MSDS"]
-        if hasattr(msds, "expiration_date") and msds.expiration_date:
-            if msds.expiration_date < datetime.today():
-                motivos.append("MSDS vencido")
+    # Tipo de mercancía y alertas legales
+    if getattr(cargo, "cargo_type", "").lower() in ["peligrosa", "dangerous"]:
+        motivos.append("Carga peligrosa requiere manejo especial")
 
-    # Determinar semáforo según gravedad
+    # Determinar semáforo
     if motivos:
         semaforo = "🔴 NO ACEPTABLE"
     else:
-        semaforo = "🟢 LISTO PARA COUNTER"
+        semaforo = "🟢 LISTO"
 
-    # Nota legal incluida siempre
-    motivos.append("SmartCargo-AIPA es asesor, no autoridad. La aceptación final depende de Avianca, IATA, CBP, TSA y DOT.")
-
-    return semaforo, motivos
+    return semaforo, motivos, detalles
