@@ -1,242 +1,84 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Asesor SmartCargo-AIPA</title>
-
-  <!-- Estilo profesional tipo Avianca / IATA -->
-  <style>
-    :root {
-      --green: #00b050;
-      --yellow: #ffc000;
-      --red: #c00000;
-      --dark: #0b1c2d;
-      --gray: #f2f4f7;
-      --blue: #003a8f;
-    }
-
-    body {
-      margin: 0;
-      font-family: "Segoe UI", Arial, sans-serif;
-      background: var(--gray);
-      color: #1a1a1a;
-    }
-
-    header {
-      background: var(--dark);
-      color: #fff;
-      padding: 18px 30px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 20px;
-      letter-spacing: 0.5px;
-    }
-
-    header span {
-      font-size: 13px;
-      opacity: 0.8;
-    }
-
-    .container {
-      padding: 25px 30px;
-    }
-
-    /* DASHBOARD */
-    .dashboard {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
-    }
-
-    .card {
-      background: #fff;
-      border-radius: 14px;
-      padding: 20px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-    }
-
-    .card h3 {
-      margin: 0 0 10px 0;
-      font-size: 14px;
-      text-transform: uppercase;
-      color: #666;
-    }
-
-    .card .value {
-      font-size: 34px;
-      font-weight: bold;
-      color: var(--blue);
-    }
-
-    /* SEMÁFORO */
-    .semaforo {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .light {
-      width: 70px;
-      height: 70px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-weight: bold;
-      font-size: 13px;
-      box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
-    }
-
-    .green { background: var(--green); }
-    .yellow { background: var(--yellow); color: #000; }
-    .red { background: var(--red); }
-
-    /* TABLA */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #fff;
-      border-radius: 14px;
-      overflow: hidden;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-    }
-
-    thead {
-      background: var(--dark);
-      color: #fff;
-    }
-
-    th, td {
-      padding: 14px 12px;
-      text-align: left;
-      font-size: 14px;
-    }
-
-    th {
-      text-transform: uppercase;
-      font-size: 12px;
-      letter-spacing: 0.4px;
-    }
-
-    tr:nth-child(even) {
-      background: #f8f9fb;
-    }
-
-    .status {
-      font-weight: bold;
-      padding: 6px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      display: inline-block;
-    }
-
-    .ok { background: rgba(0,176,80,0.15); color: var(--green); }
-    .warn { background: rgba(255,192,0,0.2); color: #9c7b00; }
-    .fail { background: rgba(192,0,0,0.15); color: var(--red); }
-
-    footer {
-      margin-top: 30px;
-      text-align: center;
-      font-size: 12px;
-      color: #777;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asesor SmartCargo-AIPA</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1,h2 { text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background: #f4f4f4; }
+        .ok { background-color: #d4edda; color: #155724; }
+        .warn { background-color: #fff3cd; color: #856404; }
+        .crit { background-color: #f8d7da; color: #721c24; }
+        .dashboard { display: flex; justify-content: space-around; margin-top: 20px; }
+        .dash-card { padding: 15px; border-radius: 8px; background: #f0f0f0; width: 18%; text-align: center; }
+        button { padding: 8px 15px; margin: 5px; cursor: pointer; }
+    </style>
 </head>
 <body>
 
-<header>
-  <div>
-    <h1>Asesor SmartCargo-AIPA</h1>
-    <span>Panel operativo documental · Estándares IATA / Aviación</span>
-  </div>
-</header>
+<h1>Asesor SmartCargo-AIPA</h1>
+<h2 id="subtitle">Validación de Carga y Documentos</h2>
 
-<div class="container">
+<div>
+    <label for="roleSelect" id="label-role">Rol:</label>
+    <select id="roleSelect">
+        <option value="owner">Dueño</option>
+        <option value="forwarder">Forwarder / Agente</option>
+        <option value="driver">Camionero</option>
+        <option value="warehouse">Warehouse / Admin</option>
+    </select>
 
-  <!-- DASHBOARD -->
-  <section class="dashboard">
-    <div class="card">
-      <h3>Guías Aéreas</h3>
-      <div class="value">128</div>
-    </div>
-
-    <div class="card">
-      <h3>Documentos Correctos</h3>
-      <div class="value" style="color:var(--green)">94</div>
-    </div>
-
-    <div class="card">
-      <h3>En Observación</h3>
-      <div class="value" style="color:var(--yellow)">21</div>
-    </div>
-
-    <div class="card">
-      <h3>Críticos</h3>
-      <div class="value" style="color:var(--red)">13</div>
-    </div>
-  </section>
-
-  <!-- SEMÁFORO AVANZADO -->
-  <section class="card" style="margin-bottom:30px;">
-    <h3>Semáforo Documental General</h3>
-    <div class="semaforo">
-      <div class="light green">OK</div>
-      <div class="light yellow">Revisar</div>
-      <div class="light red">Bloqueado</div>
-    </div>
-  </section>
-
-  <!-- TABLA DETALLADA -->
-  <section>
-    <table>
-      <thead>
-        <tr>
-          <th>AWB</th>
-          <th>Documento</th>
-          <th>Estado</th>
-          <th>Observación</th>
-          <th>Norma</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>134-98765432</td>
-          <td>Air Waybill</td>
-          <td><span class="status ok">Aprobado</span></td>
-          <td>Sin inconsistencias</td>
-          <td>IATA TACT</td>
-        </tr>
-        <tr>
-          <td>134-12345678</td>
-          <td>Factura Comercial</td>
-          <td><span class="status warn">Observación</span></td>
-          <td>Valor declarado incompleto</td>
-          <td>Aduana</td>
-        </tr>
-        <tr>
-          <td>134-45678901</td>
-          <td>Lista de Empaque</td>
-          <td><span class="status fail">Crítico</span></td>
-          <td>Falta firma del exportador</td>
-          <td>IATA / ICAO</td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
-
-  <footer>
-    SmartCargo-AIPA · Asesor documental aeronáutico y de carga
-  </footer>
-
+    <button id="translateBtn">Inglés / Español</button>
 </div>
 
+<form id="cargoForm">
+    <input type="text" name="mawb" placeholder="MAWB" required>
+    <input type="text" name="hawb" placeholder="HAWB" required>
+    <input type="text" name="origin" placeholder="Origen" required>
+    <input type="text" name="destination" placeholder="Destino" required>
+    <input type="text" name="cargo_type" placeholder="Tipo de Carga" required>
+    <input type="date" name="flight_date" required>
+    <button type="submit" id="validateBtn">Validar Carga</button>
+</form>
+
+<div class="dashboard">
+    <div class="dash-card">
+        <h3 id="label-total">Total AWB</h3>
+        <p id="total-awb">0</p>
+    </div>
+    <div class="dash-card">
+        <h3 id="label-ok">Documentos Correctos</h3>
+        <p id="ok-count">0</p>
+    </div>
+    <div class="dash-card">
+        <h3 id="label-warn">En Observación</h3>
+        <p id="warn-count">0</p>
+    </div>
+    <div class="dash-card">
+        <h3 id="label-crit">Críticos</h3>
+        <p id="crit-count">0</p>
+    </div>
+</div>
+
+<table id="cargoTable">
+    <thead>
+        <tr>
+            <th id="th-awb">AWB</th>
+            <th id="th-doc">Documento</th>
+            <th id="th-status">Estado</th>
+            <th id="th-observation">Observación</th>
+            <th id="th-norm">Norma</th>
+        </tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+
+<script src="/static/scripts.js"></script>
 </body>
 </html>
