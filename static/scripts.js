@@ -10,7 +10,7 @@ let isSpanish = false;
 let currentRole = roleSelect.value || "owner";
 
 // -------------------
-// Validate Cargo con semáforo operativo
+// Validar cargo
 // -------------------
 cargoForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -21,12 +21,30 @@ cargoForm.addEventListener("submit", async (e) => {
         method: "POST",
         body: new URLSearchParams(data)
     });
-
     const result = await res.json();
-    alert(`${result.message}\nMotivos:\n- ${result.reasons.join("\n- ")}\n\n${result.legal_note}`);
-
-    loadCargos();
+    alert(result.status + "\n" + result.reasons.join("\n"));
+    displayCargo(result);
 });
+
+// -------------------
+// Mostrar cargo validado en tabla
+// -------------------
+function displayCargo(result) {
+    cargoTableBody.innerHTML = "";
+
+    const row = document.createElement("tr");
+    row.innerHTML = `
+        <td>${result.cargo_id}</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>${result.status}</td>
+        <td>-</td>
+        <td>${new Date().toLocaleDateString()}</td>
+        <td>${result.reasons.join(", ")}</td>
+    `;
+    cargoTableBody.appendChild(row);
+}
 
 // -------------------
 // Cargar cargos y documentos
@@ -36,25 +54,27 @@ async function loadCargos() {
     const res = await fetch("/cargo/list_all");
     const cargos = await res.json();
 
-    cargos.forEach(async cargo => {
-        const docRes = await fetch(`/cargo/list/${cargo.id}`);
-        const data = await docRes.json();
-        const docs = data.documents || [];
-
-        docs.forEach(doc => {
+    cargos.forEach(cargo => {
+        cargo.documents.forEach(doc => {
             const row = document.createElement("tr");
-            let displayStatus = doc.status || "Pendiente";
+            let displayStatus = doc.status;
             let displayDocs = doc.doc_type;
 
-            if (currentRole === "owner") displayDocs = "—";
-            if (currentRole === "driver") displayStatus = displayStatus === "pending" ? "🔴 NO" : "🟢 YES";
+            if (currentRole === "owner") {
+                displayDocs = "—";
+                displayStatus = doc.status;
+            } else if (currentRole === "forwarder") {
+                displayStatus = doc.status;
+            } else if (currentRole === "driver") {
+                displayStatus = doc.status === "pending" ? "🔴 NO" : "🟢 YES";
+            }
 
             row.innerHTML = `
                 <td>${cargo.id}</td>
                 <td>${displayDocs}</td>
                 <td>${doc.filename || ""}</td>
                 <td>${doc.version || ""}</td>
-                <td>${displayStatus}</td>
+                <td>${displayStatus || ""}</td>
                 <td>${doc.responsible || ""}</td>
                 <td>${doc.upload_date || ""}</td>
                 <td>${doc.audit_notes || ""}</td>
@@ -67,7 +87,7 @@ async function loadCargos() {
 // -------------------
 // Cambiar rol
 // -------------------
-roleSelect.addEventListener("change", e => {
+roleSelect.addEventListener("change", (e) => {
     currentRole = e.target.value;
     loadCargos();
 });
@@ -77,18 +97,24 @@ roleSelect.addEventListener("change", e => {
 // -------------------
 translateBtn.addEventListener("click", () => {
     isSpanish = !isSpanish;
+
     document.querySelector("h1").textContent = "SmartCargo AIPA";
     document.querySelector("h2").textContent = isSpanish ? "Validación de Carga y Documentos" : "Cargo & Document Validation";
+
     cargoForm.querySelector("button").textContent = isSpanish ? "Validar Carga" : "Validate Cargo";
     printBtn.textContent = isSpanish ? "Imprimir / PDF" : "Print / PDF";
     whatsappBtn.textContent = isSpanish ? "Enviar WhatsApp" : "Send WhatsApp";
 
     const headers = document.querySelectorAll("#cargoTable thead th");
-    const titles = isSpanish ?
-        ["ID Cargo","Tipo Doc","Archivo","Versión","Estado","Responsable","Fecha Subida","Notas Auditoría"] :
-        ["Cargo ID","Doc Type","Filename","Version","Status","Responsible","Upload Date","Audit Notes"];
-    headers.forEach((th,i)=> th.textContent = titles[i]);
+    if (isSpanish) {
+        const titles = ["ID Cargo","Tipo Doc","Archivo","Versión","Estado","Responsable","Fecha Subida","Notas Auditoría"];
+        headers.forEach((th,i) => th.textContent = titles[i]);
+    } else {
+        const titles = ["Cargo ID","Doc Type","Filename","Version","Status","Responsible","Upload Date","Audit Notes"];
+        headers.forEach((th,i) => th.textContent = titles[i]);
+    }
 
+    // Cambiar roles al idioma correspondiente
     roleSelect.options[0].text = isSpanish ? "Dueño" : "Owner";
     roleSelect.options[1].text = isSpanish ? "Forwarder / Agente" : "Forwarder / Agent";
     roleSelect.options[2].text = isSpanish ? "Camionero" : "Driver";
@@ -101,14 +127,15 @@ translateBtn.addEventListener("click", () => {
 printBtn.addEventListener("click", () => window.print());
 
 // -------------------
-// WhatsApp
+// Enviar por WhatsApp
 // -------------------
 whatsappBtn.addEventListener("click", () => {
     let text = isSpanish ? "Carga y Documentos:\n" : "Cargo & Documents:\n";
     document.querySelectorAll("#cargoTable tbody tr").forEach(row => {
         text += Array.from(row.children).map(td => td.textContent).join(" | ") + "\n";
     });
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
 });
 
 // -------------------
