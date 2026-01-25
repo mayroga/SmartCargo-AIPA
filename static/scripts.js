@@ -1,24 +1,21 @@
-let lang = "en";
+const form = document.getElementById("cargoForm");
+const resultBox = document.getElementById("result");
 
-document.getElementById("cargoForm").addEventListener("submit", async e => {
+form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const form = new FormData(e.target);
-    const res = await fetch("/cargo/validate", { method: "POST", body: form });
+
+    const formData = new FormData(form);
+
+    const res = await fetch("/cargo/validate", {
+        method: "POST",
+        body: formData
+    });
+
     const data = await res.json();
-    document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+
+    resultBox.textContent =
+        data.semaphore + "\n\n" +
+        "Motivos:\n" + (data.motivos.join("\n") || "Ninguno") + "\n\n" +
+        "Asesor SmartCargo-AIPA:\n" + data.advisor + "\n\n" +
+        data.legal;
 });
-
-function resetForm() {
-    document.getElementById("cargoForm").reset();
-    document.getElementById("result").textContent = "";
-}
-
-function translate() {
-    lang = lang === "en" ? "es" : "en";
-    alert(lang === "es" ? "Idioma cambiado a Español" : "Language switched to English");
-}
-
-function sendWhatsApp() {
-    const text = encodeURIComponent(document.getElementById("result").textContent);
-    window.open(`https://wa.me/?text=${text}`, "_blank");
-}
