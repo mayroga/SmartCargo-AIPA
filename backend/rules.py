@@ -1,74 +1,105 @@
-# backend/rules.py
-from datetime import datetime, timedelta
+# rules.py – Validación de Carga SmartCargo-AIPA
 
-# Documentos obligatorios SmartCargo-AIPA
-MANDATORY_DOCS = [
+from datetime import datetime
+
+REQUIRED_DOCS = [
     "Commercial Invoice",
     "Packing List",
     "SLI",
     "MSDS",
     "Certificado de origen",
-    "Certificado de fumigación",
-    "Licencia transporte materiales peligrosos",
-    "Bill of Lading / MAWB / HAWB",
-    "Documentos de seguros",
-    "Documentos de aduanas",
-    "Harmonized codes y descripción de mercancía"
+    "Certificado fitosanitario",
+    "Licencia materiales peligrosos",
+    "Bill of Lading / Air Waybill",
+    "Seguro / Aduana",
+    "Harmonized Code"
 ]
 
-def validate_cargo_documents(cargo):
+def validate_cargo(cargo: dict) -> dict:
     """
-    Validación avanzada de cargo para Avianca/IATA/CBP/TSA/DOT.
-    Devuelve:
-    - semaforo: 🟢, 🟡, 🔴
-    - motivos: lista de alertas y documentos faltantes
-    - detalles: diccionario completo de revisión de documentos
+    Valida un cargo según documentos obligatorios, peso, volumen y consistencia.
+    Retorna:
+    {
+        "cargo_id": str,
+        "weight": float,
+        "volume": float,
+        "semaphore": "OK"|"REVISAR"|"BLOQUEADO",
+        "documents": [{"doc_type":..., "status":..., "observation":..., "norm":...}],
+        "legal": str,
+        "motivos": list
+    }
     """
+    cargo_id = cargo.get("mawb", "N/A")
+    weight = float(cargo.get("weight", 0))
+    volume = float(cargo.get("volume", 0))
+    flight_date = cargo.get("flight_date", "")
+    doc_list = cargo.get("documents", [])
+
+    docs_status = []
     motivos = []
-    detalles = {}
-    semaforo = "🟢 LISTO"
+    semaforo = "OK"
+    legal_alerts = []
 
-    # Diccionario de documentos existentes
-    existing_docs = {doc.doc_type: doc for doc in cargo.documents}
-
-    # Validación de documentos obligatorios
-    for doc_name in MANDATORY_DOCS:
-        if doc_name not in existing_docs:
-            motivos.append(f"Falta {doc_name}")
-            detalles[doc_name] = "❌ Faltante"
+    # Revisar documentos obligatorios
+    for req in REQUIRED_DOCS:
+        doc = next((d for d in doc_list if d.get("doc_type") == req), None)
+        if not doc:
+            docs_status.append({
+                "doc_type": req,
+                "status": "Crítico",
+                "observation": "Documento faltante",
+                "norm": "IATA / Avianca"
+            })
+            motivos.append(f"Falta {req}")
+            semaforo = "BLOQUEADO"
+            legal_alerts.append(f"{req} requerido por normas IATA")
         else:
-            doc = existing_docs[doc_name]
-            # Revisar vencimiento si aplica
-            if hasattr(doc, "expiration_date") and doc.expiration_date:
-                if doc.expiration_date < datetime.today():
-                    motivos.append(f"{doc_name} vencido")
-                    detalles[doc_name] = "⚠️ Vencido"
-                else:
-                    detalles[doc_name] = "✅ Vigente"
-            else:
-                detalles[doc_name] = "✅ Cargado"
+            # Validación simple de contenido y expiración
+            status = "Aprobado"
+            observation = doc.get("observation") or ""
+            norm = doc.get("norm") or "IATA"
 
-    # Validación de peso y volumen
-    if cargo.weight > 1000:
-        motivos.append(f"Peso {cargo.weight} kg excede límite de Avianca")
-    if cargo.volume > 10:
-        motivos.append(f"Volumen {cargo.volume} m³ excede límite permitido")
+            if doc.get("expired", False):
+                status = "Crítico"
+                observation += " (Documento vencido)"
+                semaforo = "BLOQUEADO"
+                motivos.append(f"{req} vencido")
+                legal_alerts.append(f"{req} vencido")
 
-    # Consistencia entre documentos clave
-    ci = existing_docs.get("Commercial Invoice")
-    pl = existing_docs.get("Packing List")
-    if ci and pl:
-        if getattr(ci, "filename", "") != getattr(pl, "filename", ""):
-            motivos.append("Packing List no coincide con Invoice")
+            elif observation:
+                status = "Observación"
+                if semaforo != "BLOQUEADO":
+                    semaforo = "REVISAR"
+                motivos.append(f"{req} observación")
+                legal_alerts.append(f"{req}: {observation}")
 
-    # Tipo de mercancía y alertas legales
-    if getattr(cargo, "cargo_type", "").lower() in ["peligrosa", "dangerous"]:
-        motivos.append("Carga peligrosa requiere manejo especial")
+            docs_status.append({
+                "doc_type": req,
+                "status": status,
+                "observation": observation or "—",
+                "norm": norm
+            })
 
-    # Determinar semáforo
-    if motivos:
-        semaforo = "🔴 NO ACEPTABLE"
-    else:
-        semaforo = "🟢 LISTO"
+    # Validación de peso y volumen (ejemplo)
+    max_weight = 5000  # kg
+    max_volume = 50  # m³
+    if weight > max_weight:
+        semaforo = "BLOQUEADO"
+        motivos.append(f"Peso {weight} kg excede límite {max_weight} kg")
+        legal_alerts.append("Límite de peso excedido por Avianca")
 
-    return semaforo, motivos, detalles
+    if volume > max_volume:
+        if semaforo != "BLOQUEADO":
+            semaforo = "REVISAR"
+        motivos.append(f"Volumen {volume} m³ excede límite {max_volume} m³")
+        legal_alerts.append("Volumen excede límite")
+
+    return {
+        "cargo_id": cargo_id,
+        "weight": weight,
+        "volume": volume,
+        "semaphore": semaforo,
+        "documents": docs_status,
+        "legal": "; ".join(legal_alerts) if legal_alerts else "Sin alertas",
+        "motivos": motivos
+    }
