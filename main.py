@@ -1,26 +1,20 @@
-from fastapi import FastAPI, Form, UploadFile, File, Depends, HTTPException
+from fastapi import FastAPI, Form, UploadFile, File
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from backend.rules import validate_cargo
-from backend.utils import cargo_dashboard, generate_advisor_message
-from backend.roles import get_role_permissions
 from backend.storage import save_document, list_documents, delete_document
-from models import SessionLocal
-from typing import List
+from backend.utils import cargo_dashboard, generate_advisor_message
+from backend.database import SessionLocal
 
-USERNAME = "admin"
-PASSWORD = "securepassword"
+app = FastAPI(title="SmartCargo-AIPA · Asesor documental preventivo")
 
-app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC")
-
+# Monta la carpeta 'static' (JS/CSS)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-def auth(username: str = Form(...), password: str = Form(...)):
-    if username != USERNAME or password != PASSWORD:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    return username
-
+# -----------------------------
+# Ruta principal -> frontend
+# -----------------------------
 @app.get("/")
 async def serve_index():
     index_path = Path("frontend/index.html")
@@ -28,9 +22,11 @@ async def serve_index():
         return FileResponse(index_path)
     return JSONResponse({"error": "index.html not found"}, status_code=404)
 
+# -----------------------------
+# Endpoints de cargo
+# -----------------------------
 @app.post("/cargo/validate")
 async def cargo_validate(
-    username: str = Depends(auth),
     mawb: str = Form(...),
     hawb: str = Form(...),
     origin: str = Form(...),
@@ -39,10 +35,11 @@ async def cargo_validate(
     flight_date: str = Form(...),
     weight: float = Form(...),
     volume: float = Form(...),
-    length: float = Form(...),
-    width: float = Form(...),
-    height: float = Form(...),
+    role: str = Form(...),  # Shipper, Forwarder, Driver, Warehouse
+    file1: UploadFile = File(None),
+    file2: UploadFile = File(None)
 ):
+    db = SessionLocal()
     cargo_data = {
         "mawb": mawb,
         "hawb": hawb,
@@ -52,51 +49,49 @@ async def cargo_validate(
         "flight_date": flight_date,
         "weight": weight,
         "volume": volume,
-        "length": length,
-        "width": width,
-        "height": height
+        "role": role
     }
-    result = validate_cargo(cargo_data)
-    advisor_msg = generate_advisor_message(result)
-    result["advisor"] = advisor_msg
-    result["legal"] = "SMARTCARGO-AIPA by May Roga LLC · Sistema de validación documental preventiva. No sustituye decisiones del operador aéreo."
-    return JSONResponse(result)
 
-@app.get("/cargo/list_all")
-async def list_cargos(role: str = "owner", username: str = Depends(auth)):
-    db = SessionLocal()
-    cargos = cargo_dashboard(db, role)
-    db.close()
-    return JSONResponse(cargos)
+    # Guardar documentos si se suben
+    uploaded_files = []
+    if file1:
+        doc1 = save_document(db, file1, mawb, "Documento 1", role)
+        uploaded_files.append(doc1.filename)
+    if file2:
+        doc2 = save_document(db, file2, mawb, "Documento 2", role)
+        uploaded_files.append(doc2.filename)
 
-@app.post("/cargo/upload")
-async def upload_document(
-    username: str = Depends(auth),
-    cargo_id: int = Form(...),
-    doc_type: str = Form(...),
-    files: List[UploadFile] = File(...),
-):
-    db = SessionLocal()
-    uploaded_docs = []
-    for f in files:
-        doc = save_document(db, f, cargo_id, doc_type, username)
-        uploaded_docs.append({
-            "filename": doc.filename,
-            "doc_type": doc.doc_type,
-            "status": doc.status
-        })
-    db.close()
-    return JSONResponse({"uploaded": uploaded_docs})
+    # Validación de cargo y documentos
+    try:
+        cargo_status = validate_cargo(cargo_data)
+        dashboard = cargo_dashboard(cargo_data)
+        advisor = generate_advisor_message(cargo_data, cargo_status)
 
-@app.post("/cargo/delete")
-async def delete_doc(
-    username: str = Depends(auth),
-    cargo_id: int = Form(...),
-    filename: str = Form(...),
-):
+        response = {
+            "cargo_status": cargo_status,
+            "dashboard": dashboard,
+            "advisor_message": advisor,
+            "uploaded_files": uploaded_files,
+            "system": "SMARTCARGO-AIPA by May Roga LLC · Sistema de validación documental preventiva."
+        }
+        return JSONResponse(response)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# -----------------------------
+# Listar documentos por cargo
+# -----------------------------
+@app.get("/cargo/{mawb}/documents")
+async def cargo_documents(mawb: str):
     db = SessionLocal()
-    result = delete_document(db, cargo_id, filename, username)
-    db.close()
-    if result:
-        return JSONResponse({"status": "deleted"})
-    return JSONResponse({"status": "not_found"}, status_code=404)
+    docs = list_documents(mawb)
+    return JSONResponse(docs)
+
+# -----------------------------
+# Borrar documento
+# -----------------------------
+@app.delete("/cargo/{mawb}/document/{filename}")
+async def delete_cargo_document(mawb: str, filename: str, deleted_by: str = Form(...)):
+    db = SessionLocal()
+    result = delete_document(db, mawb, filename, deleted_by)
+    return JSONResponse({"deleted": result})
