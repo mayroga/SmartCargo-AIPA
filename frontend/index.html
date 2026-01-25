@@ -27,22 +27,19 @@
             </label>
             <label>Flight Date:<input type="date" name="flight_date" required></label>
             <label>Weight (kg/lbs):<input type="number" name="weight_kg" required></label>
-            <label>Volume (m³):<input type="number" name="volume" required></label>
+            <label>Volume (m³):<input type="number" name="volume" readonly></label>
             <label>Length (cm/in):<input type="number" name="length_cm" required></label>
             <label>Width (cm/in):<input type="number" name="width_cm" required></label>
             <label>Height (cm/in):<input type="number" name="height_cm" required></label>
-            
-            <label>Upload Documents (max 2 per type):
-                <input type="file" name="documents" multiple accept="image/*">
-            </label>
-
+            <label>Upload Documents (max 2 per type):<input type="file" name="documents" multiple accept="image/*"></label>
             <label>Role:
                 <select name="role" required>
                     <option value="Shipper">Shipper</option>
                     <option value="Forwarder">Forwarder</option>
-                    <option value="Driver">Driver</option>
+                    <option value="Chofer">Driver</option>
                     <option value="Warehouse">Warehouse</option>
-                    <option value="Operator">Operator</option>
+                    <option value="Operador">Operator</option>
+                    <option value="Destinatario">Destinatario</option>
                 </select>
             </label>
 
