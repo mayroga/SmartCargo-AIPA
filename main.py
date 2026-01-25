@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
-from rules import validate_cargo
+from backend.rules import validate_cargo
 import os
 
 app = FastAPI(title="Asesor SmartCargo-AIPA")
