@@ -1,9 +1,11 @@
-# main.py – SmartCargo-AIPA Backend
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from rules import validate_cargo
+import os
 
 app = FastAPI(title="Asesor SmartCargo-AIPA")
 
@@ -15,6 +17,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Montar carpeta /static para JS, CSS
+if not os.path.exists("static"):
+    os.makedirs("static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ==========================
 # MODELOS DE DATOS
@@ -45,29 +52,28 @@ CARGOS_DB: List[Cargo] = []
 # ENDPOINTS
 # ==========================
 
+# Servir index.html
+@app.get("/")
+def root():
+    index_path = os.path.join("static", "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"detail": "index.html not found"}
+
+# Lista todos los cargos validados
 @app.get("/cargo/list_all")
 def list_all_cargos():
-    """
-    Retorna todos los cargos con semáforo y estado de documentos
-    """
     result = []
     for c in CARGOS_DB:
         validated = validate_cargo(c.dict())
         result.append(validated)
     return result
 
+# Validar y agregar un cargo nuevo
 @app.post("/cargo/validate")
 def validate_new_cargo(cargo: Cargo):
-    """
-    Valida un nuevo cargo y lo agrega a la DB simulada
-    """
     if not cargo.mawb or not cargo.hawb:
         raise HTTPException(status_code=422, detail="MAWB o HAWB faltante")
-
     validated = validate_cargo(cargo.dict())
     CARGOS_DB.append(cargo)
     return validated
-
-@app.get("/")
-def root():
-    return {"message": "Asesor SmartCargo-AIPA Backend operativo"}
