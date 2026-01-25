@@ -3,10 +3,13 @@ from fastapi import FastAPI, Form, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from typing import List, Optional
-from datetime import datetime, date
+from typing import List
+from datetime import datetime
+import os
 
+# Importar módulos locales
 from storage import save_document, list_documents, get_document_path, delete_document
+from backend.rules import validate_cargo_documents as validate_cargo
 from models import Cargo, Document, Base, engine, SessionLocal
 
 # -------------------
@@ -18,18 +21,27 @@ Base.metadata.create_all(bind=engine)
 # FastAPI App
 # -------------------
 app = FastAPI(title="SmartCargo AIPA")
+
+# -------------------
+# Montar archivos estáticos (scripts.js, styles.css)
+# -------------------
+if not os.path.exists("static"):
+    os.makedirs("static")  # Crea la carpeta static si no existe
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # -------------------
-# Página principal
+# Endpoint principal (sirve el frontend)
 # -------------------
 @app.get("/", response_class=HTMLResponse)
 async def home():
-    with open("frontend/index.html", "r", encoding="utf-8") as f:
+    index_path = os.path.join("frontend", "index.html")
+    if not os.path.exists(index_path):
+        return HTMLResponse("<h1>Index.html no encontrado</h1>", status_code=404)
+    with open(index_path, "r", encoding="utf-8") as f:
         return f.read()
 
 # -------------------
-# Crear Cargo
+# Crear cargo
 # -------------------
 @app.post("/cargo/create")
 async def create_cargo(
@@ -77,6 +89,8 @@ async def upload_document(
             "filename": doc.filename,
             "version": doc.version
         }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
     finally:
         db.close()
 
@@ -89,7 +103,7 @@ async def list_cargo_documents(cargo_id: int):
     return {"cargo_id": cargo_id, "documents": docs}
 
 # -------------------
-# Listar todos los cargos
+# Listar todos los cargos con documentos
 # -------------------
 @app.get("/cargo/list_all", response_class=JSONResponse)
 async def list_all_cargos():
@@ -109,6 +123,7 @@ async def list_all_cargos():
                 "flight_date": cargo.flight_date.strftime("%Y-%m-%d"),
                 "documents": []
             }
+            # Agregar documentos asociados
             for doc in cargo.documents:
                 cargo_dict["documents"].append({
                     "doc_type": doc.doc_type,
@@ -125,46 +140,60 @@ async def list_all_cargos():
         db.close()
 
 # -------------------
+# Obtener ruta de documento
+# -------------------
+@app.get("/cargo/path/{cargo_id}/{filename}")
+async def document_path(cargo_id: int, filename: str):
+    try:
+        path = get_document_path(cargo_id, filename)
+        return {"cargo_id": cargo_id, "filename": filename, "path": str(path)}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+# -------------------
+# Eliminar documento
+# -------------------
+@app.delete("/cargo/delete/{cargo_id}/{filename}")
+async def remove_document(cargo_id: int, filename: str, deleted_by: str = Form(...)):
+    db: Session = SessionLocal()
+    try:
+        success = delete_document(db=db, cargo_id=cargo_id, filename=filename, deleted_by=deleted_by)
+        if not success:
+            raise HTTPException(status_code=404, detail="Documento no encontrado")
+        return {"cargo_id": cargo_id, "filename": filename, "status": "deleted"}
+    finally:
+        db.close()
+
+# -------------------
 # Validar cargo según checklist Avianca
 # -------------------
 @app.post("/cargo/validate")
-async def validate_cargo_documents(cargo_id: int = Form(...)):
+async def validate_cargo_endpoint(
+    cargo_id: int = Form(...),
+    user: str = Form(...)
+):
+    """
+    Evalúa todos los documentos de un cargo según reglas Avianca/IATA/CBP/TSA/DOT
+    Devuelve semáforo operativo 🔴/🟡/🟢 y motivos claros
+    """
     db: Session = SessionLocal()
     try:
         cargo = db.query(Cargo).filter(Cargo.id == cargo_id).first()
         if not cargo:
             raise HTTPException(status_code=404, detail="Cargo no encontrado")
 
-        documents = {doc.doc_type: doc for doc in cargo.documents}
-        reasons = []
+        # Ejecutar validación con tu checklist
+        semaforo, motivos = validate_cargo(cargo)
 
-        # Reglas Avianca
-        required_docs = ["Commercial Invoice", "Packing List", "SLI", "MSDS"]
-        for doc_name in required_docs:
-            if doc_name not in documents:
-                reasons.append(f"Falta {doc_name}")
+        # Mensaje legal
+        aviso_legal = ("SmartCargo-AIPA es asesor, no autoridad. "
+                       "La aceptación final depende de Avianca, IATA, CBP, TSA y DOT.")
 
-        # Packing List vs Invoice
-        if "Commercial Invoice" in documents and "Packing List" in documents:
-            inv = documents["Commercial Invoice"]
-            pack = documents["Packing List"]
-            if inv.filename != pack.filename:
-                reasons.append("Packing List no coincide con Invoice")
-
-        # MSDS vigente
-        if "MSDS" in documents and documents["MSDS"].expiration_date:
-            if documents["MSDS"].expiration_date < datetime.today():
-                reasons.append("MSDS vencido")
-
-        # Determinar semáforo
-        if reasons:
-            status = "🔴 NO ACEPTABLE"
-        else:
-            status = "🟢 LISTO PARA COUNTER"
-
-        # Nota legal
-        reasons.append("SmartCargo-AIPA es asesor, no autoridad. La aceptación final depende de Avianca, IATA, CBP, TSA y DOT.")
-
-        return {"cargo_id": cargo.id, "status": status, "reasons": reasons}
+        return {
+            "cargo_id": cargo_id,
+            "status": semaforo,
+            "motivos": motivos,
+            "legal": aviso_legal
+        }
     finally:
         db.close()
