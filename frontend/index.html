@@ -1,65 +1,210 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SmartCargo AIPA</title>
-<link rel="stylesheet" href="/static/styles.css">
+    <meta charset="UTF-8">
+    <title>SmartCargo AIPA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Estilos -->
+    <link rel="stylesheet" href="/static/styles.css">
+
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background: #002b45;
+            color: white;
+            padding: 15px 25px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        header h2 {
+            margin: 5px 0 0;
+            font-size: 14px;
+            font-weight: normal;
+            opacity: 0.9;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .toolbar button, .toolbar select {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+            background: white;
+        }
+
+        .toolbar button.primary {
+            background: #0066a1;
+            color: white;
+            border: none;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            margin: 0 0 10px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .card .value {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .green { color: #1e8e3e; }
+        .red { color: #c5221f; }
+        .yellow { color: #e37400; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        thead {
+            background: #e9ecef;
+        }
+
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            font-size: 13px;
+            vertical-align: top;
+        }
+
+        th {
+            text-align: left;
+        }
+
+        tbody tr:hover {
+            background: #f1f7fb;
+        }
+
+        footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .legal {
+            font-style: italic;
+            color: #888;
+        }
+    </style>
 </head>
+
 <body>
+
 <header>
     <h1>SmartCargo AIPA</h1>
-    <button id="translateBtn">Español / English</button>
+    <h2>Cargo & Document Validation – Advisory System</h2>
 </header>
 
-<section>
-    <h2>Cargo & Document Validation</h2>
+<div class="container">
 
-    <!-- Selector de rol -->
-    <label for="roleSelect">Role:</label>
-    <select id="roleSelect">
-        <option value="owner">Owner</option>
-        <option value="forwarder">Forwarder / Agent</option>
-        <option value="driver">Driver</option>
-        <option value="warehouse">Warehouse / Admin</option>
-    </select>
-
-    <!-- Formulario de validación de carga -->
+    <!-- FORM VALIDACIÓN -->
     <form id="cargoForm">
-        <input type="text" name="mawb" placeholder="MAWB" required>
-        <input type="text" name="hawb" placeholder="HAWB">
-        <input type="text" name="origin" placeholder="Origin" required>
-        <input type="text" name="destination" placeholder="Destination" required>
-        <input type="text" name="cargo_type" placeholder="Cargo Type" required>
-        <input type="date" name="flight_date" required>
-        <button type="submit">Validate Cargo</button>
+        <div class="toolbar">
+            <input type="text" name="cargo_id" placeholder="Cargo ID" required>
+            <button class="primary" type="submit">Validate Cargo</button>
+
+            <select id="roleSelect">
+                <option value="owner">Owner</option>
+                <option value="forwarder">Forwarder / Agent</option>
+                <option value="driver">Driver</option>
+                <option value="warehouse">Warehouse / Admin</option>
+            </select>
+
+            <button type="button" id="translateBtn">ES / EN</button>
+            <button type="button" id="printBtn">Print / PDF</button>
+            <button type="button" id="whatsappBtn">Send WhatsApp</button>
+        </div>
     </form>
 
-    <!-- Tabla dinámica de cargos y documentos -->
+    <!-- DASHBOARD -->
+    <div class="dashboard">
+        <div class="card">
+            <h3>Operational Status</h3>
+            <div class="value green">AUTO</div>
+        </div>
+
+        <div class="card">
+            <h3>Total Weight</h3>
+            <div class="value">— kg</div>
+        </div>
+
+        <div class="card">
+            <h3>Total Volume</h3>
+            <div class="value">— m³</div>
+        </div>
+
+        <div class="card">
+            <h3>Critical Alerts</h3>
+            <div class="value red">0</div>
+        </div>
+    </div>
+
+    <!-- TABLA PRINCIPAL -->
     <table id="cargoTable">
         <thead>
             <tr>
                 <th>Cargo ID</th>
-                <th>Doc Type</th>
-                <th>Filename</th>
-                <th>Version</th>
-                <th>Status</th>
-                <th>Responsible</th>
-                <th>Upload Date</th>
-                <th>Audit Notes</th>
+                <th>Weight</th>
+                <th>Volume</th>
+                <th>Semaphore</th>
+                <th>Documents</th>
+                <th>Document Details</th>
+                <th>Date</th>
+                <th>Alerts / Legal</th>
             </tr>
         </thead>
         <tbody>
+            <!-- scripts.js inserta aquí -->
         </tbody>
     </table>
 
-    <!-- Botones de acción -->
-    <div class="buttons">
-        <button id="printBtn">Print / PDF</button>
-        <button id="whatsappBtn">Send WhatsApp</button>
-    </div>
-</section>
+    <footer class="legal">
+        SmartCargo-AIPA is an advisory system only. Final cargo acceptance is subject to
+        Avianca Airlines, IATA, CBP, TSA and DOT regulations.
+    </footer>
+
+</div>
 
 <script src="/static/scripts.js"></script>
+
 </body>
 </html>
