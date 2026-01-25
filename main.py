@@ -1,54 +1,75 @@
-# main.py
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Form
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from backend.rules import validate_cargo  # tu función de validación en backend/rules.py
-import os
+from pathlib import Path
+from backend.rules import validate_cargo  # Importa tu módulo de backend
 
-app = FastAPI(title="Asesor SmartCargo-AIPA")
+app = FastAPI(title="SmartCargo-AIPA · Asesor documental")
 
-# Montar archivos estáticos desde la carpeta 'static' en la raíz
-if not os.path.exists("static"):
-    raise RuntimeError("No se encontró la carpeta 'static' en la raíz del proyecto")
+# -------------------
+# Archivos estáticos y frontend
+# -------------------
+# Monta la carpeta 'static' desde la raíz para CSS, JS, imágenes, etc.
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Templates apuntando a la carpeta 'frontend'
-if not os.path.exists("frontend/index.html"):
-    raise RuntimeError("No se encontró 'index.html' en la carpeta 'frontend'")
-templates = Jinja2Templates(directory="frontend")
+# Ruta principal que sirve index.html
+@app.get("/")
+async def serve_index():
+    index_path = Path("static/index.html")
+    if index_path.exists():
+        return FileResponse(index_path)
+    return JSONResponse({"error": "index.html not found"}, status_code=404)
 
-# Página principal
-@app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-# Endpoint para listar todos los documentos (demo)
-@app.get("/cargo/list_all")
-async def list_all_cargo():
-    # Ejemplo de datos
-    return {
-        "total": 128,
-        "correct": 94,
-        "warning": 21,
-        "critical": 13,
-        "documents": [
-            {"AWB": "134-98765432", "Documento": "Air Waybill", "Estado": "Aprobado", "Observación": "Sin inconsistencias", "Norma": "IATA TACT"},
-            {"AWB": "134-12345678", "Documento": "Factura Comercial", "Estado": "Observación", "Observación": "Valor declarado incompleto", "Norma": "Aduana"},
-            {"AWB": "134-45678901", "Documento": "Lista de Empaque", "Estado": "Crítico", "Observación": "Falta firma del exportador", "Norma": "IATA / ICAO"},
-        ]
-    }
-
-# Endpoint para validar documentos usando rules.py
+# -------------------
+# Endpoints de cargo
+# -------------------
 @app.post("/cargo/validate")
-async def validate_cargo_endpoint(data: dict):
+async def cargo_validate(
+    mawb: str = Form(...),
+    hawb: str = Form(...),
+    origin: str = Form(...),
+    destination: str = Form(...),
+    cargo_type: str = Form(...),
+    flight_date: str = Form(...),
+    weight: float = Form(...),
+    volume: float = Form(...)
+):
+    """
+    Valida un envío de carga usando la función validate_cargo de backend.rules
+    """
+    cargo_data = {
+        "mawb": mawb,
+        "hawb": hawb,
+        "origin": origin,
+        "destination": destination,
+        "cargo_type": cargo_type,
+        "flight_date": flight_date,
+        "weight": weight,
+        "volume": volume
+    }
     try:
-        result = validate_cargo(data)
-        return JSONResponse(content=result)
+        result = validate_cargo(cargo_data)
+        return JSONResponse(result)
     except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=400)
+        return JSONResponse({"error": str(e)}, status_code=500)
 
-# Health check simple
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+@app.get("/cargo/list_all")
+async def list_cargos():
+    """
+    Retorna la lista de todos los cargos. Reemplaza [] con tus datos reales.
+    """
+    cargos = [
+        # Ejemplo:
+        {
+            "mawb": "134-98765432",
+            "hawb": "HAWB-001",
+            "origin": "TAMPA CARGO S.A.S",
+            "destination": "SAN JOSE",
+            "cargo_type": "LTHION ION BATT",
+            "flight_date": "2026-01-24",
+            "weight": 120.5,
+            "volume": 1.2,
+            "status": "OK"
+        }
+    ]
+    return JSONResponse(cargos)
