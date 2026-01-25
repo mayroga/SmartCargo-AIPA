@@ -1,10 +1,17 @@
-ROLES = {
-    "owner": {"can_upload": True, "can_validate": False, "can_approve": False},
-    "forwarder": {"can_upload": True, "can_validate": True, "can_approve": False},
-    "driver": {"can_upload": False, "can_validate": True, "can_approve": False},
-    "warehouse": {"can_upload": False, "can_validate": True, "can_approve": True},
-    "admin": {"can_upload": True, "can_validate": True, "can_approve": True}
-}
+from fastapi import HTTPException
+from typing import List
 
-def get_role_permissions(role: str) -> dict:
-    return ROLES.get(role.lower(), {"can_upload": False, "can_validate": False, "can_approve": False})
+# Roles definidos
+class UserRole:
+    SHIPPER = "Shipper"
+    FORWARDER = "Forwarder"
+    CHOFER = "Chofer"
+    WAREHOUSE = "Warehouse"
+    OPERADOR = "Operador"
+    DESTINATARIO = "Destinatario"
+
+# Verificar rol de usuario
+def verify_user(role: str, allowed_roles: List[str]):
+    if role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Access denied for this role")
+    return True
