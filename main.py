@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from backend.database import SessionLocal
 from backend.roles import verify_user, UserRole
-from backend.rules import validate_cargo_rules
+from backend.rules import validate_cargo
 from backend.storage import save_document, list_documents
 from backend.utils import cargo_dashboard, generate_advisor_message
 
