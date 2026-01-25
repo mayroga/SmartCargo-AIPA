@@ -8,8 +8,6 @@ from datetime import datetime
 
 from storage import save_document, list_documents, get_document_path, delete_document, validate_documents
 from models import Cargo, Document, Base, engine, SessionLocal
-from rules import validate_cargo
-from roles import get_role_permissions
 
 # -------------------
 # Inicialización DB
@@ -29,6 +27,7 @@ app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 # -------------------
 @app.get("/", response_class=HTMLResponse)
 async def home():
+    """Carga la página principal"""
     with open("frontend/index.html", "r", encoding="utf-8") as f:
         return f.read()
 
@@ -83,12 +82,49 @@ async def upload_document(
         db.close()
 
 # -------------------
-# Listar documentos de un cargo
+# Listar documentos físicos de un cargo
 # -------------------
 @app.get("/cargo/list/{cargo_id}", response_class=JSONResponse)
 async def list_cargo_documents(cargo_id: int):
     docs = list_documents(cargo_id)
     return {"cargo_id": cargo_id, "documents": docs}
+
+# -------------------
+# Nuevo endpoint: Listar todos los cargos con documentos
+# -------------------
+@app.get("/cargo/list_all", response_class=JSONResponse)
+async def list_all_cargos():
+    db: Session = SessionLocal()
+    try:
+        cargos = db.query(Cargo).all()
+        result = []
+        for cargo in cargos:
+            cargo_dict = {
+                "id": cargo.id,
+                "mawb": cargo.mawb,
+                "hawb": cargo.hawb,
+                "airline": cargo.airline,
+                "origin": cargo.origin,
+                "destination": cargo.destination,
+                "cargo_type": cargo.cargo_type,
+                "flight_date": cargo.flight_date.strftime("%Y-%m-%d"),
+                "documents": []
+            }
+            # Agregar documentos asociados
+            for doc in cargo.documents:
+                cargo_dict["documents"].append({
+                    "doc_type": doc.doc_type,
+                    "filename": doc.filename,
+                    "version": doc.version,
+                    "status": doc.status,
+                    "responsible": doc.responsible,
+                    "upload_date": doc.upload_date.strftime("%Y-%m-%d %H:%M:%S"),
+                    "audit_notes": doc.audit_notes
+                })
+            result.append(cargo_dict)
+        return result
+    finally:
+        db.close()
 
 # -------------------
 # Obtener ruta de documento
@@ -122,16 +158,3 @@ async def remove_document(cargo_id: int, filename: str, deleted_by: str = Form(.
 async def validate_cargo_documents(cargo_id: int = Form(...), required_docs: List[str] = Form(...)):
     result = validate_documents(cargo_id, required_docs)
     return result
-
-# -------------------
-# Validación avanzada (motor Avianca-first)
-# -------------------
-@app.get("/cargo/status/{cargo_id}")
-async def cargo_operational_status(cargo_id: int, role: str = "owner"):
-    validation = validate_cargo(cargo_id)
-    perms = get_role_permissions(role)
-    response = {"cargo_id": cargo_id, "status": validation["status"], "missing_docs": validation["missing_docs"]}
-    if not perms["can_validate"]:
-        # Usuarios que no pueden validar solo ven status resumido
-        response.pop("missing_docs", None)
-    return response
