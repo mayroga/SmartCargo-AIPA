@@ -1,67 +1,56 @@
-# backend/rules.py
-from datetime import datetime
+# main.py
+from fastapi import FastAPI, Form, Depends, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
-LEGAL_DISCLAIMER = (
-    "SMARTCARGO-AIPA by May Roga LLC | "
-    "Preventive documentary validation system. "
-    "Does not replace airline operational decisions. "
-    "Generated evidence is for operational and educational purposes only."
-)
+from backend.rules import validate_cargo
+from backend.ai_helper import advisor_explanation
 
-REQUIRED_DOCS_BY_TYPE = {
-    "GEN": ["Commercial Invoice", "Packing List", "AWB"],
-    "DG": ["Commercial Invoice", "Packing List", "AWB", "MSDS", "DGD"],
-    "PER": ["Commercial Invoice", "Packing List", "AWB", "Health Certificate"],
-    "HUM": ["Commercial Invoice", "Packing List", "AWB", "Export Permit"],
-    "VAL": ["Commercial Invoice", "Packing List", "AWB", "Insurance"]
-}
+app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC")
 
-def validate_cargo(cargo: dict) -> dict:
-    """
-    REGLAS DURAS.
-    Sin IA.
-    Sin criterio humano.
-    """
-    docs = cargo.get("documents", [])
-    cargo_type = cargo.get("cargo_type")
-    weight = cargo.get("weight", 0)
-    volume = cargo.get("volume", 0)
+# -------------------------------
+# Seguridad mínima (solo tú)
+# -------------------------------
 
-    motivos = []
-    documents_result = []
-    semaphore = "🟢 LISTA PARA ACEPTACIÓN"
+def verify_user(username: str = Form(...), password: str = Form(...)):
+    if username != "mayroga" or password != "smartcargo":
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
-    required_docs = REQUIRED_DOCS_BY_TYPE.get(cargo_type, [])
+# -------------------------------
+# Static
+# -------------------------------
 
-    for req in required_docs:
-        found = next((d for d in docs if d["doc_type"] == req), None)
-        if not found:
-            documents_result.append({
-                "doc_type": req,
-                "status": "❌ NO ACEPTABLE",
-                "reason_code": "MissingDocument"
-            })
-            motivos.append(f"Missing {req}")
-            semaphore = "🔴 NO ACEPTABLE"
-        else:
-            documents_result.append({
-                "doc_type": req,
-                "status": "✔ OK",
-                "reason_code": None
-            })
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-    if weight > 5000:
-        semaphore = "🔴 NO ACEPTABLE"
-        motivos.append("Weight exceeds aircraft limitation")
+@app.get("/")
+async def index():
+    return FileResponse(Path("frontend/index.html"))
 
-    if volume > 50 and semaphore != "🔴 NO ACEPTABLE":
-        semaphore = "🟡 ACEPTABLE CON RIESGO"
-        motivos.append("Volume close to operational limit")
+# -------------------------------
+# Validación principal
+# -------------------------------
 
-    return {
-        "mawb": cargo.get("mawb"),
-        "semaphore": semaphore,
-        "documents": documents_result,
-        "motivos": motivos,
-        "legal": LEGAL_DISCLAIMER
+@app.post("/cargo/validate")
+async def validate(
+    username: str = Form(...),
+    password: str = Form(...),
+    mawb: str = Form(...),
+    cargo_type: str = Form(...),
+    weight: float = Form(...),
+    volume: float = Form(...)
+):
+    verify_user(username, password)
+
+    cargo = {
+        "cargo_type": cargo_type,
+        "weight": weight,
+        "volume": volume,
+        "documents": []  # MVP educativo
     }
+
+    result = validate_cargo(cargo)
+    explanation = advisor_explanation(result["semaphore"], result["motivos"])
+
+    result["advisor"] = explanation
+    return JSONResponse(result)
