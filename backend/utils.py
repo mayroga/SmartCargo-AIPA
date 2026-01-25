@@ -1,4 +1,4 @@
-from backend.rules import validate_cargo_rules
+from backend.rules import validate_cargo
 
 # Genera dashboard operativo
 def cargo_dashboard(cargo_data, validation_status):
