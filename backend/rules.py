@@ -1,107 +1,87 @@
-# backend/rules.py
-# SMARTCARGO-AIPA by May Roga LLC
-# Motor de validación documental PREVENTIVO (NO IA)
-
 from datetime import datetime
 
-# -------------------------------
-# Checklists Avianca-first
-# -------------------------------
+REQUIRED_DOCS = {
+    "GEN": [
+        "Commercial Invoice",
+        "Packing List",
+        "SLI",
+        "Bill of Lading / Air Waybill",
+        "Harmonized Code"
+    ],
+    "DG": [
+        "MSDS",
+        "DGD",
+        "Commercial Invoice",
+        "Packing List",
+        "SLI",
+        "Bill of Lading / Air Waybill"
+    ],
+    "PER": [
+        "Health Certificate",
+        "Commercial Invoice",
+        "Packing List",
+        "Bill of Lading / Air Waybill"
+    ]
+}
 
-BASE_REQUIRED_DOCS = [
-    "Commercial Invoice",
-    "Packing List",
-    "Air Waybill",
-]
-
-DG_REQUIRED_DOCS = BASE_REQUIRED_DOCS + [
-    "Shipper Declaration DGR",
-    "MSDS",
-]
-
-PER_REQUIRED_DOCS = BASE_REQUIRED_DOCS + [
-    "Health Certificate",
-    "Temperature Statement",
-]
-
-# -------------------------------
-# Validación principal
-# -------------------------------
+MAX_WEIGHT_KG = 5000
+MAX_VOLUME_M3 = 50
+MAX_DIM_CM = 300  # máximo largo/ancho/alto
 
 def validate_cargo(cargo: dict) -> dict:
-    """
-    Retorna SIEMPRE un resultado operativo.
-    NO guarda nada.
-    NO usa IA.
-    """
-
-    motivos = []
-    documents_status = []
-    semaphore = "🟢 LISTA PARA ACEPTACIÓN"
-
-    cargo_type = cargo.get("cargo_type", "GEN")
-    docs = cargo.get("documents", [])
-
-    if cargo_type == "DG":
-        required_docs = DG_REQUIRED_DOCS
-    elif cargo_type == "PER":
-        required_docs = PER_REQUIRED_DOCS
-    else:
-        required_docs = BASE_REQUIRED_DOCS
-
-    # -------------------------------
-    # Validar documentos obligatorios
-    # -------------------------------
-    for req in required_docs:
-        found = next((d for d in docs if d["doc_type"] == req), None)
-
-        if not found:
-            documents_status.append({
-                "doc_type": req,
-                "status": "❌ NO PRESENTE",
-                "observation": "Documento obligatorio faltante",
-                "norm": "Avianca / IATA"
-            })
-            motivos.append(f"Falta {req}")
-            semaphore = "🔴 NO ACEPTABLE"
-        else:
-            documents_status.append({
-                "doc_type": req,
-                "status": "✔ PRESENTE",
-                "observation": "—",
-                "norm": "Avianca / IATA"
-            })
-
-    # -------------------------------
-    # Validaciones duras adicionales
-    # -------------------------------
+    cargo_id = cargo.get("mawb", "N/A")
+    cargo_type = cargo.get("cargo_type", "GEN").upper()
     weight = float(cargo.get("weight", 0))
     volume = float(cargo.get("volume", 0))
+    length = float(cargo.get("length", 0))
+    width = float(cargo.get("width", 0))
+    height = float(cargo.get("height", 0))
+    flight_date = cargo.get("flight_date", "")
+    doc_list = cargo.get("documents", [])
 
-    if weight <= 0 or volume <= 0:
-        semaphore = "🔴 NO ACEPTABLE"
-        motivos.append("Peso o volumen inválido")
+    semaforo = "🟢"
+    motivos = []
+    docs_status = []
 
-    if weight > 5000:
-        semaphore = "🔴 NO ACEPTABLE"
-        motivos.append("Peso excede límites operativos")
+    # Validación de documentos obligatorios
+    required = REQUIRED_DOCS.get(cargo_type, [])
+    present_docs = [d["doc_type"] for d in doc_list]
+    for req in required:
+        doc = next((d for d in doc_list if d["doc_type"] == req), None)
+        if not doc:
+            docs_status.append({"doc_type": req, "status": "🔴", "observation": "Documento faltante"})
+            motivos.append(f"Falta {req}")
+            semaforo = "🔴"
+        else:
+            status = "🟢"
+            obs = ""
+            if doc.get("expired", False):
+                status = "🔴"
+                obs = "Documento vencido"
+                semaforo = "🔴"
+                motivos.append(f"{req} vencido")
+            docs_status.append({"doc_type": req, "status": status, "observation": obs})
 
-    if semaphore != "🔴 NO ACEPTABLE" and motivos:
-        semaphore = "🟡 ACEPTABLE CON RIESGO"
-
-    # -------------------------------
-    # Blindaje legal SIEMPRE visible
-    # -------------------------------
-    legal = (
-        "SMARTCARGO-AIPA by May Roga LLC · "
-        "Sistema de validación documental preventiva. "
-        "No sustituye decisiones del operador aéreo. "
-        "Resultado generado para fines operativos y educativos."
-    )
+    # Validación peso/volumen/dimensiones
+    if weight > MAX_WEIGHT_KG:
+        semaforo = "🔴"
+        motivos.append(f"Peso {weight}kg excede {MAX_WEIGHT_KG}kg")
+    if volume > MAX_VOLUME_M3:
+        semaforo = "🟡" if semaforo != "🔴" else semaforo
+        motivos.append(f"Volumen {volume}m³ excede {MAX_VOLUME_M3}m³")
+    for dim, val in zip(["largo","ancho","alto"], [length, width, height]):
+        if val > MAX_DIM_CM:
+            semaforo = "🔴"
+            motivos.append(f"{dim} {val}cm excede {MAX_DIM_CM}cm")
 
     return {
-        "semaphore": semaphore,
-        "documents": documents_status,
-        "motivos": motivos,
-        "legal": legal
+        "cargo_id": cargo_id,
+        "weight": weight,
+        "volume": volume,
+        "length": length,
+        "width": width,
+        "height": height,
+        "semaphore": semaforo,
+        "documents": docs_status,
+        "motivos": motivos
     }
