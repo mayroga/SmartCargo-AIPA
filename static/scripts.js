@@ -17,13 +17,20 @@ cargoForm.addEventListener("submit", async (e) => {
     const formData = new FormData(cargoForm);
     const data = Object.fromEntries(formData.entries());
 
-    const res = await fetch("/cargo/validate", {
-        method: "POST",
-        body: new URLSearchParams(data)
-    });
-    const result = await res.json();
-    alert(result.status + "\n" + result.reasons.join("\n"));
-    displayCargo(result);
+    try {
+        const res = await fetch("/cargo/validate", {
+            method: "POST",
+            body: new URLSearchParams(data)
+        });
+
+        if (!res.ok) throw new Error("Error validando cargo");
+
+        const result = await res.json();
+        alert(result.status + "\n" + result.motivos.join("\n"));
+        displayCargo(result);
+    } catch (err) {
+        alert("Error: " + err.message);
+    }
 });
 
 // -------------------
@@ -41,7 +48,7 @@ function displayCargo(result) {
         <td>${result.status}</td>
         <td>-</td>
         <td>${new Date().toLocaleDateString()}</td>
-        <td>${result.reasons.join(", ")}</td>
+        <td>${result.motivos.join(", ")}</td>
     `;
     cargoTableBody.appendChild(row);
 }
@@ -51,37 +58,55 @@ function displayCargo(result) {
 // -------------------
 async function loadCargos() {
     cargoTableBody.innerHTML = "";
-    const res = await fetch("/cargo/list_all");
-    const cargos = await res.json();
+    try {
+        const res = await fetch("/cargo/list_all");
+        if (!res.ok) throw new Error("No se pudieron cargar los cargos");
+        const cargos = await res.json();
 
-    cargos.forEach(cargo => {
-        cargo.documents.forEach(doc => {
-            const row = document.createElement("tr");
-            let displayStatus = doc.status;
-            let displayDocs = doc.doc_type;
+        cargos.forEach(cargo => {
+            if (!cargo.documents || cargo.documents.length === 0) {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${cargo.id}</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                `;
+                cargoTableBody.appendChild(row);
+            } else {
+                cargo.documents.forEach(doc => {
+                    const row = document.createElement("tr");
+                    let displayStatus = doc.status;
+                    let displayDocs = doc.doc_type;
 
-            if (currentRole === "owner") {
-                displayDocs = "—";
-                displayStatus = doc.status;
-            } else if (currentRole === "forwarder") {
-                displayStatus = doc.status;
-            } else if (currentRole === "driver") {
-                displayStatus = doc.status === "pending" ? "🔴 NO" : "🟢 YES";
+                    if (currentRole === "owner") {
+                        displayDocs = "—";
+                    } else if (currentRole === "driver") {
+                        displayStatus = doc.status === "pending" ? "🔴 NO" : "🟢 YES";
+                    }
+
+                    row.innerHTML = `
+                        <td>${cargo.id}</td>
+                        <td>${displayDocs}</td>
+                        <td>${doc.filename || ""}</td>
+                        <td>${doc.version || ""}</td>
+                        <td>${displayStatus || ""}</td>
+                        <td>${doc.responsible || ""}</td>
+                        <td>${doc.upload_date || ""}</td>
+                        <td>${doc.audit_notes || ""}</td>
+                    `;
+                    cargoTableBody.appendChild(row);
+                });
             }
-
-            row.innerHTML = `
-                <td>${cargo.id}</td>
-                <td>${displayDocs}</td>
-                <td>${doc.filename || ""}</td>
-                <td>${doc.version || ""}</td>
-                <td>${displayStatus || ""}</td>
-                <td>${doc.responsible || ""}</td>
-                <td>${doc.upload_date || ""}</td>
-                <td>${doc.audit_notes || ""}</td>
-            `;
-            cargoTableBody.appendChild(row);
         });
-    });
+    } catch (err) {
+        console.error(err);
+        cargoTableBody.innerHTML = `<tr><td colspan="8">Error cargando cargos</td></tr>`;
+    }
 }
 
 // -------------------
@@ -106,15 +131,11 @@ translateBtn.addEventListener("click", () => {
     whatsappBtn.textContent = isSpanish ? "Enviar WhatsApp" : "Send WhatsApp";
 
     const headers = document.querySelectorAll("#cargoTable thead th");
-    if (isSpanish) {
-        const titles = ["ID Cargo","Tipo Doc","Archivo","Versión","Estado","Responsable","Fecha Subida","Notas Auditoría"];
-        headers.forEach((th,i) => th.textContent = titles[i]);
-    } else {
-        const titles = ["Cargo ID","Doc Type","Filename","Version","Status","Responsible","Upload Date","Audit Notes"];
-        headers.forEach((th,i) => th.textContent = titles[i]);
-    }
+    const titles = isSpanish 
+        ? ["ID Cargo","Tipo Doc","Archivo","Versión","Estado","Responsable","Fecha Subida","Notas Auditoría"]
+        : ["Cargo ID","Doc Type","Filename","Version","Status","Responsible","Upload Date","Audit Notes"];
+    headers.forEach((th,i) => th.textContent = titles[i]);
 
-    // Cambiar roles al idioma correspondiente
     roleSelect.options[0].text = isSpanish ? "Dueño" : "Owner";
     roleSelect.options[1].text = isSpanish ? "Forwarder / Agente" : "Forwarder / Agent";
     roleSelect.options[2].text = isSpanish ? "Camionero" : "Driver";
