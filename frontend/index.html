@@ -13,18 +13,18 @@
 </header>
 
 <section>
-    <h2>Cargo & Document Management</h2>
+    <h2>Cargo & Document Validation</h2>
 
     <!-- Selector de rol -->
-    <label for="roleSelect">Rol:</label>
+    <label for="roleSelect">Role:</label>
     <select id="roleSelect">
-        <option value="owner">Dueño</option>
-        <option value="forwarder">Forwarder / Agente</option>
-        <option value="driver">Camionero</option>
+        <option value="owner">Owner</option>
+        <option value="forwarder">Forwarder / Agent</option>
+        <option value="driver">Driver</option>
         <option value="warehouse">Warehouse / Admin</option>
     </select>
 
-    <!-- Formulario de creación de cargo -->
+    <!-- Formulario de validación de carga -->
     <form id="cargoForm">
         <input type="text" name="mawb" placeholder="MAWB" required>
         <input type="text" name="hawb" placeholder="HAWB">
@@ -32,7 +32,7 @@
         <input type="text" name="destination" placeholder="Destination" required>
         <input type="text" name="cargo_type" placeholder="Cargo Type" required>
         <input type="date" name="flight_date" required>
-        <button type="submit">Create Cargo</button>
+        <button type="submit">Validate Cargo</button>
     </form>
 
     <!-- Tabla dinámica de cargos y documentos -->
