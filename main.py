@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from rules import validate_cargo
+from backend.rules import validate_cargo
 
 app = FastAPI(title="SmartCargo-AIPA · Asesor documental aeronáutico")
 
