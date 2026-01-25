@@ -1,38 +1,38 @@
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SMARTCARGO-AIPA by May Roga LLC</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
 
-app = FastAPI(title="SmartCargo-AIPA · Asesor documental")
+<h1>SMARTCARGO-AIPA</h1>
+<p id="disclaimer">
+SMARTCARGO-AIPA by May Roga LLC – Preventive documentary validation system.
+</p>
 
-# Carpeta estática con JS/CSS y index.html
-app.mount("/static", StaticFiles(directory="static"), name="static")
+<form id="cargoForm">
+<input name="mawb" placeholder="MAWB" required>
+<select name="cargo_type">
+<option value="GEN">GEN</option>
+<option value="DG">DG</option>
+<option value="PER">PER</option>
+<option value="HUM">HUM</option>
+<option value="VAL">VAL</option>
+</select>
+<input type="number" name="weight" placeholder="Weight (kg)" required>
+<input type="number" name="volume" placeholder="Volume (m³)" required>
 
-# Ruta principal que sirve el index.html
-@app.get("/")
-async def serve_index():
-    return FileResponse(Path("static/index.html"))
+<button type="submit">Validate</button>
+<button type="button" onclick="resetForm()">Reset</button>
+<button type="button" onclick="window.print()">Print / PDF</button>
+<button type="button" onclick="translate()">ES / EN</button>
+<button type="button" onclick="sendWhatsApp()">WhatsApp</button>
+</form>
 
-# -------------------
-# Endpoints de cargo
-# -------------------
-from rules import validate_cargo
+<pre id="result"></pre>
 
-@app.post("/cargo/validate")
-async def cargo_validate(mawb: str, hawb: str, origin: str, destination: str, cargo_type: str, flight_date: str, weight: float, volume: float):
-    cargo_data = {
-        "mawb": mawb,
-        "hawb": hawb,
-        "origin": origin,
-        "destination": destination,
-        "cargo_type": cargo_type,
-        "flight_date": flight_date,
-        "weight": weight,
-        "volume": volume
-    }
-    result = validate_cargo(cargo_data)
-    return result
-
-@app.get("/cargo/list_all")
-async def list_cargos():
-    return []  # reemplaza con tus cargos reales
+<script src="/static/scripts.js"></script>
+</body>
+</html>
