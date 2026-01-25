@@ -1,4 +1,5 @@
 // scripts.js
+
 const cargoForm = document.getElementById("cargoForm");
 const cargoTableBody = document.querySelector("#cargoTable tbody");
 const translateBtn = document.getElementById("translateBtn");
@@ -22,14 +23,12 @@ cargoForm.addEventListener("submit", async (e) => {
             method: "POST",
             body: new URLSearchParams(data)
         });
-
-        if (!res.ok) throw new Error("Error validando cargo");
-
+        if (!res.ok) throw new Error(`Error ${res.status}`);
         const result = await res.json();
-        alert(result.status + "\n" + result.motivos.join("\n"));
         displayCargo(result);
+        alert(`${result.status}\n${result.motivos.join("\n")}`);
     } catch (err) {
-        alert("Error: " + err.message);
+        alert(`Error validando cargo: ${err}`);
     }
 });
 
@@ -42,71 +41,52 @@ function displayCargo(result) {
     const row = document.createElement("tr");
     row.innerHTML = `
         <td>${result.cargo_id}</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
+        <td>${result.weight} kg</td>
+        <td>${result.volume} m³</td>
         <td>${result.status}</td>
-        <td>-</td>
-        <td>${new Date().toLocaleDateString()}</td>
         <td>${result.motivos.join(", ")}</td>
+        <td>
+            ${Object.entries(result.detalles).map(
+                ([doc, status]) => `<b>${doc}:</b> ${status}`
+            ).join("<br>")}
+        </td>
+        <td>${new Date().toLocaleDateString()}</td>
+        <td>${result.legal}</td>
     `;
     cargoTableBody.appendChild(row);
 }
 
 // -------------------
-// Cargar cargos y documentos
+// Cargar todos los cargos
 // -------------------
 async function loadCargos() {
     cargoTableBody.innerHTML = "";
-    try {
-        const res = await fetch("/cargo/list_all");
-        if (!res.ok) throw new Error("No se pudieron cargar los cargos");
-        const cargos = await res.json();
+    const res = await fetch("/cargo/list_all");
+    const cargos = await res.json();
 
-        cargos.forEach(cargo => {
-            if (!cargo.documents || cargo.documents.length === 0) {
-                const row = document.createElement("tr");
-                row.innerHTML = `
-                    <td>${cargo.id}</td>
-                    <td>-</td>
-                    <td>-</td>
-                    <td>-</td>
-                    <td>-</td>
-                    <td>-</td>
-                    <td>-</td>
-                    <td>-</td>
-                `;
-                cargoTableBody.appendChild(row);
-            } else {
-                cargo.documents.forEach(doc => {
-                    const row = document.createElement("tr");
-                    let displayStatus = doc.status;
-                    let displayDocs = doc.doc_type;
+    cargos.forEach(cargo => {
+        const row = document.createElement("tr");
 
-                    if (currentRole === "owner") {
-                        displayDocs = "—";
-                    } else if (currentRole === "driver") {
-                        displayStatus = doc.status === "pending" ? "🔴 NO" : "🟢 YES";
-                    }
+        // Determinar semáforo según rol
+        let semaforo = "—";
+        if (currentRole === "owner" || currentRole === "forwarder") {
+            semaforo = cargo.documents.some(d => d.status === "🔴 NO ACEPTABLE") ? "🔴" : "🟢";
+        } else if (currentRole === "driver") {
+            semaforo = cargo.documents.some(d => d.status === "pending") ? "🔴" : "🟢";
+        }
 
-                    row.innerHTML = `
-                        <td>${cargo.id}</td>
-                        <td>${displayDocs}</td>
-                        <td>${doc.filename || ""}</td>
-                        <td>${doc.version || ""}</td>
-                        <td>${displayStatus || ""}</td>
-                        <td>${doc.responsible || ""}</td>
-                        <td>${doc.upload_date || ""}</td>
-                        <td>${doc.audit_notes || ""}</td>
-                    `;
-                    cargoTableBody.appendChild(row);
-                });
-            }
-        });
-    } catch (err) {
-        console.error(err);
-        cargoTableBody.innerHTML = `<tr><td colspan="8">Error cargando cargos</td></tr>`;
-    }
+        row.innerHTML = `
+            <td>${cargo.id}</td>
+            <td>${cargo.weight} kg</td>
+            <td>${cargo.volume} m³</td>
+            <td>${semaforo}</td>
+            <td>${cargo.documents.map(d => d.doc_type).join(", ")}</td>
+            <td>${cargo.documents.map(d => d.responsible || "").join(", ")}</td>
+            <td>${cargo.flight_date}</td>
+            <td>${cargo.documents.map(d => d.audit_notes || "").join(" | ")}</td>
+        `;
+        cargoTableBody.appendChild(row);
+    });
 }
 
 // -------------------
@@ -131,11 +111,15 @@ translateBtn.addEventListener("click", () => {
     whatsappBtn.textContent = isSpanish ? "Enviar WhatsApp" : "Send WhatsApp";
 
     const headers = document.querySelectorAll("#cargoTable thead th");
-    const titles = isSpanish 
-        ? ["ID Cargo","Tipo Doc","Archivo","Versión","Estado","Responsable","Fecha Subida","Notas Auditoría"]
-        : ["Cargo ID","Doc Type","Filename","Version","Status","Responsible","Upload Date","Audit Notes"];
-    headers.forEach((th,i) => th.textContent = titles[i]);
+    if (isSpanish) {
+        const titles = ["ID Cargo", "Peso", "Volumen", "Semáforo", "Documentos", "Responsable", "Fecha Vuelo", "Alertas / Legal"];
+        headers.forEach((th, i) => th.textContent = titles[i]);
+    } else {
+        const titles = ["Cargo ID", "Weight", "Volume", "Semaphore", "Documents", "Responsible", "Flight Date", "Alerts / Legal"];
+        headers.forEach((th, i) => th.textContent = titles[i]);
+    }
 
+    // Cambiar roles al idioma correspondiente
     roleSelect.options[0].text = isSpanish ? "Dueño" : "Owner";
     roleSelect.options[1].text = isSpanish ? "Forwarder / Agente" : "Forwarder / Agent";
     roleSelect.options[2].text = isSpanish ? "Camionero" : "Driver";
@@ -145,7 +129,9 @@ translateBtn.addEventListener("click", () => {
 // -------------------
 // Imprimir / Export PDF
 // -------------------
-printBtn.addEventListener("click", () => window.print());
+printBtn.addEventListener("click", () => {
+    window.print();
+});
 
 // -------------------
 // Enviar por WhatsApp
