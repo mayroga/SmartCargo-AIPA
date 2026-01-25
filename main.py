@@ -22,8 +22,8 @@ Base.metadata.create_all(bind=engine)
 # -------------------
 app = FastAPI(title="SmartCargo AIPA")
 
-# Montar archivos estáticos
-app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
+# Montar archivos estáticos (scripts.js, styles.css)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # -------------------
 # Endpoints Frontend
