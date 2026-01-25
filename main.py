@@ -1,52 +1,54 @@
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import JSONResponse, HTMLResponse
+# main.py
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from backend.rules import validate_cargo  # Asegúrate de que rules.py existe
-from typing import Optional
+from backend.rules import validate_cargo  # tu función de validación en backend/rules.py
+import os
 
 app = FastAPI(title="Asesor SmartCargo-AIPA")
 
-# Monta la carpeta de archivos estáticos (CSS, JS)
-app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
+# Montar archivos estáticos desde la carpeta 'static' en la raíz
+if not os.path.exists("static"):
+    raise RuntimeError("No se encontró la carpeta 'static' en la raíz del proyecto")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Configura Jinja2 para templates
+# Templates apuntando a la carpeta 'frontend'
+if not os.path.exists("frontend/index.html"):
+    raise RuntimeError("No se encontró 'index.html' en la carpeta 'frontend'")
 templates = Jinja2Templates(directory="frontend")
 
-# Endpoint principal que sirve index.html
+# Página principal
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# Endpoint para listar todos los cargos (simulación)
+# Endpoint para listar todos los documentos (demo)
 @app.get("/cargo/list_all")
 async def list_all_cargo():
-    # Ejemplo de datos de prueba
-    cargo_list = [
-        {"awb": "134-98765432", "document": "Air Waybill", "status": "Aprobado", "observation": "Sin inconsistencias", "norm": "IATA TACT"},
-        {"awb": "134-12345678", "document": "Factura Comercial", "status": "Observación", "observation": "Valor declarado incompleto", "norm": "Aduana"},
-        {"awb": "134-45678901", "document": "Lista de Empaque", "status": "Crítico", "observation": "Falta firma del exportador", "norm": "IATA / ICAO"}
-    ]
-    return JSONResponse(content=cargo_list)
+    # Ejemplo de datos
+    return {
+        "total": 128,
+        "correct": 94,
+        "warning": 21,
+        "critical": 13,
+        "documents": [
+            {"AWB": "134-98765432", "Documento": "Air Waybill", "Estado": "Aprobado", "Observación": "Sin inconsistencias", "Norma": "IATA TACT"},
+            {"AWB": "134-12345678", "Documento": "Factura Comercial", "Estado": "Observación", "Observación": "Valor declarado incompleto", "Norma": "Aduana"},
+            {"AWB": "134-45678901", "Documento": "Lista de Empaque", "Estado": "Crítico", "Observación": "Falta firma del exportador", "Norma": "IATA / ICAO"},
+        ]
+    }
 
-# Endpoint para validar cargo
+# Endpoint para validar documentos usando rules.py
 @app.post("/cargo/validate")
-async def validate(
-    mawb: str = Form(...),
-    hawb: str = Form(...),
-    origin: str = Form(...),
-    destination: str = Form(...),
-    cargo_type: str = Form(...),
-    flight_date: str = Form(...)
-):
+async def validate_cargo_endpoint(data: dict):
     try:
-        # Llama a tu función de validación del módulo rules.py
-        result = validate_cargo(mawb, hawb, origin, destination, cargo_type, flight_date)
+        result = validate_cargo(data)
         return JSONResponse(content=result)
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=400)
 
-# Para depuración rápida
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+# Health check simple
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
