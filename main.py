@@ -1,48 +1,67 @@
-# backend/main.py
-from fastapi import FastAPI, Depends, HTTPException, Form
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from pathlib import Path
-from backend.rules import validate_cargo
-from backend.ai_helper import advisor_explanation
-import secrets
+# backend/rules.py
+from datetime import datetime
 
-app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC")
-security = HTTPBasic()
+LEGAL_DISCLAIMER = (
+    "SMARTCARGO-AIPA by May Roga LLC | "
+    "Preventive documentary validation system. "
+    "Does not replace airline operational decisions. "
+    "Generated evidence is for operational and educational purposes only."
+)
 
-USERNAME = "mayroga"
-PASSWORD = "smartcargo2026"
+REQUIRED_DOCS_BY_TYPE = {
+    "GEN": ["Commercial Invoice", "Packing List", "AWB"],
+    "DG": ["Commercial Invoice", "Packing List", "AWB", "MSDS", "DGD"],
+    "PER": ["Commercial Invoice", "Packing List", "AWB", "Health Certificate"],
+    "HUM": ["Commercial Invoice", "Packing List", "AWB", "Export Permit"],
+    "VAL": ["Commercial Invoice", "Packing List", "AWB", "Insurance"]
+}
 
-def auth(credentials: HTTPBasicCredentials = Depends(security)):
-    if not (
-        secrets.compare_digest(credentials.username, USERNAME)
-        and secrets.compare_digest(credentials.password, PASSWORD)
-    ):
-        raise HTTPException(status_code=401, detail="Unauthorized")
+def validate_cargo(cargo: dict) -> dict:
+    """
+    REGLAS DURAS.
+    Sin IA.
+    Sin criterio humano.
+    """
+    docs = cargo.get("documents", [])
+    cargo_type = cargo.get("cargo_type")
+    weight = cargo.get("weight", 0)
+    volume = cargo.get("volume", 0)
 
-@app.get("/", dependencies=[Depends(auth)])
-def index():
-    return FileResponse(Path("frontend/index.html"))
+    motivos = []
+    documents_result = []
+    semaphore = "🟢 LISTA PARA ACEPTACIÓN"
 
-@app.post("/cargo/validate", dependencies=[Depends(auth)])
-def cargo_validate(
-    mawb: str = Form(...),
-    cargo_type: str = Form(...),
-    weight: float = Form(...),
-    volume: float = Form(...),
-):
-    cargo = {
-        "mawb": mawb,
-        "cargo_type": cargo_type,
-        "weight": weight,
-        "volume": volume,
-        "documents": []  # documentos evaluados en frontend
-    }
-    return JSONResponse(validate_cargo(cargo))
+    required_docs = REQUIRED_DOCS_BY_TYPE.get(cargo_type, [])
 
-@app.get("/advisor/explain", dependencies=[Depends(auth)])
-def advisor(code: str, lang: str = "en"):
+    for req in required_docs:
+        found = next((d for d in docs if d["doc_type"] == req), None)
+        if not found:
+            documents_result.append({
+                "doc_type": req,
+                "status": "❌ NO ACEPTABLE",
+                "reason_code": "MissingDocument"
+            })
+            motivos.append(f"Missing {req}")
+            semaphore = "🔴 NO ACEPTABLE"
+        else:
+            documents_result.append({
+                "doc_type": req,
+                "status": "✔ OK",
+                "reason_code": None
+            })
+
+    if weight > 5000:
+        semaphore = "🔴 NO ACEPTABLE"
+        motivos.append("Weight exceeds aircraft limitation")
+
+    if volume > 50 and semaphore != "🔴 NO ACEPTABLE":
+        semaphore = "🟡 ACEPTABLE CON RIESGO"
+        motivos.append("Volume close to operational limit")
+
     return {
-        "advisor": "Asesor SmartCargo-AIPA",
-        "message": advisor_explanation(code, lang)
+        "mawb": cargo.get("mawb"),
+        "semaphore": semaphore,
+        "documents": documents_result,
+        "motivos": motivos,
+        "legal": LEGAL_DISCLAIMER
     }
