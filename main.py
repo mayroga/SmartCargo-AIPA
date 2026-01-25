@@ -8,7 +8,9 @@ from backend.rules import validate_cargo
 from backend.storage import save_document, list_documents
 from backend.utils import cargo_dashboard, generate_advisor_message
 
-app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC · Sistema de validación documental preventiva")
+app = FastAPI(
+    title="SMARTCARGO-AIPA by May Roga LLC · Sistema de validación documental preventiva"
+)
 
 # Montar carpeta static
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -56,9 +58,11 @@ async def cargo_validate(
     width_cm: float = Form(...),
     height_cm: float = Form(...),
     role: str = Form(...),
+    documents: str = Form(None),
     db=Depends(get_db),
     auth=Depends(expert_auth)
 ):
+    # Construir cargo_data
     cargo_data = {
         "mawb": mawb,
         "hawb": hawb,
@@ -71,16 +75,19 @@ async def cargo_validate(
         "length_cm": length_cm,
         "width_cm": width_cm,
         "height_cm": height_cm,
-        "role": role
+        "role": role,
+        "documents": documents.split(",") if documents else []
     }
-    # Validar reglas duras Avianca/IATA/DG
-    validation_status = validate_cargo_rules(cargo_data)
-    # Obtener semáforo y asesor educativo
+
+    # Validar cargo estrictamente según reglas Avianca/IATA/DG/TSA/CBP
+    validation_status = validate_cargo(cargo_data)
+
+    # Crear dashboard operativo y asesor
     dashboard = cargo_dashboard(cargo_data, validation_status)
     advisor_msg = generate_advisor_message(cargo_data, validation_status)
 
     return JSONResponse({
-        "status": dashboard["semaforo"],
+        "semaforo": dashboard["semaforo"],
         "documents_required": dashboard["documents_required"],
         "advisor": advisor_msg
     })
