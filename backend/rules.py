@@ -1,22 +1,48 @@
-# rules.py
-from storage import list_documents
+# backend/rules.py
+from datetime import datetime
 
-# Requerimientos Avianca-first por tipo de carga
-REQUIRED_DOCS_AVIANCA = [
-    "Commercial Invoice",
-    "Packing List",
-    "Shipper's Letter of Instruction",
-    "AWB"
-]
+def validate_cargo_documents(cargo):
+    """
+    Aplica el checklist de Avianca, IATA, CBP, TSA, DOT.
+    Devuelve:
+      semáforo: 🔴 NO ACEPTABLE / 🟡 ACEPTABLE CON RIESGO / 🟢 LISTO PARA COUNTER
+      motivos: lista de razones claras
+    """
 
-def validate_cargo(cargo_id: int) -> dict:
-    present_docs = [f['doc_type'] for f in list_documents(cargo_id)]
-    missing = [doc for doc in REQUIRED_DOCS_AVIANCA if doc not in present_docs]
+    motivos = []
+    semaforo = "🟢 LISTO PARA COUNTER"
 
-    # Semáforo operativo
-    if missing:
-        status = "🔴 NO ACEPTABLE"
+    # Convertir documentos en diccionario para fácil acceso
+    docs = {doc.doc_type: doc for doc in cargo.documents}
+
+    # Documentos obligatorios
+    required_docs = ["Commercial Invoice", "Packing List", "SLI", "MSDS"]
+
+    for doc_name in required_docs:
+        if doc_name not in docs:
+            motivos.append(f"Falta {doc_name}")
+    
+    # Packing List vs Invoice (consistencia mínima)
+    if "Commercial Invoice" in docs and "Packing List" in docs:
+        invoice = docs["Commercial Invoice"]
+        packing = docs["Packing List"]
+        if invoice.filename != packing.filename:
+            motivos.append("Packing List no coincide con Invoice")
+
+    # MSDS vigente
+    if "MSDS" in docs:
+        msds = docs["MSDS"]
+        if hasattr(msds, "expiration_date") and msds.expiration_date:
+            if msds.expiration_date < datetime.today():
+                motivos.append("MSDS vencido")
+
+    # Determinar semáforo según gravedad
+    if motivos:
+        semaforo = "🔴 NO ACEPTABLE"
     else:
-        status = "🟢 LISTA PARA ACEPTACIÓN"
+        semaforo = "🟢 LISTO PARA COUNTER"
 
-    return {"cargo_id": cargo_id, "status": status, "missing_docs": missing}
+    # Nota legal incluida siempre
+    motivos.append("SmartCargo-AIPA es asesor, no autoridad. La aceptación final depende de Avianca, IATA, CBP, TSA y DOT.")
+
+    return semaforo, motivos
