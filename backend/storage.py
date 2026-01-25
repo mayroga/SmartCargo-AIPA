@@ -1,42 +1,31 @@
 import os
-from datetime import datetime
 from pathlib import Path
-from typing import List
-from sqlalchemy.orm import Session
-from models import Document
+from datetime import datetime
+from models import Document, SessionLocal
 
-# Carpeta local para documentos
 BASE_DIR = Path("storage/uploads")
 BASE_DIR.mkdir(parents=True, exist_ok=True)
 
-# Tipos de documentos permitidos
+# Tipos permitidos
 TIPOS_DOCUMENTO = [
-    "Commercial Invoice",
-    "Packing List",
-    "Shipper's Letter of Instruction",
-    "AWB",
-    "Certificado",
-    "MSDS",
-    "Permiso País Destino"
+    "AWB", "Commercial Invoice", "Packing List", "MSDS", "DG Declaration",
+    "Temperature Certificate", "Permiso País Destino"
 ]
 
-def save_document(db: Session, file, cargo_id: str, doc_type: str, uploaded_by: str) -> Document:
-    """
-    Guarda un documento localmente y lo registra en la base de datos.
-    """
+def save_document(db, file_bytes: bytes, cargo_id: int, doc_type: str, uploaded_by: str):
     if doc_type not in TIPOS_DOCUMENTO:
-        doc_type = "Otro"
+        raise ValueError(f"Tipo de documento '{doc_type}' no permitido")
 
     cargo_dir = BASE_DIR / str(cargo_id)
     cargo_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    safe_filename = "".join(c for c in file.filename if c.isalnum() or c in (" ", ".", "_")).rstrip()
-    filename = f"{doc_type}_{timestamp}_{safe_filename}"
+    filename = f"{doc_type}_{timestamp}.jpg"
     filepath = cargo_dir / filename
 
+    # Guardar archivo
     with open(filepath, "wb") as f:
-        f.write(file.file.read())
+        f.write(file_bytes)
 
     # Registrar en DB
     doc = Document(
@@ -48,3 +37,19 @@ def save_document(db: Session, file, cargo_id: str, doc_type: str, uploaded_by: 
         responsible=uploaded_by,
         upload_date=datetime.utcnow(),
         audit_notes=f"Documento cargado por {uploaded_by}"
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return doc
+
+def list_documents(cargo_id: int):
+    cargo_dir = BASE_DIR / str(cargo_id)
+    if not cargo_dir.exists():
+        return []
+    docs = []
+    for f in cargo_dir.iterdir():
+        if f.is_file():
+            doc_type = f.name.split("_")[0]
+            docs.append({"filename": f.name, "doc_type": doc_type, "status": "✔ Válido"})
+    return docs
