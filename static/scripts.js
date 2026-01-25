@@ -4,7 +4,6 @@
 // ===============================
 
 const form = document.getElementById("formCargo");
-
 const semaforoStatus = document.getElementById("semaforoStatus");
 const documentsList = document.getElementById("documentsList");
 const advisorBox = document.getElementById("advisor");
@@ -14,11 +13,10 @@ const printBtn = document.getElementById("printPDF");
 const whatsappBtn = document.getElementById("shareWhatsApp");
 const translateBtn = document.getElementById("translateBtn");
 
-// Inputs de medidas
-const lengthInput = document.getElementById("length_cm");
-const widthInput  = document.getElementById("width_cm");
-const heightInput = document.getElementById("height_cm");
-const volumeInput = document.getElementById("volume");
+const lengthInput = document.querySelector("input[name='length_cm']");
+const widthInput  = document.querySelector("input[name='width_cm']");
+const heightInput = document.querySelector("input[name='height_cm']");
+const volumeInput = document.querySelector("input[name='volume']");
 
 // Estado de idioma
 let currentLang = "en";
@@ -55,21 +53,12 @@ form.addEventListener("submit", async (e) => {
 
     const formData = new FormData(form);
 
-    // Documentos + descripción (OBLIGATORIA)
+    // Preparar documentos
     const docs = [];
     const files = formData.getAll("documents");
-    const descriptions = formData.getAll("document_description");
 
     for (let i = 0; i < files.length; i++) {
-        if (!descriptions[i] || descriptions[i].trim() === "") {
-            alert("Each document/photo must include a description.");
-            semaforoStatus.textContent = "🔴 NOT ACCEPTABLE";
-            return;
-        }
-        docs.push({
-            filename: files[i].name,
-            description: descriptions[i]
-        });
+        docs.push({ filename: files[i].name });
     }
 
     const cargoData = {
@@ -79,14 +68,12 @@ form.addEventListener("submit", async (e) => {
         destination: formData.get("destination"),
         cargo_type: formData.get("cargo_type"),
         flight_date: formData.get("flight_date"),
-
-        // Medidas reales
+        weight_kg: Number(formData.get("weight_kg")),
+        weight_lbs: Number(formData.get("weight_kg")) * 2.20462,
         length_cm: Number(formData.get("length_cm")),
         width_cm: Number(formData.get("width_cm")),
         height_cm: Number(formData.get("height_cm")),
-        volume_m3: Number(formData.get("volume")),
-
-        weight: Number(formData.get("weight")),
+        volume: Number(formData.get("volume")),
         role: formData.get("role"),
         documents: docs
     };
@@ -94,8 +81,8 @@ form.addEventListener("submit", async (e) => {
     try {
         const res = await fetch("/cargo/validate", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(cargoData)
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams(cargoData)
         });
 
         const data = await res.json();
@@ -116,22 +103,19 @@ form.addEventListener("submit", async (e) => {
 // Render resultados
 // ===============================
 function renderResults(data) {
-
     semaforoStatus.textContent = data.semaforo || "🔴 NOT ACCEPTABLE";
 
-    // Documentos
-    if (data.documents && data.documents.length > 0) {
-        let html = "<strong>Documents reviewed:</strong><ul>";
-        data.documents.forEach(d => {
-            html += `<li>${d.filename} – ${d.description}</li>`;
+    if (data.documents_required && data.documents_required.length > 0) {
+        let html = "<strong>Required Documents:</strong><ul>";
+        data.documents_required.forEach(doc => {
+            html += `<li>${doc}</li>`;
         });
         html += "</ul>";
         documentsList.innerHTML = html;
     } else {
-        documentsList.innerHTML = "<strong>No documents provided</strong>";
+        documentsList.innerHTML = "<strong>No documents required</strong>";
     }
 
-    // Asesor
     advisorBox.textContent = data.advisor || "No advisory message generated.";
 }
 
