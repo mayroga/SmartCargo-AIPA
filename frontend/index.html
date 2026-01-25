@@ -1,84 +1,38 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asesor SmartCargo-AIPA</title>
-    <link rel="stylesheet" href="/static/styles.css">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1,h2 { text-align: center; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-        th { background: #f4f4f4; }
-        .ok { background-color: #d4edda; color: #155724; }
-        .warn { background-color: #fff3cd; color: #856404; }
-        .crit { background-color: #f8d7da; color: #721c24; }
-        .dashboard { display: flex; justify-content: space-around; margin-top: 20px; }
-        .dash-card { padding: 15px; border-radius: 8px; background: #f0f0f0; width: 18%; text-align: center; }
-        button { padding: 8px 15px; margin: 5px; cursor: pointer; }
-    </style>
-</head>
-<body>
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
-<h1>Asesor SmartCargo-AIPA</h1>
-<h2 id="subtitle">Validación de Carga y Documentos</h2>
+app = FastAPI(title="SmartCargo-AIPA · Asesor documental")
 
-<div>
-    <label for="roleSelect" id="label-role">Rol:</label>
-    <select id="roleSelect">
-        <option value="owner">Dueño</option>
-        <option value="forwarder">Forwarder / Agente</option>
-        <option value="driver">Camionero</option>
-        <option value="warehouse">Warehouse / Admin</option>
-    </select>
+# Carpeta estática con JS/CSS y index.html
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-    <button id="translateBtn">Inglés / Español</button>
-</div>
+# Ruta principal que sirve el index.html
+@app.get("/")
+async def serve_index():
+    return FileResponse(Path("static/index.html"))
 
-<form id="cargoForm">
-    <input type="text" name="mawb" placeholder="MAWB" required>
-    <input type="text" name="hawb" placeholder="HAWB" required>
-    <input type="text" name="origin" placeholder="Origen" required>
-    <input type="text" name="destination" placeholder="Destino" required>
-    <input type="text" name="cargo_type" placeholder="Tipo de Carga" required>
-    <input type="date" name="flight_date" required>
-    <button type="submit" id="validateBtn">Validar Carga</button>
-</form>
+# -------------------
+# Endpoints de cargo
+# -------------------
+from rules import validate_cargo
 
-<div class="dashboard">
-    <div class="dash-card">
-        <h3 id="label-total">Total AWB</h3>
-        <p id="total-awb">0</p>
-    </div>
-    <div class="dash-card">
-        <h3 id="label-ok">Documentos Correctos</h3>
-        <p id="ok-count">0</p>
-    </div>
-    <div class="dash-card">
-        <h3 id="label-warn">En Observación</h3>
-        <p id="warn-count">0</p>
-    </div>
-    <div class="dash-card">
-        <h3 id="label-crit">Críticos</h3>
-        <p id="crit-count">0</p>
-    </div>
-</div>
+@app.post("/cargo/validate")
+async def cargo_validate(mawb: str, hawb: str, origin: str, destination: str, cargo_type: str, flight_date: str, weight: float, volume: float):
+    cargo_data = {
+        "mawb": mawb,
+        "hawb": hawb,
+        "origin": origin,
+        "destination": destination,
+        "cargo_type": cargo_type,
+        "flight_date": flight_date,
+        "weight": weight,
+        "volume": volume
+    }
+    result = validate_cargo(cargo_data)
+    return result
 
-<table id="cargoTable">
-    <thead>
-        <tr>
-            <th id="th-awb">AWB</th>
-            <th id="th-doc">Documento</th>
-            <th id="th-status">Estado</th>
-            <th id="th-observation">Observación</th>
-            <th id="th-norm">Norma</th>
-        </tr>
-    </thead>
-    <tbody>
-    </tbody>
-</table>
-
-<script src="/static/scripts.js"></script>
-</body>
-</html>
+@app.get("/cargo/list_all")
+async def list_cargos():
+    return []  # reemplaza con tus cargos reales
