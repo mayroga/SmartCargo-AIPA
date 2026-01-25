@@ -31,7 +31,7 @@ def calculate_semaforo(cargo_data: Dict, present_docs: list):
     return status, missing, overweight, oversized
 
 # Validación de cargo estricta
-def validate_cargo_rules(cargo_data: Dict):
+def validate_cargo(cargo_data: Dict):
     # Aquí se simula que el sistema verifica las reglas sin usar IA para validar documentos
     present_docs = cargo_data.get("documents", [])
     semaforo, missing, overweight, oversized = calculate_semaforo(cargo_data, present_docs)
