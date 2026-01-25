@@ -1,16 +1,12 @@
-import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker
+from models import Base
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = "sqlite:///./smartcargo.db"
 
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL environment variable is not set")
-
-# Render usa PostgreSQL → NO check_same_thread
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True
+    connect_args={"check_same_thread": False}
 )
 
 SessionLocal = sessionmaker(
@@ -19,4 +15,5 @@ SessionLocal = sessionmaker(
     bind=engine
 )
 
-Base = declarative_base()
+def init_db():
+    Base.metadata.create_all(bind=engine)
