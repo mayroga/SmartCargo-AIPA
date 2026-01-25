@@ -11,4 +11,7 @@ SQLAlchemy
 psycopg2-binary
 redis
 boto3
-reportlab
+rfastapi
+uvicorn
+jinja2
+eportlab
