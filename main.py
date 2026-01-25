@@ -1,128 +1,170 @@
 # main.py
-from fastapi import FastAPI, Request, HTTPException, Depends, Form
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Form, UploadFile, File, HTTPException
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime
+from sqlalchemy.orm import Session
+from typing import List, Optional
+from datetime import datetime, date
 
-app = FastAPI(title="SmartCargo AIPA Backend")
+from storage import save_document, list_documents, get_document_path, delete_document
+from models import Cargo, Document, Base, engine, SessionLocal
 
-# CORS para front-end
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# -------------------
+# Inicialización DB
+# -------------------
+Base.metadata.create_all(bind=engine)
 
-# Montar carpeta static
+# -------------------
+# FastAPI App
+# -------------------
+app = FastAPI(title="SmartCargo AIPA")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# -------------------------------
-# Simulación de base temporal
-# -------------------------------
-# Cada cargo es un dict con documentos
-cargo_db = [
-    {
-        "id": 1,
-        "mawb": "123-4567890",
-        "hawb": "HAWB001",
-        "origin": "MIA",
-        "destination": "BOG",
-        "cargo_type": "General",
-        "flight_date": "2026-01-25",
-        "documents": [
-            {"doc_type": "Invoice", "filename": "invoice1.pdf", "version": "1.0", "upload_date": "2026-01-20", "valid_until": None},
-            {"doc_type": "Packing List", "filename": "packing1.pdf", "version": "1.0", "upload_date": "2026-01-20", "valid_until": None},
-            {"doc_type": "SLI", "filename": "sli1.pdf", "version": "1.0", "upload_date": "2026-01-20", "valid_until": None},
-            {"doc_type": "MSDS", "filename": "msds1.pdf", "version": "1.0", "upload_date": "2025-12-01", "valid_until": "2026-01-01"},  # Vencido
-        ]
-    }
-]
+# -------------------
+# Página principal
+# -------------------
+@app.get("/", response_class=HTMLResponse)
+async def home():
+    with open("frontend/index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
-# -------------------------------
-# Login admin simple
-# -------------------------------
-def admin_auth(username: str = Form(...), password: str = Form(...)):
-    if username == "admin" and password == "1234":
-        return True
-    raise HTTPException(status_code=401, detail="Unauthorized")
-
-# -------------------------------
-# Listar todos los cargos
-# -------------------------------
-@app.get("/cargo/list_all")
-async def list_all():
-    return cargo_db
-
-# -------------------------------
-# Listar documentos de cargo
-# -------------------------------
-@app.get("/cargo/list/{cargo_id}")
-async def list_documents(cargo_id: int):
-    cargo = next((c for c in cargo_db if c["id"] == cargo_id), None)
-    if not cargo:
-        return {"documents": []}
-    return {"documents": cargo["documents"]}
-
-# -------------------------------
-# Validate Cargo según checklist Avianca
-# -------------------------------
-@app.post("/cargo/validate")
-async def validate_cargo(
+# -------------------
+# Crear Cargo
+# -------------------
+@app.post("/cargo/create")
+async def create_cargo(
     mawb: str = Form(...),
-    hawb: str = Form(...),
+    hawb: str = Form(""),
+    airline: str = Form("Avianca Cargo"),
     origin: str = Form(...),
     destination: str = Form(...),
     cargo_type: str = Form(...),
     flight_date: str = Form(...)
 ):
-    # Buscar cargo
-    cargo = next((c for c in cargo_db if c["mawb"] == mawb), None)
-    if not cargo:
-        return JSONResponse({"message": "Cargo not found", "status": "🔴 NO ACEPTABLE", "reasons": ["Cargo no existe en el sistema."]})
+    db: Session = SessionLocal()
+    try:
+        cargo = Cargo(
+            mawb=mawb,
+            hawb=hawb,
+            airline=airline,
+            origin=origin,
+            destination=destination,
+            cargo_type=cargo_type,
+            flight_date=datetime.strptime(flight_date, "%Y-%m-%d")
+        )
+        db.add(cargo)
+        db.commit()
+        db.refresh(cargo)
+        return {"cargo_id": cargo.id, "message": "Cargo creado correctamente"}
+    finally:
+        db.close()
 
-    documents = cargo.get("documents", [])
-    reasons = []
+# -------------------
+# Subir documento
+# -------------------
+@app.post("/cargo/upload")
+async def upload_document(
+    cargo_id: int = Form(...),
+    doc_type: str = Form(...),
+    uploaded_by: str = Form(...),
+    file: UploadFile = File(...)
+):
+    db: Session = SessionLocal()
+    try:
+        doc = save_document(db=db, file=file, cargo_id=cargo_id, doc_type=doc_type, uploaded_by=uploaded_by)
+        return {
+            "message": f"Documento '{doc_type}' cargado correctamente",
+            "filename": doc.filename,
+            "version": doc.version
+        }
+    finally:
+        db.close()
 
-    # Checklist Avianca
-    doc_types_required = ["Invoice", "Packing List", "SLI", "MSDS"]
-    semaforo = "🟢 LISTO PARA COUNTER"
+# -------------------
+# Listar documentos de un cargo
+# -------------------
+@app.get("/cargo/list/{cargo_id}", response_class=JSONResponse)
+async def list_cargo_documents(cargo_id: int):
+    docs = list_documents(cargo_id)
+    return {"cargo_id": cargo_id, "documents": docs}
 
-    today = datetime.today().date()
+# -------------------
+# Listar todos los cargos
+# -------------------
+@app.get("/cargo/list_all", response_class=JSONResponse)
+async def list_all_cargos():
+    db: Session = SessionLocal()
+    try:
+        cargos = db.query(Cargo).all()
+        result = []
+        for cargo in cargos:
+            cargo_dict = {
+                "id": cargo.id,
+                "mawb": cargo.mawb,
+                "hawb": cargo.hawb,
+                "airline": cargo.airline,
+                "origin": cargo.origin,
+                "destination": cargo.destination,
+                "cargo_type": cargo.cargo_type,
+                "flight_date": cargo.flight_date.strftime("%Y-%m-%d"),
+                "documents": []
+            }
+            for doc in cargo.documents:
+                cargo_dict["documents"].append({
+                    "doc_type": doc.doc_type,
+                    "filename": doc.filename,
+                    "version": doc.version,
+                    "status": doc.status,
+                    "responsible": doc.responsible,
+                    "upload_date": doc.upload_date.strftime("%Y-%m-%d %H:%M:%S"),
+                    "audit_notes": doc.audit_notes
+                })
+            result.append(cargo_dict)
+        return result
+    finally:
+        db.close()
 
-    for doc_type in doc_types_required:
-        doc = next((d for d in documents if d["doc_type"] == doc_type), None)
-        if not doc:
-            semaforo = "🔴 NO ACEPTABLE"
-            reasons.append(f"{doc_type} faltante.")
+# -------------------
+# Validar cargo según checklist Avianca
+# -------------------
+@app.post("/cargo/validate")
+async def validate_cargo_documents(cargo_id: int = Form(...)):
+    db: Session = SessionLocal()
+    try:
+        cargo = db.query(Cargo).filter(Cargo.id == cargo_id).first()
+        if not cargo:
+            raise HTTPException(status_code=404, detail="Cargo no encontrado")
+
+        documents = {doc.doc_type: doc for doc in cargo.documents}
+        reasons = []
+
+        # Reglas Avianca
+        required_docs = ["Commercial Invoice", "Packing List", "SLI", "MSDS"]
+        for doc_name in required_docs:
+            if doc_name not in documents:
+                reasons.append(f"Falta {doc_name}")
+
+        # Packing List vs Invoice
+        if "Commercial Invoice" in documents and "Packing List" in documents:
+            inv = documents["Commercial Invoice"]
+            pack = documents["Packing List"]
+            if inv.filename != pack.filename:
+                reasons.append("Packing List no coincide con Invoice")
+
+        # MSDS vigente
+        if "MSDS" in documents and documents["MSDS"].expiration_date:
+            if documents["MSDS"].expiration_date < datetime.today():
+                reasons.append("MSDS vencido")
+
+        # Determinar semáforo
+        if reasons:
+            status = "🔴 NO ACEPTABLE"
         else:
-            # MSDS vencido
-            if doc_type == "MSDS" and doc.get("valid_until"):
-                valid_until = datetime.strptime(doc["valid_until"], "%Y-%m-%d").date()
-                if valid_until < today:
-                    semaforo = "🔴 NO ACEPTABLE"
-                    reasons.append("MSDS vencido.")
+            status = "🟢 LISTO PARA COUNTER"
 
-            # Packing List inconsistente (simulado)
-            if doc_type == "Packing List" and "incorrecto" in doc.get("filename","").lower():
-                semaforo = "🟡 ACEPTABLE CON RIESGO"
-                reasons.append("Packing List inconsistente.")
+        # Nota legal
+        reasons.append("SmartCargo-AIPA es asesor, no autoridad. La aceptación final depende de Avianca, IATA, CBP, TSA y DOT.")
 
-            # Invoice incompleto (simulado)
-            if doc_type == "Invoice" and "incomplete" in doc.get("filename","").lower():
-                semaforo = "🟡 ACEPTABLE CON RIESGO"
-                reasons.append("Invoice incompleto.")
-
-    if not reasons:
-        reasons.append("Todos los documentos correctos según checklist Avianca.")
-
-    # Nota legal
-    legal_note = "SmartCargo-AIPA es asesor, no autoridad. Aceptación final depende de Avianca, IATA, CBP, TSA y DOT."
-
-    return JSONResponse({
-        "message": f"Cargo evaluado: {semaforo}",
-        "status": semaforo,
-        "reasons": reasons,
-        "legal_note": legal_note
-    })
+        return {"cargo_id": cargo.id, "status": status, "reasons": reasons}
+    finally:
+        db.close()
