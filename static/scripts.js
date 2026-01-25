@@ -1,4 +1,6 @@
-// scripts.js
+// -------------------
+// scripts.js actualizado
+// -------------------
 
 const cargoForm = document.getElementById("cargoForm");
 const cargoTableBody = document.querySelector("#cargoTable tbody");
@@ -9,6 +11,7 @@ const roleSelect = document.getElementById("roleSelect");
 
 let isSpanish = false;
 let currentRole = roleSelect.value || "owner";
+const currentUser = "SmartCargo-AIPA"; // Usuario para enviar al backend
 
 // -------------------
 // Validar cargo
@@ -21,7 +24,10 @@ cargoForm.addEventListener("submit", async (e) => {
     try {
         const res = await fetch("/cargo/validate", {
             method: "POST",
-            body: new URLSearchParams(data)
+            body: new URLSearchParams({
+                cargo_id: data.cargo_id,
+                user: currentUser
+            })
         });
         if (!res.ok) throw new Error(`Error ${res.status}`);
         const result = await res.json();
@@ -41,12 +47,12 @@ function displayCargo(result) {
     const row = document.createElement("tr");
     row.innerHTML = `
         <td>${result.cargo_id}</td>
-        <td>${result.weight} kg</td>
-        <td>${result.volume} m³</td>
+        <td>${result.weight || "-"} kg</td>
+        <td>${result.volume || "-"} m³</td>
         <td>${result.status}</td>
-        <td>${result.motivos.join(", ")}</td>
+        <td>${Object.keys(result.detalles || {}).join(", ")}</td>
         <td>
-            ${Object.entries(result.detalles).map(
+            ${Object.entries(result.detalles || {}).map(
                 ([doc, status]) => `<b>${doc}:</b> ${status}`
             ).join("<br>")}
         </td>
@@ -67,7 +73,6 @@ async function loadCargos() {
     cargos.forEach(cargo => {
         const row = document.createElement("tr");
 
-        // Determinar semáforo según rol
         let semaforo = "—";
         if (currentRole === "owner" || currentRole === "forwarder") {
             semaforo = cargo.documents.some(d => d.status === "🔴 NO ACEPTABLE") ? "🔴" : "🟢";
@@ -77,12 +82,12 @@ async function loadCargos() {
 
         row.innerHTML = `
             <td>${cargo.id}</td>
-            <td>${cargo.weight} kg</td>
-            <td>${cargo.volume} m³</td>
+            <td>${cargo.weight || "-"} kg</td>
+            <td>${cargo.volume || "-"} m³</td>
             <td>${semaforo}</td>
             <td>${cargo.documents.map(d => d.doc_type).join(", ")}</td>
             <td>${cargo.documents.map(d => d.responsible || "").join(", ")}</td>
-            <td>${cargo.flight_date}</td>
+            <td>${cargo.flight_date || "-"}</td>
             <td>${cargo.documents.map(d => d.audit_notes || "").join(" | ")}</td>
         `;
         cargoTableBody.appendChild(row);
@@ -107,45 +112,4 @@ translateBtn.addEventListener("click", () => {
     document.querySelector("h2").textContent = isSpanish ? "Validación de Carga y Documentos" : "Cargo & Document Validation";
 
     cargoForm.querySelector("button").textContent = isSpanish ? "Validar Carga" : "Validate Cargo";
-    printBtn.textContent = isSpanish ? "Imprimir / PDF" : "Print / PDF";
-    whatsappBtn.textContent = isSpanish ? "Enviar WhatsApp" : "Send WhatsApp";
-
-    const headers = document.querySelectorAll("#cargoTable thead th");
-    if (isSpanish) {
-        const titles = ["ID Cargo", "Peso", "Volumen", "Semáforo", "Documentos", "Responsable", "Fecha Vuelo", "Alertas / Legal"];
-        headers.forEach((th, i) => th.textContent = titles[i]);
-    } else {
-        const titles = ["Cargo ID", "Weight", "Volume", "Semaphore", "Documents", "Responsible", "Flight Date", "Alerts / Legal"];
-        headers.forEach((th, i) => th.textContent = titles[i]);
-    }
-
-    // Cambiar roles al idioma correspondiente
-    roleSelect.options[0].text = isSpanish ? "Dueño" : "Owner";
-    roleSelect.options[1].text = isSpanish ? "Forwarder / Agente" : "Forwarder / Agent";
-    roleSelect.options[2].text = isSpanish ? "Camionero" : "Driver";
-    roleSelect.options[3].text = isSpanish ? "Warehouse / Admin" : "Warehouse / Admin";
-});
-
-// -------------------
-// Imprimir / Export PDF
-// -------------------
-printBtn.addEventListener("click", () => {
-    window.print();
-});
-
-// -------------------
-// Enviar por WhatsApp
-// -------------------
-whatsappBtn.addEventListener("click", () => {
-    let text = isSpanish ? "Carga y Documentos:\n" : "Cargo & Documents:\n";
-    document.querySelectorAll("#cargoTable tbody tr").forEach(row => {
-        text += Array.from(row.children).map(td => td.textContent).join(" | ") + "\n";
-    });
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
-});
-
-// -------------------
-// Carga inicial
-// -------------------
-loadCargos();
+    printB
