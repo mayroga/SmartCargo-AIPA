@@ -5,8 +5,11 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
+import os
 
+# Importar módulos locales
 from storage import save_document, list_documents, get_document_path, delete_document, validate_documents
+from backend.rules import validate_cargo
 from models import Cargo, Document, Base, engine, SessionLocal
 
 # -------------------
@@ -75,14 +78,18 @@ async def upload_document(
     db: Session = SessionLocal()
     try:
         doc = save_document(db=db, file=file, cargo_id=cargo_id, doc_type=doc_type, uploaded_by=uploaded_by)
-        return {"message": f"Documento '{doc_type}' cargado correctamente", "filename": doc.filename, "version": doc.version}
+        return {
+            "message": f"Documento '{doc_type}' cargado correctamente",
+            "filename": doc.filename,
+            "version": doc.version
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         db.close()
 
 # -------------------
-# Listar documentos físicos de un cargo
+# Listar documentos de un cargo
 # -------------------
 @app.get("/cargo/list/{cargo_id}", response_class=JSONResponse)
 async def list_cargo_documents(cargo_id: int):
@@ -90,7 +97,7 @@ async def list_cargo_documents(cargo_id: int):
     return {"cargo_id": cargo_id, "documents": docs}
 
 # -------------------
-# Nuevo endpoint: Listar todos los cargos con documentos
+# Listar todos los cargos con documentos
 # -------------------
 @app.get("/cargo/list_all", response_class=JSONResponse)
 async def list_all_cargos():
