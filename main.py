@@ -3,28 +3,19 @@ from fastapi import FastAPI, Form, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from typing import List, Optional
 from datetime import datetime
 import os
 
-# Importar módulos locales
 from storage import save_document, list_documents, get_document_path, delete_document
-from backend.rules import validate_cargo_documents as validate_cargo
+from backend.rules import validate_cargo_documents
 from models import Cargo, Document, Base, engine, SessionLocal
 
-# -------------------
-# Inicialización DB
-# -------------------
+# Crear tablas
 Base.metadata.create_all(bind=engine)
 
-# -------------------
-# FastAPI App
-# -------------------
-app = FastAPI(title="SmartCargo AIPA")
+app = FastAPI(title="SmartCargo-AIPA")
 
-# -------------------
-# Montar archivos estáticos
-# -------------------
+# Montar carpeta static
 if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -41,7 +32,7 @@ async def home():
         return f.read()
 
 # -------------------
-# Crear Cargo
+# Crear cargo
 # -------------------
 @app.post("/cargo/create")
 async def create_cargo(
@@ -52,6 +43,7 @@ async def create_cargo(
     destination: str = Form(...),
     cargo_type: str = Form(...),
     weight: float = Form(...),
+    volume: float = Form(...),
     flight_date: str = Form(...)
 ):
     db: Session = SessionLocal()
@@ -64,6 +56,7 @@ async def create_cargo(
             destination=destination,
             cargo_type=cargo_type,
             weight=weight,
+            volume=volume,
             flight_date=datetime.strptime(flight_date, "%Y-%m-%d")
         )
         db.add(cargo)
@@ -123,6 +116,7 @@ async def list_all_cargos():
                 "destination": cargo.destination,
                 "cargo_type": cargo.cargo_type,
                 "weight": cargo.weight,
+                "volume": cargo.volume,
                 "flight_date": cargo.flight_date.strftime("%Y-%m-%d"),
                 "documents": []
             }
@@ -135,7 +129,7 @@ async def list_all_cargos():
                     "responsible": doc.responsible,
                     "upload_date": doc.upload_date.strftime("%Y-%m-%d %H:%M:%S"),
                     "audit_notes": doc.audit_notes,
-                    "weight": doc.weight if hasattr(doc, "weight") else cargo.weight
+                    "expiration_date": doc.expiration_date.strftime("%Y-%m-%d") if doc.expiration_date else None
                 })
             result.append(cargo_dict)
         return result
@@ -168,37 +162,28 @@ async def remove_document(cargo_id: int, filename: str, deleted_by: str = Form(.
         db.close()
 
 # -------------------
-# Validar cargo tipo SmartCargo-AIPA (para Avianca/IATA/CBP)
+# Validar cargo SmartCargo-AIPA (completo)
 # -------------------
 @app.post("/cargo/validate")
 async def validate_cargo_endpoint(
     cargo_id: int = Form(...),
     user: str = Form(...),
 ):
-    """
-    Evalúa todos los documentos de un cargo según reglas Avianca/IATA/CBP/TSA/DOT.
-    Devuelve semáforo operativo 🔴/🟡/🟢, peso, documentos faltantes y motivos claros.
-    """
     db: Session = SessionLocal()
     try:
         cargo = db.query(Cargo).filter(Cargo.id == cargo_id).first()
         if not cargo:
             raise HTTPException(status_code=404, detail="Cargo no encontrado")
 
-        # Ejecutar validación profesional SmartCargo-AIPA
-        semaforo, motivos = validate_cargo(cargo)
+        semaforo, motivos, detalles = validate_cargo_documents(cargo)
 
-        # Evaluar peso y alerta de aceptación
-        peso = cargo.weight
-        if peso > 1000:  # Ejemplo: límite de Avianca
-            motivos.append("Peso excede límite de aceptación Avianca")
-
-        # Formato de respuesta completo
         return {
             "cargo_id": cargo.id,
             "status": semaforo,
-            "weight": peso,
+            "weight": cargo.weight,
+            "volume": cargo.volume,
             "motivos": motivos,
+            "detalles": detalles,
             "legal": "SmartCargo-AIPA es asesor; aceptación final depende de Avianca/IATA/CBP/TSA/DOT."
         }
     finally:
