@@ -1,18 +1,25 @@
-def generate_advisor_message(validation_result: dict) -> str:
-    """
-    Explica de manera educativa cada semáforo/documento.
-    No reemplaza operador aéreo.
-    """
-    messages = []
-    for doc in validation_result.get("documents", []):
-        if doc["status"] == "🟢":
-            messages.append(f"{doc['doc_type']} está correcto y cumple normas operativas.")
-        elif doc["status"] == "🔴":
-            messages.append(f"{doc['doc_type']} tiene error: {doc['observation']}. Revisar antes de enviar.")
-        else:
-            messages.append(f"{doc['doc_type']} requiere atención: {doc['observation']}")
+import os
+import openai
+import httpx
 
-    for motivo in validation_result.get("motivos", []):
-        messages.append(f"Motivo: {motivo}")
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 
-    return "\n".join(messages)
+def query_ai(prompt: str):
+    # Primero OpenAI
+    if OPENAI_KEY:
+        openai.api_key = OPENAI_KEY
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content
+
+    # Si falla, Gemini
+    if GEMINI_KEY:
+        headers = {"Authorization": f"Bearer {GEMINI_KEY}"}
+        r = httpx.post("https://api.generative.google/v1beta2/models/text-bison-001:generate",
+                       headers=headers, json={"prompt": prompt})
+        return r.json().get("candidates", [{}])[0].get("content", "No response")
+
+    return "AI unavailable"
