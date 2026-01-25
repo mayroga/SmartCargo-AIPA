@@ -1,56 +1,52 @@
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from backend.rules import validate_cargo
+from backend.rules import validate_cargo  # Asegúrate de que rules.py existe
+from typing import Optional
 
-app = FastAPI(title="SmartCargo-AIPA · Asesor documental aeronáutico")
+app = FastAPI(title="Asesor SmartCargo-AIPA")
 
-# Carpeta para CSS/JS
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Monta la carpeta de archivos estáticos (CSS, JS)
+app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 
-# Carpeta para HTML
-templates = Jinja2Templates(directory="templates")
+# Configura Jinja2 para templates
+templates = Jinja2Templates(directory="frontend")
 
-# -------------------
-# Ruta principal
-# -------------------
+# Endpoint principal que sirve index.html
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# -------------------
-# Validar cargo
-# -------------------
+# Endpoint para listar todos los cargos (simulación)
+@app.get("/cargo/list_all")
+async def list_all_cargo():
+    # Ejemplo de datos de prueba
+    cargo_list = [
+        {"awb": "134-98765432", "document": "Air Waybill", "status": "Aprobado", "observation": "Sin inconsistencias", "norm": "IATA TACT"},
+        {"awb": "134-12345678", "document": "Factura Comercial", "status": "Observación", "observation": "Valor declarado incompleto", "norm": "Aduana"},
+        {"awb": "134-45678901", "document": "Lista de Empaque", "status": "Crítico", "observation": "Falta firma del exportador", "norm": "IATA / ICAO"}
+    ]
+    return JSONResponse(content=cargo_list)
+
+# Endpoint para validar cargo
 @app.post("/cargo/validate")
-async def cargo_validate(
+async def validate(
     mawb: str = Form(...),
     hawb: str = Form(...),
     origin: str = Form(...),
     destination: str = Form(...),
     cargo_type: str = Form(...),
-    flight_date: str = Form(...),
-    weight: float = Form(...),
-    volume: float = Form(...)
+    flight_date: str = Form(...)
 ):
-    cargo_data = {
-        "mawb": mawb,
-        "hawb": hawb,
-        "origin": origin,
-        "destination": destination,
-        "cargo_type": cargo_type,
-        "flight_date": flight_date,
-        "weight": weight,
-        "volume": volume
-    }
+    try:
+        # Llama a tu función de validación del módulo rules.py
+        result = validate_cargo(mawb, hawb, origin, destination, cargo_type, flight_date)
+        return JSONResponse(content=result)
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=400)
 
-    result = validate_cargo(cargo_data)
-    return result
-
-# -------------------
-# Listar todos los cargos
-# -------------------
-@app.get("/cargo/list_all")
-async def list_cargos():
-    # Aquí podrías leer de DB o mock data
-    return []  # Reemplaza con tus cargos
+# Para depuración rápida
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=10000)
