@@ -4,13 +4,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 import boto3
-from backend/models import Document, Cargo, SessionLocal
+from models import Document, SessionLocal
 
-# Local folder backup
+# Carpeta local para documentos
 BASE_DIR = Path("storage/uploads")
 BASE_DIR.mkdir(parents=True, exist_ok=True)
 
-# S3 setup
+# Configuración S3
 S3_BUCKET = os.getenv("S3_BUCKET")
 S3_CLIENT = boto3.client(
     "s3",
@@ -19,10 +19,15 @@ S3_CLIENT = boto3.client(
     region_name=os.getenv("AWS_REGION")
 )
 
-# Allowed documents
+# Tipos de documentos permitidos
 TIPOS_DOCUMENTO = [
-    "Commercial Invoice", "Packing List", "Shipper's Letter of Instruction",
-    "AWB", "Certificado", "MSDS", "Permiso País Destino"
+    "Commercial Invoice",
+    "Packing List",
+    "Shipper's Letter of Instruction",
+    "AWB",
+    "Certificado",
+    "MSDS",
+    "Permiso País Destino"
 ]
 
 def save_document(db, file, cargo_id: int, doc_type: str, uploaded_by: str) -> Document:
@@ -41,7 +46,7 @@ def save_document(db, file, cargo_id: int, doc_type: str, uploaded_by: str) -> D
     with open(filepath, "wb") as f:
         f.write(file.file.read())
 
-    # Subir a S3
+    # Subir a S3 si está configurado
     if S3_BUCKET:
         S3_CLIENT.upload_file(str(filepath), S3_BUCKET, f"{cargo_id}/{filename}")
 
@@ -61,11 +66,26 @@ def save_document(db, file, cargo_id: int, doc_type: str, uploaded_by: str) -> D
     db.refresh(doc)
     return doc
 
-def list_documents(cargo_id: int) -> List[str]:
+def list_documents(cargo_id: int) -> List[dict]:
+    """
+    Lista documentos de un cargo en formato compatible con frontend.
+    """
     cargo_dir = BASE_DIR / str(cargo_id)
     if not cargo_dir.exists():
         return []
-    return [f.name for f in cargo_dir.iterdir() if f.is_file()]
+    docs = []
+    for f in cargo_dir.iterdir():
+        if f.is_file():
+            parts = f.name.split("_")
+            doc_type = parts[0]
+            version = parts[1] if len(parts) > 2 else "v1"
+            docs.append({
+                "filename": f.name,
+                "doc_type": doc_type,
+                "version": version,
+                "status": "✔ Válido"
+            })
+    return docs
 
 def get_document_path(cargo_id: int, filename: str) -> Path:
     path = BASE_DIR / str(cargo_id) / filename
@@ -86,7 +106,7 @@ def delete_document(db, cargo_id: int, filename: str, deleted_by: str) -> bool:
     return False
 
 def validate_documents(cargo_id: int, required_docs: List[str]) -> dict:
-    present_docs = [f.split("_")[0] for f in list_documents(cargo_id)]
+    present_docs = [f['doc_type'] for f in list_documents(cargo_id)]
     missing = [doc for doc in required_docs if doc not in present_docs]
     status = "✔ Todos los documentos presentes" if not missing else "❌ Faltan documentos"
     return {"status": status, "missing": missing}
