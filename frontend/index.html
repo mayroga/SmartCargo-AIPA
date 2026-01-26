@@ -6,58 +6,67 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <header>
-        <h1>SMARTCARGO-AIPA by May Roga LLC</h1>
-        <p>Preventive Documentary Validation System · Does not replace airline decisions</p>
-    </header>
+<header>
+    <h1>SMARTCARGO-AIPA by May Roga LLC</h1>
+    <p data-en="Preventive Documentary Validation System · Does not replace airline decisions"
+       data-es="Sistema de Validación Documental Preventiva · No sustituye decisiones de la aerolínea">Preventive Documentary Validation System · Does not replace airline decisions</p>
+</header>
 
-    <section id="cargo-form">
-        <h2>Register / Validate Cargo</h2>
-        <form id="formCargo">
-            <label>MAWB:<input type="text" name="mawb" required></label>
-            <label>HAWB:<input type="text" name="hawb" required></label>
-            <label>Origin:<input type="text" name="origin" required></label>
-            <label>Destination:<input type="text" name="destination" required></label>
-            <label>Cargo Type:
-                <select name="cargo_type" required>
-                    <option value="General">General</option>
-                    <option value="Dangerous Goods">Dangerous Goods</option>
-                    <option value="Perishable">Perishable</option>
-                </select>
-            </label>
-            <label>Flight Date:<input type="date" name="flight_date" required></label>
-            <label>Weight (kg/lbs):<input type="number" name="weight_kg" required></label>
-            <label>Volume (m³):<input type="number" name="volume" readonly></label>
-            <label>Length (cm/in):<input type="number" name="length_cm" required></label>
-            <label>Width (cm/in):<input type="number" name="width_cm" required></label>
-            <label>Height (cm/in):<input type="number" name="height_cm" required></label>
-            <label>Upload Documents (max 2 per type):<input type="file" name="documents" multiple accept="image/*"></label>
-            <label>Role:
-                <select name="role" required>
-                    <option value="Shipper">Shipper</option>
-                    <option value="Forwarder">Forwarder</option>
-                    <option value="Chofer">Driver</option>
-                    <option value="Warehouse">Warehouse</option>
-                    <option value="Operador">Operator</option>
-                    <option value="Destinatario">Destinatario</option>
-                </select>
-            </label>
+<section id="cargo-form">
+    <h2 data-en="Register / Validate Cargo" data-es="Registrar / Validar Carga">Register / Validate Cargo</h2>
+    <form id="formCargo">
+        <label data-en="MAWB" data-es="MAWB">MAWB:<input type="text" name="mawb" required></label>
+        <label data-en="HAWB" data-es="HAWB">HAWB:<input type="text" name="hawb" required></label>
+        <label data-en="Origin" data-es="Origen">Origin:<input type="text" name="origin" required></label>
+        <label data-en="Destination" data-es="Destino">Destination:<input type="text" name="destination" required></label>
 
-            <button type="submit">Validate</button>
-            <button type="button" id="resetForm">Reset</button>
-            <button type="button" id="printPDF">Print / PDF</button>
-            <button type="button" id="shareWhatsApp">WhatsApp</button>
-            <button type="button" id="translateBtn">Translate / Traducir</button>
-        </form>
-    </section>
+        <label data-en="Cargo Type" data-es="Tipo de carga">Cargo Type:
+            <select name="cargo_type" required>
+                <option value="General" data-en="General" data-es="General">General</option>
+                <option value="Dangerous Goods" data-en="Dangerous Goods" data-es="Mercancías Peligrosas">Dangerous Goods</option>
+                <option value="Perishable" data-en="Perishable" data-es="Perecederos">Perishable</option>
+            </select>
+        </label>
 
-    <section id="results">
-        <h2>Validation Results</h2>
-        <div id="semaforo">Semáforo: <span id="semaforoStatus">-</span></div>
-        <div id="documentsList">Documents:</div>
-        <div id="advisor">Advisor:</div>
-    </section>
+        <label data-en="Flight Date" data-es="Fecha de vuelo">Flight Date:<input type="date" name="flight_date" required></label>
+        <label data-en="Weight (kg)" data-es="Peso (kg)">Weight (kg):<input type="number" name="weight_kg" required></label>
+        <label data-en="Volume (m³)" data-es="Volumen (m³)">Volume (m³):<input type="number" name="volume" readonly></label>
+        <label data-en="Length (cm)" data-es="Largo (cm)">Length (cm):<input type="number" name="length_cm" required></label>
+        <label data-en="Width (cm)" data-es="Ancho (cm)">Width (cm):<input type="number" name="width_cm" required></label>
+        <label data-en="Height (cm)" data-es="Alto (cm)">Height (cm):<input type="number" name="height_cm" required></label>
 
-    <script src="/static/scripts.js"></script>
+        <label data-en="Upload Documents" data-es="Subir documentos">Upload Documents (max 2 per type):
+            <input type="file" name="documents" multiple accept="image/*">
+        </label>
+
+        <label data-en="Role" data-es="Rol">Role:
+            <select name="role" id="roleSelect" required>
+                <option value="Shipper">Shipper</option>
+                <option value="Forwarder">Forwarder</option>
+                <option value="Chofer">Chofer</option>
+                <option value="Warehouse">Warehouse</option>
+                <option value="Operador">Operador</option>
+                <option value="Destinatario">Destinatario</option>
+            </select>
+        </label>
+
+        <div class="buttons">
+            <button type="submit" data-en="Validate" data-es="Validar">Validate</button>
+            <button type="button" id="resetForm" data-en="Reset" data-es="Restablecer">Reset</button>
+            <button type="button" id="printPDF" data-en="Print / PDF" data-es="Imprimir / PDF">Print / PDF</button>
+            <button type="button" id="shareWhatsApp" data-en="WhatsApp" data-es="WhatsApp">WhatsApp</button>
+            <button type="button" id="translateBtn" data-en="Translate / Traducir" data-es="Traducir / Translate">Translate / Traducir</button>
+        </div>
+    </form>
+</section>
+
+<section id="results">
+    <h2 data-en="Validation Results" data-es="Resultados de Validación">Validation Results</h2>
+    <div id="semaforo" data-en="Traffic Light" data-es="Semáforo">Semáforo: <span id="semaforoStatus">-</span></div>
+    <div id="documentsList" data-en="Documents" data-es="Documentos">Documents:</div>
+    <div id="advisor" data-en="Advisor" data-es="Asesor">Advisor:</div>
+</section>
+
+<script src="/static/scripts.js"></script>
 </body>
 </html>
