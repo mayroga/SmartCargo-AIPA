@@ -1,62 +1,64 @@
-let lang = "en";
-
-function goStep2() {
-  document.getElementById("page1").classList.add("hidden");
-  document.getElementById("page2").classList.remove("hidden");
-}
-
-function validate() {
-  const data = new FormData();
-  const fileInput = document.getElementById("files");
-  for (let i = 0; i < fileInput.files.length; i++) {
-    data.append("files", fileInput.files[i]);
-  }
-
-  ["mawb","hawb","role","origin","destination",
-   "cargo_type","weight","length","width","height","dot"].forEach(id => {
-    data.append(id, document.getElementById(id).value);
-  });
-
-  fetch("/validate", { method:"POST", body:data })
-    .then(r=>r.json())
-    .then(showResult);
-}
-
-function showResult(res) {
-  document.getElementById("page2").classList.add("hidden");
-  document.getElementById("result").classList.remove("hidden");
-  const map = {GREEN:"🟢 ACCEPTABLE",YELLOW:"🟡 CONDITIONAL",RED:"🔴 NOT ACCEPTABLE"};
-  document.getElementById("semaforo").innerText = map[res.status];
-  document.getElementById("analysis").innerHTML = res.analysis.replace(/\n/g,"<br>");
-}
-
-function sendWhatsApp() {
-  const text = document.getElementById("analysis").innerText;
-  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
-}
+let currentLang = "en";
 
 function toggleLang() {
-  if (lang === "en") {
-    document.querySelector("h3").innerText = "Registrar / Validar Carga";
-    document.getElementById("origin").placeholder="Origen";
-    document.getElementById("destination").placeholder="Destino";
-    document.getElementById("weight").placeholder="Peso kg";
-    document.getElementById("length").placeholder="Largo cm";
-    document.getElementById("width").placeholder="Ancho cm";
-    document.getElementById("height").placeholder="Alto cm";
-    lang="es";
-  } else {
-    location.reload();
-  }
+    currentLang = currentLang === "en" ? "es" : "en";
+    alert(currentLang === "es" ? "Idioma cambiado a Español" : "Language changed to English");
 }
 
-function readText() {
-  const text = document.getElementById("analysis").innerText;
-  if ('speechSynthesis' in window) {
+async function validate() {
+    const data = new FormData();
+    data.append("mawb", document.getElementById("mawb").value);
+    data.append("role", document.getElementById("role").value);
+    data.append("cargo_type", document.getElementById("cargo_type").value);
+    data.append("weight", document.getElementById("weight").value);
+    data.append("height", document.getElementById("height").value);
+    data.append("length", document.getElementById("length").value);
+    data.append("width", document.getElementById("width").value);
+    data.append("lang", currentLang);
+
+    document.getElementById("form-container").classList.add("hidden");
+    const resDiv = document.getElementById("result-page");
+    resDiv.classList.remove("hidden");
+    document.getElementById("ai-analysis").innerText = "Validando con SMARTCARGO-AIPA...";
+
+    try {
+        const response = await fetch("/validate", { method: "POST", body: data });
+        const result = await response.json();
+
+        // Aplicar Semáforo
+        const circle = document.getElementById("semaphore-circle");
+        circle.className = `semaphore ${result.status}`;
+        
+        document.getElementById("status-title").innerText = result.status === "GREEN" ? "ACEPTABLE" : (result.status === "RED" ? "NO ACEPTABLE" : "REVISIÓN");
+        
+        // El análisis viene con tablas de la IA
+        document.getElementById("ai-analysis").innerHTML = formatMarkdownTable(result.analysis);
+        document.getElementById("legal-disclaimer").innerText = result.legal;
+
+    } catch (e) {
+        document.getElementById("ai-analysis").innerText = "Error de conexión.";
+    }
+}
+
+function readResult() {
+    const text = document.getElementById("ai-analysis").innerText;
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang==="es"?"es-ES":"en-US";
+    utterance.lang = currentLang === "es" ? "es-ES" : "en-US";
     speechSynthesis.speak(utterance);
-  } else {
-    alert("Text-to-speech not supported");
-  }
+}
+
+function clearAll() {
+    document.querySelectorAll("input").forEach(i => i.value = "");
+    alert("Datos borrados.");
+}
+
+function backToForm() {
+    document.getElementById("result-page").classList.add("hidden");
+    document.getElementById("form-container").classList.remove("hidden");
+    speechSynthesis.cancel();
+}
+
+// Formateador simple de tablas Markdown para visualización limpia
+function formatMarkdownTable(text) {
+    return text.replace(/\n/g, "<br>").replace(/\|/g, "│");
 }
