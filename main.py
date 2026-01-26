@@ -1,125 +1,96 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-import os, math, requests
+import os
+import json
+import httpx
 
-app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC")
+app = FastAPI(title="SMARTCARGO-AIPA")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-LEGAL_DISCLAIMER = (
-    "SMARTCARGO-AIPA is a preventive operational system. "
-    "It does not replace airline, government, or regulatory decisions "
-    "(Avianca, IATA, TSA, CBP, DOT). Final acceptance remains with authorities."
-)
 
-def calculate_volume(l, w, h):
-    return round((l * w * h) / 1000000, 3)
-
-def hard_rules(data):
-    issues = []
-    docs_required = ["AWB"]
-
-    role = data["role"]
-    cargo = data["cargo_type"]
-    height = data["height"]
-    weight = data["weight"]
-
-    if role in ["Warehouse", "Counter", "Operator"]:
-        if height > 244:
-            issues.append("Height exceeds wide-body aircraft limits (244 cm).")
-        if weight > 4500:
-            issues.append("Weight exceeds pallet position limits (4,500 kg).")
-
-    if cargo in ["DG", "HAZMAT"]:
-        docs_required.append("DGD (IATA Dangerous Goods Declaration)")
-
-    if cargo in ["PER"]:
-        docs_required.append("Temperature Control Certificate")
-
-    return issues, docs_required
-
-def ai_advisor(prompt):
-    headers = {"Content-Type": "application/json"}
-
-    # Try Gemini
+def call_ai_expert(prompt: str) -> str:
+    # 1️⃣ Try Gemini first
     if GEMINI_API_KEY:
         try:
-            r = requests.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}",
-                json={"contents": [{"parts": [{"text": prompt}]}]},
-                timeout=10,
-            )
+            url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}]
+            }
+            params = {"key": GEMINI_API_KEY}
+
+            r = httpx.post(url, headers=headers, params=params, json=payload, timeout=15)
             if r.status_code == 200:
                 return r.json()["candidates"][0]["content"]["parts"][0]["text"]
-        except:
+        except Exception:
             pass
 
-    # Fallback OpenAI
+    # 2️⃣ Fallback OpenAI
     if OPENAI_API_KEY:
         try:
-            r = requests.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "gpt-4o-mini",
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-                timeout=10,
-            )
-            if r.status_code == 200:
-                return r.json()["choices"][0]["message"]["content"]
-        except:
+            headers = {
+                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {"role": "system", "content": "You are SMARTCARGO-AIPA expert advisor."},
+                    {"role": "user", "content": prompt}
+                ]
+            }
+            r = httpx.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=15)
+            return r.json()["choices"][0]["message"]["content"]
+        except Exception:
             pass
 
-    return "Operational advisory unavailable. Please rely on regulatory checklist."
+    return "SMARTCARGO-AIPA could not generate advisory at this moment."
+
 
 @app.get("/", response_class=HTMLResponse)
-def root():
+def index():
     with open("frontend/index.html", "r", encoding="utf-8") as f:
         return f.read()
 
-@app.post("/cargo/validate")
-async def validate(request: Request):
+
+@app.post("/validate")
+async def validate_cargo(request: Request):
     data = await request.json()
 
-    volume = calculate_volume(data["length"], data["width"], data["height"])
-    issues, docs_required = hard_rules(data)
+    weight = data["weight"]
+    height = data["height"]
+    role = data["role"]
 
-    missing_docs = [
-        d for d in docs_required if d not in data.get("documents", [])
-    ]
+    oversized = height > 244
+    overweight = weight > 4500
 
-    if issues or missing_docs:
-        status = "🔴 NOT ACCEPTABLE"
-    elif docs_required:
-        status = "🟡 CONDITIONAL"
+    if oversized or overweight:
+        semaforo = "🔴 NOT ACCEPTABLE"
     else:
-        status = "🟢 ACCEPTABLE"
+        semaforo = "🟢 ACCEPTABLE"
 
     prompt = f"""
-    You are SMARTCARGO-AIPA operational advisor.
-    Role: {data['role']}
-    Cargo type: {data['cargo_type']}
-    Issues: {issues}
-    Missing documents: {missing_docs}
-    Provide professional aviation cargo advice referencing Avianca, IATA, TSA, CBP.
-    """
+You are a senior cargo expert for Avianca.
+Role: {role}
+Weight: {weight} kg
+Height: {height} cm
 
-    advisory = ai_advisor(prompt)
+Explain clearly if this cargo can be accepted,
+what regulations apply (IATA, TSA, CBP),
+and what corrections are required if not acceptable.
+"""
+
+    advisory = call_ai_expert(prompt)
 
     return JSONResponse({
-        "status": status,
-        "volume": volume,
-        "issues": issues,
-        "required_documents": docs_required,
-        "missing_documents": missing_docs,
-        "advisor": advisory,
-        "legal": LEGAL_DISCLAIMER
+        "semaforo": semaforo,
+        "oversized": oversized,
+        "overweight": overweight,
+        "advisory": advisory,
+        "legal": "SMARTCARGO-AIPA is a preventive advisory system and does not replace airline decisions."
     })
