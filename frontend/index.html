@@ -1,69 +1,82 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>SMARTCARGO-AIPA</title>
-  <script defer src="/static/scripts.js"></script>
-  <style>
-    body { font-family: Arial; background:#f4f6f8; padding:20px }
-    .box { background:#fff; padding:20px; border-radius:8px; max-width:800px; margin:auto }
-    .hidden { display:none }
-    button { padding:10px 16px; margin-top:10px }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMARTCARGO-AIPA by May Roga LLC</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        :root { --accent: #e2001a; --bg: #0a0f18; --card: #161e2d; --text: #f1f5f9; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; padding: 20px; }
+        .app-container { max-width: 900px; margin: auto; background: var(--card); padding: 30px; border-radius: 12px; border: 1px solid #2d3748; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent); padding-bottom: 15px; margin-bottom: 25px; }
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        input, select { background: #1f2937; border: 1px solid #374151; color: white; padding: 12px; border-radius: 6px; width: 100%; box-sizing: border-box; }
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        button { flex: 1; padding: 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-main { background: var(--accent); color: white; }
+        .btn-clear { background: #4b5563; color: white; }
+        .btn-lang { background: transparent; border: 1px solid var(--accent); color: var(--accent); max-width: 100px; }
+        #result-area { margin-top: 25px; padding: 20px; border-radius: 8px; background: #0f172a; display: none; }
+        .status-pill { display: inline-block; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9em; }
+        th, td { border: 1px solid #334155; padding: 10px; text-align: left; }
+        th { background: #1e293b; }
+    </style>
 </head>
 <body>
 
-<div class="box">
-  <h2>SMARTCARGO-AIPA by May Roga LLC</h2>
-  <p>Preventive Documentary Validation System · Does not replace airline decisions</p>
+<div class="app-container">
+    <div class="header">
+        <div>
+            <h1 style="margin:0; font-size: 1.5em;">SMARTCARGO-AIPA</h1>
+            <small style="color: #94a3b8;">BY MAY ROGA LLC</small>
+        </div>
+        <button class="btn-lang" onclick="toggleLanguage()">EN / ES</button>
+    </div>
 
-  <button id="langBtn">Español</button>
+    <div id="form-container">
+        <div class="input-grid">
+            <input type="text" id="mawb" placeholder="MAWB (Prefix-Number)">
+            <input type="text" id="hawb" placeholder="HAWB">
+            <select id="role">
+                <option value="Counter">Counter / Operador</option>
+                <option value="Shipper">Shipper / Exportador</option>
+                <option value="Warehouse">Warehouse / Bodega</option>
+            </select>
+            <select id="cargo_type">
+                <option value="General">General Cargo</option>
+                <option value="DG">Dangerous Goods (DG)</option>
+                <option value="PER">Perishable (PER)</option>
+            </select>
+            <input type="number" id="weight" placeholder="Weight (kg)">
+            <input type="number" id="length" placeholder="Length (cm)">
+            <input type="number" id="width" placeholder="Width (cm)">
+            <input type="number" id="height" placeholder="Height (cm)">
+            <input type="text" id="origin" placeholder="Origin (e.g. MIA)">
+            <input type="text" id="destination" placeholder="Destination (e.g. BOG)">
+            <select id="dot">
+                <option value="No">DOT Declared: NO</option>
+                <option value="Yes">DOT Declared: YES</option>
+            </select>
+        </div>
 
-  <!-- PAGE 1 -->
-  <div id="page1">
-    <h3 data-i18n="step1">Register / Validate Cargo</h3>
-    <input id="mawb" placeholder="MAWB"><br>
-    <input id="hawb" placeholder="HAWB"><br>
-    <select id="role">
-      <option>Shipper</option>
-      <option>Driver</option>
-      <option>Warehouse</option>
-      <option>Counter</option>
-      <option>Destinatario</option>
-    </select><br>
-    <button onclick="goStep2()">Continue</button>
-  </div>
+        <div class="btn-group">
+            <button class="btn-main" onclick="runValidation()">VALIDATE CARGO</button>
+            <button class="btn-clear" onclick="resetForm()">BORRAR / CLEAR</button>
+        </div>
+    </div>
 
-  <!-- PAGE 2 -->
-  <div id="page2" class="hidden">
-    <input id="origin" placeholder="Origin"><br>
-    <input id="destination" placeholder="Destination"><br>
-    <select id="cargo_type">
-      <option>General</option>
-      <option>Perishable</option>
-      <option>DG</option>
-      <option>Hazmat</option>
-    </select><br>
-    <input id="weight" placeholder="Weight kg"><br>
-    <input id="length" placeholder="Length cm"><br>
-    <input id="width" placeholder="Width cm"><br>
-    <input id="height" placeholder="Height cm"><br>
-    <label>DOT Declared?</label>
-    <select id="dot">
-      <option>No</option>
-      <option>Yes</option>
-    </select><br>
-    <button onclick="validateCargo()">Validate</button>
-  </div>
-
-  <!-- RESULT -->
-  <div id="result" class="hidden">
-    <h3 id="semaforo"></h3>
-    <pre id="analysis"></pre>
-    <button onclick="window.print()">Print / PDF</button>
-    <button onclick="sendWhatsApp()">WhatsApp</button>
-  </div>
+    <div id="result-area">
+        <div id="status-pill" class="status-pill"></div>
+        <div id="analysis-text" style="white-space: pre-wrap;"></div>
+        <div class="btn-group">
+            <button onclick="window.print()" style="background: #059669; color:white;">PDF / PRINT</button>
+            <button onclick="shareWhatsApp()" style="background: #25d366; color:white;">WHATSAPP</button>
+        </div>
+    </div>
 </div>
 
+<script src="/static/scripts.js"></script>
 </body>
 </html>
