@@ -6,74 +6,76 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="/static/styles.css">
 <style>
-  body { font-family: Arial; background:#f4f6f8; padding:20px; }
-  .box { background:#fff; padding:20px; border-radius:8px; max-width:900px; margin:auto; }
-  .hidden { display:none; }
-  button { padding:10px 16px; margin-top:10px; cursor:pointer; }
-  #analysis { color: blue; white-space: pre-wrap; }
-  #issues { color: red; }
-  input, select { width:100%; margin:5px 0; padding:8px; border-radius:5px; }
+body{font-family:Arial;background:#f4f6f8;padding:20px}
+.box{background:#fff;padding:20px;border-radius:8px;max-width:900px;margin:auto}
+.hidden{display:none}
+#analysis{color:blue;white-space:pre-wrap}
+#issues{color:red}
+input,select,textarea{width:100%;padding:8px;margin:5px 0}
+.marquee{color:#0a58ca;overflow:hidden;white-space:nowrap}
+.marquee span{display:inline-block;animation:scroll 15s linear infinite}
+@keyframes scroll{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+img.thumb{max-width:100px;cursor:pointer;margin:5px}
+#modal{position:fixed;top:0;left:0;width:100%;height:100%;background:#000c;display:none}
+#modal img{max-width:90%;max-height:90%;margin:auto;display:block}
 </style>
 </head>
+
 <body>
 
+<div class="marquee">
+<span>SMARTCARGO-AIPA by May Roga LLC · Prevents rejections · Saves time, money and delays · Advisory system</span>
+</div>
+
 <div class="box">
-  <h2>SMARTCARGO-AIPA</h2>
-  <p>Preventive Documentary Validation System · Does not replace airline decisions</p>
+<button onclick="toggleLang()">Español / English</button>
 
-  <button onclick="toggleLang()">Español / English</button>
+<div id="page1">
+<h3>Register / Validate Cargo</h3>
+<input id="mawb" placeholder="MAWB">
+<input id="hawb" placeholder="HAWB">
+<select id="role">
+<option>Shipper</option>
+<option>Driver</option>
+<option>Warehouse</option>
+<option>Counter</option>
+</select>
+<button onclick="goStep2()">Continue</button>
+</div>
 
-  <!-- PAGE 1 -->
-  <div id="page1">
-    <h3 data-i18n="step1">Register / Validate Cargo</h3>
-    <input id="mawb" placeholder="MAWB"><br>
-    <input id="hawb" placeholder="HAWB"><br>
-    <select id="role">
-      <option>Shipper</option>
-      <option>Driver</option>
-      <option>Warehouse</option>
-      <option>Counter</option>
-    </select><br>
-    <button onclick="goStep2()">Continue</button>
-  </div>
+<div id="page2" class="hidden">
+<input id="origin" placeholder="Origin">
+<input id="destination" placeholder="Destination">
+<select id="cargo_type">
+<option>General</option>
+<option>Perishable</option>
+<option>DG</option>
+<option>Hazmat</option>
+</select>
+<input id="weight" type="number" placeholder="Weight kg">
+<input id="length" type="number" placeholder="Length cm">
+<input id="width" type="number" placeholder="Width cm">
+<input id="height" type="number" placeholder="Height cm">
+<select id="dot"><option>No</option><option>Yes</option></select>
+<input type="file" id="photos" multiple accept="image/*">
+<button onclick="validate()">Validate</button>
+</div>
 
-  <!-- PAGE 2 -->
-  <div id="page2" class="hidden">
-    <input id="origin" placeholder="Origin"><br>
-    <input id="destination" placeholder="Destination"><br>
-    <select id="cargo_type">
-      <option>General</option>
-      <option>Perishable</option>
-      <option>DG</option>
-      <option>Hazmat</option>
-    </select><br>
-    <input id="weight" type="number" placeholder="Weight kg"><br>
-    <input id="length" type="number" placeholder="Length cm"><br>
-    <input id="width" type="number" placeholder="Width cm"><br>
-    <input id="height" type="number" placeholder="Height cm"><br>
+<div id="result" class="hidden">
+<h3 id="semaforo"></h3>
+<pre id="analysis"></pre>
+<div id="issues"></div>
+<div id="photosPreview"></div>
+<p style="color:red;font-size:12px">SMARTCARGO-AIPA is preventive advisory only.</p>
+<button onclick="window.print()">Print / PDF</button>
+<button onclick="sendWhatsApp()">WhatsApp</button>
+<button onclick="speakResult()">Listen</button>
+<button onclick="restart()">New</button>
+</div>
+</div>
 
-    <label>DOT Declared?</label>
-    <select id="dot">
-      <option>No</option>
-      <option>Yes</option>
-    </select><br>
-
-    <label>Upload Photos (max 3)</label>
-    <input type="file" id="photos" multiple accept="image/*"><br>
-
-    <button onclick="validate()">Validate Cargo</button>
-  </div>
-
-  <!-- RESULT -->
-  <div id="result" class="hidden">
-    <h3 id="semaforo"></h3>
-    <pre id="analysis"></pre>
-    <div id="issues"></div>
-    <button onclick="window.print()">Print / PDF</button>
-    <button onclick="sendWhatsApp()">WhatsApp</button>
-    <button onclick="speakResult()">Listen</button>
-    <button onclick="restart()">New Cargo</button>
-  </div>
+<div id="modal" onclick="closeModal()">
+<img id="modalImg">
 </div>
 
 <script src="/static/scripts.js"></script>
