@@ -1,13 +1,9 @@
+// ---------------- VALIDATE ----------------
 function validate() {
   const data = new FormData();
   data.append("role", document.getElementById("role").value);
-  data.append("lang", "English");
+  data.append("lang", document.getElementById("lang").value);
   data.append("dossier", document.getElementById("dossier").value);
-
-  const photos = document.getElementById("photos").files;
-  for (let i = 0; i < photos.length; i++) {
-    data.append("files", photos[i]);
-  }
 
   fetch("/validate", { method: "POST", body: data })
     .then(r => r.json())
@@ -32,6 +28,7 @@ function speak() {
   speechSynthesis.speak(msg);
 }
 
+// ---------------- ADMIN ----------------
 function adminAsk() {
   const data = new FormData();
   data.append("username", document.getElementById("adminUser").value);
@@ -44,4 +41,17 @@ function adminAsk() {
       document.getElementById("adminAnswer").innerText =
         r.answer || "Unauthorized";
     });
+}
+
+// ---------------- LANG SWITCH ----------------
+function switchLang() {
+  const lang = document.getElementById("lang").value;
+  document.getElementById("roleLabel").innerText = lang === "Spanish" ? "Rol" : "Role";
+  document.getElementById("dossier").placeholder = lang === "Spanish" ?
+    "Pega aquí el archivo documental completo revisado en counter" :
+    "Paste FULL documentary file reviewed at counter";
+  document.getElementById("validateBtn").innerText = lang === "Spanish" ?
+    "Validar Carga" : "Validate Cargo";
+  document.getElementById("continueBtn").innerText = lang === "Spanish" ?
+    "Continuar" : "Continue";
 }
