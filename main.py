@@ -1,16 +1,13 @@
 # main.py
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Form, UploadFile, File, Depends, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from pydantic import BaseModel
-from typing import List, Dict
 from backend.database import SessionLocal
-from backend.roles import verify_user, UserRole
 from backend.rules import validate_cargo
 from backend.utils import generate_advisor_message
-import os
 import json
+import os
 
 app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC · Preventive Documentary Validation System")
 
@@ -25,40 +22,13 @@ def get_db():
     finally:
         db.close()
 
-# -----------------------------
-# Autenticación mínima experto
-# -----------------------------
-def expert_auth(username: str, password: str):
+# Autenticación mínima
+def expert_auth(username: str = Form(...), password: str = Form(...)):
     if username != "maykel" or password != os.getenv("SMARTCARGO_PASSWORD", "********"):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
-# -----------------------------
-# Modelos Pydantic
-# -----------------------------
-class DocumentModel(BaseModel):
-    filename: str
-    description: str
-
-class CargoModel(BaseModel):
-    mawb: str
-    hawb: str
-    origin: str
-    destination: str
-    cargo_type: str
-    flight_date: str
-    weight_kg: float
-    length_cm: float
-    width_cm: float
-    height_cm: float
-    volume_m3: float
-    role: str
-    aircraft_type: str = "A320Family"
-    documents: List[DocumentModel] = []
-
-# -----------------------------
-# Ruta principal
-# -----------------------------
+# Página principal
 @app.get("/")
 async def serve_index():
     index_path = Path("frontend/index.html")
@@ -66,66 +36,88 @@ async def serve_index():
         return FileResponse(index_path)
     return JSONResponse({"error": "index.html not found"}, status_code=404)
 
-# -----------------------------
-# Endpoint Validación de Cargo
-# -----------------------------
+# Validación de cargo
 @app.post("/cargo/validate")
-async def cargo_validate(cargo: CargoModel, db=Depends(get_db), auth=Depends(expert_auth)):
-    cargo_data = cargo.dict()
+async def cargo_validate(
+    mawb: str = Form(...),
+    hawb: str = Form(...),
+    origin: str = Form(...),
+    destination: str = Form(...),
+    cargo_type: str = Form(...),
+    flight_date: str = Form(...),
+    weight_kg: float = Form(...),
+    length_cm: float = Form(...),
+    width_cm: float = Form(...),
+    height_cm: float = Form(...),
+    role: str = Form(...),
+    documents_json: str = Form("[]"),
+    db=Depends(get_db),
+    auth=Depends(expert_auth)
+):
+    try:
+        documents = json.loads(documents_json)
+    except:
+        documents = []
 
-    # Validar reglas duras Avianca/IATA/TSA/CBP/DG/Perishable
+    cargo_data = {
+        "mawb": mawb,
+        "hawb": hawb,
+        "origin": origin,
+        "destination": destination,
+        "cargo_type": cargo_type,
+        "flight_date": flight_date,
+        "weight_kg": weight_kg,
+        "length_cm": length_cm,
+        "width_cm": width_cm,
+        "height_cm": height_cm,
+        "role": role,
+        "documents": documents
+    }
+
+    # Validar reglas
     validation_result = validate_cargo(cargo_data)
 
-    # Generar asesoramiento operativo/legal
+    # Asesor IA
     advisor_msg = await generate_advisor_message(cargo_data, validation_result)
 
-    # Resultado completo con semáforo legal y explicaciones
     return JSONResponse({
-        "semaforo": validation_result["semaforo"],
-        "documents_required": validation_result["required_docs"],
-        "missing_docs": validation_result["missing_docs"],
-        "overweight": validation_result["overweight"],
-        "oversized": validation_result["oversized"],
+        "semaforo": validation_result.get("semaforo", "🔴"),
+        "documents_required": validation_result.get("required_docs", []),
+        "missing_docs": validation_result.get("missing_docs", []),
+        "overweight": validation_result.get("overweight", False),
+        "oversized": validation_result.get("oversized", False),
         "explanation": validation_result.get("explanation", ""),
         "advisor": advisor_msg
     })
 
-# -----------------------------
-# Endpoint para subir documentos temporalmente
-# -----------------------------
+# Subida de documentos
 @app.post("/cargo/upload_document")
 async def upload_document(
-    cargo_id: int,
-    doc_type: str,
-    uploaded_by: str,
-    file: bytes,
+    doc_type: str = Form(...),
+    uploaded_by: str = Form(...),
+    file: UploadFile = File(...),
     db=Depends(get_db),
     auth=Depends(expert_auth)
 ):
     upload_dir = Path("storage/uploads")
     upload_dir.mkdir(parents=True, exist_ok=True)
-    file_path = upload_dir / f"{uploaded_by}_{doc_type}_{Path(file.name).name}"
+    file_path = upload_dir / file.filename
     with open(file_path, "wb") as f:
-        f.write(file)
+        f.write(await file.read())
 
     return JSONResponse({
-        "filename": Path(file_path).name,
+        "filename": file.filename,
         "description": doc_type,
         "uploaded_by": uploaded_by,
-        "url": f"/static/uploads/{Path(file_path).name}"
+        "url": f"/static/uploads/{file.filename}"
     })
 
-# -----------------------------
-# Endpoint lista de documentos
-# -----------------------------
-@app.get("/cargo/list_documents/{cargo_id}")
-async def list_docs(cargo_id: int, db=Depends(get_db), auth=Depends(expert_auth)):
+# Listado temporal de documentos
+@app.get("/cargo/list_documents")
+async def list_docs(db=Depends(get_db), auth=Depends(expert_auth)):
     upload_dir = Path("storage/uploads")
     files = []
     if upload_dir.exists():
         for f in upload_dir.iterdir():
-            files.append({
-                "filename": f.name,
-                "url": f"/static/uploads/{f.name}"
-            })
+            files.append({"filename": f.name, "url": f"/static/uploads/{f.name}"})
     return JSONResponse(files)
