@@ -12,27 +12,23 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "disabled")
 
-# ---------------- LEGAL CORE ----------------
+# ---------------- LEGAL + BANNER ----------------
 LEGAL_TEXT = {
     "Spanish": (
         "🔴 AVISO LEGAL – SMARTCARGO-AIPA by May Roga LLC\n\n"
-        "SmartCargo-AIPA opera exclusivamente como plataforma de ASESORÍA PREVENTIVA.\n"
-        "No sustituimos decisiones de aerolíneas, agentes de carga, autoridades aeroportuarias, "
-        "TSA, CBP, DOT ni ninguna entidad gubernamental.\n\n"
-        "La información proporcionada tiene como único objetivo reducir rechazos, demoras, "
-        "multas y pérdidas económicas mediante orientación anticipada.\n\n"
-        "La responsabilidad final sobre la carga, documentación y cumplimiento normativo "
-        "recae exclusivamente en el usuario.\n"
+        "SmartCargo-AIPA opera únicamente como plataforma de ASESORÍA PREVENTIVA.\n"
+        "No sustituimos decisiones de aerolíneas, agentes de carga, TSA, CBP, DOT u "
+        "autoridades gubernamentales.\n"
+        "La responsabilidad final sobre la carga y cumplimiento normativo es del usuario.\n\n"
+        "💙 BENEFICIOS: Evita rechazos, delays, multas, ahorra tiempo, esfuerzo y dinero."
     ),
     "English": (
         "🔴 LEGAL NOTICE – SMARTCARGO-AIPA by May Roga LLC\n\n"
         "SmartCargo-AIPA operates strictly as a PREVENTIVE ADVISORY platform.\n"
-        "We do not replace decisions made by airlines, cargo agents, airport authorities, "
-        "TSA, CBP, DOT or any governmental entity.\n\n"
-        "The information provided is intended solely to reduce rejections, delays, fines "
-        "and financial losses through early guidance.\n\n"
-        "Final responsibility for cargo, documentation and regulatory compliance "
-        "remains exclusively with the user.\n"
+        "We do not replace decisions made by airlines, cargo agents, TSA, CBP, DOT or "
+        "government authorities.\n"
+        "Final responsibility for cargo and regulatory compliance remains with the user.\n\n"
+        "💙 BENEFITS: Avoid rejections, delays, fines, save time, effort and money."
     )
 }
 
@@ -43,10 +39,7 @@ def run_gemini(prompt: str):
     try:
         from google import genai
         client = genai.Client(api_key=GEMINI_API_KEY)
-        response = client.models.generate_content(
-            model="gemini-pro",
-            contents=prompt
-        )
+        response = client.models.generate_content(contents=prompt)
         return response.text
     except Exception as e:
         print("Gemini failed:", e)
@@ -92,23 +85,18 @@ def validate(
 ):
     prompt = f"""
 You are SMARTCARGO-AIPA, acting as an experienced cargo advisory assistant.
-Analyze the following cargo documentation and explain in simple, clear language.
-
-Classify the result strictly as:
-GREEN – acceptable
-YELLOW – conditional
-RED – not acceptable
+Analyze the following cargo documentation in simple, clear language.
+Classify strictly as GREEN, YELLOW, RED and provide actionable steps.
 
 Documentation:
 {dossier}
 """
 
     analysis = run_gemini(prompt) or run_openai(prompt)
-
     if not analysis:
         analysis = (
             "System advisory notice: Unable to process the document at this time. "
-            "Please review documentation manually or try again later."
+            "Please review documentation manually."
         )
 
     return JSONResponse({
@@ -126,6 +114,5 @@ def admin(
 ):
     if password != ADMIN_PASSWORD:
         return JSONResponse({"answer": "Unauthorized"}, status_code=401)
-
     answer = run_openai(question) or "AI unavailable"
     return {"answer": answer}
