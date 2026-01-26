@@ -1,64 +1,79 @@
-let currentLang = "en";
+let currentLang = 'es';
 
 function toggleLang() {
-    currentLang = currentLang === "en" ? "es" : "en";
-    alert(currentLang === "es" ? "Idioma cambiado a Español" : "Language changed to English");
+    currentLang = currentLang === 'es' ? 'en' : 'es';
+    alert(currentLang === 'es' ? 'Idioma: Español' : 'Language: English');
 }
 
-async function validate() {
+async function validateCargo() {
     const data = new FormData();
-    data.append("mawb", document.getElementById("mawb").value);
-    data.append("role", document.getElementById("role").value);
-    data.append("cargo_type", document.getElementById("cargo_type").value);
-    data.append("weight", document.getElementById("weight").value);
-    data.append("height", document.getElementById("height").value);
-    data.append("length", document.getElementById("length").value);
-    data.append("width", document.getElementById("width").value);
-    data.append("lang", currentLang);
+    const fields = ['mawb', 'role', 'cargo_type', 'weight', 'length', 'width', 'height'];
+    
+    // Validación básica de campos vacíos
+    for (let f of fields) {
+        let val = document.getElementById(f).value;
+        if (!val) {
+            alert("Por favor complete todos los campos técnicos.");
+            return;
+        }
+        data.append(f, val);
+    }
+    data.append('lang', currentLang);
 
-    document.getElementById("form-container").classList.add("hidden");
-    const resDiv = document.getElementById("result-page");
-    resDiv.classList.remove("hidden");
-    document.getElementById("ai-analysis").innerText = "Validando con SMARTCARGO-AIPA...";
+    // Cambio de vista
+    document.getElementById('form-cargo').style.display = 'none';
+    const resPage = document.getElementById('result-page');
+    resPage.style.display = 'block';
+    document.getElementById('analysis-text').innerText = "Procesando validación con reglas de Avianca Cargo...";
 
     try {
-        const response = await fetch("/validate", { method: "POST", body: data });
+        const response = await fetch('/validate', {
+            method: 'POST',
+            body: data
+        });
+
+        if (!response.ok) throw new Error("Error en servidor");
+
         const result = await response.json();
 
-        // Aplicar Semáforo
-        const circle = document.getElementById("semaphore-circle");
-        circle.className = `semaphore ${result.status}`;
+        // Actualizar Semáforo
+        const sem = document.getElementById('semaforo');
+        sem.className = `semaphore ${result.status}`;
         
-        document.getElementById("status-title").innerText = result.status === "GREEN" ? "ACEPTABLE" : (result.status === "RED" ? "NO ACEPTABLE" : "REVISIÓN");
-        
-        // El análisis viene con tablas de la IA
-        document.getElementById("ai-analysis").innerHTML = formatMarkdownTable(result.analysis);
-        document.getElementById("legal-disclaimer").innerText = result.legal;
+        const label = document.getElementById('status-label');
+        label.innerText = result.status === 'GREEN' ? 'VALIDACIÓN EXITOSA' : (result.status === 'RED' ? 'CARGA RECHAZADA' : 'REVISIÓN DOCUMENTAL');
+        label.style.color = result.status === 'RED' ? '#ef4444' : '#1e293b';
 
-    } catch (e) {
-        document.getElementById("ai-analysis").innerText = "Error de conexión.";
+        // Inyectar Análisis y Legal
+        document.getElementById('analysis-text').innerHTML = formatOutput(result.analysis);
+        document.getElementById('legal-block').innerText = result.legal;
+
+    } catch (error) {
+        document.getElementById('analysis-text').innerText = "ERROR DE CONEXIÓN: No se pudo contactar con el backend.";
     }
 }
 
-function readResult() {
-    const text = document.getElementById("ai-analysis").innerText;
+function formatOutput(text) {
+    // Convierte el formato de tabla markdown básico a HTML simple
+    return text.replace(/\n/g, "<br>").replace(/\|/g, " | ");
+}
+
+function speakResult() {
+    const text = document.getElementById('analysis-text').innerText;
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = currentLang === "es" ? "es-ES" : "en-US";
+    utterance.lang = currentLang === 'es' ? 'es-ES' : 'en-US';
+    utterance.rate = 0.9;
     speechSynthesis.speak(utterance);
 }
 
-function clearAll() {
-    document.querySelectorAll("input").forEach(i => i.value = "");
-    alert("Datos borrados.");
+function resetForm() {
+    if (confirm("¿Desea borrar todos los datos ingresados?")) {
+        document.querySelectorAll('input').forEach(i => i.value = '');
+    }
 }
 
-function backToForm() {
-    document.getElementById("result-page").classList.add("hidden");
-    document.getElementById("form-container").classList.remove("hidden");
+function backToInput() {
     speechSynthesis.cancel();
-}
-
-// Formateador simple de tablas Markdown para visualización limpia
-function formatMarkdownTable(text) {
-    return text.replace(/\n/g, "<br>").replace(/\|/g, "│");
+    document.getElementById('result-page').style.display = 'none';
+    document.getElementById('form-cargo').style.display = 'block';
 }
