@@ -1,64 +1,124 @@
+// ===============================
+// SMARTCARGO-AIPA Frontend Controller
+// ===============================
+
 const form = document.getElementById("formCargo");
 const semaforoStatus = document.getElementById("semaforoStatus");
 const documentsList = document.getElementById("documentsList");
-const explanationBox = document.getElementById("explanation");
 const advisorBox = document.getElementById("advisor");
+const explanationBox = document.getElementById("explanation");
 
 const resetBtn = document.getElementById("resetForm");
 const printBtn = document.getElementById("printPDF");
 const whatsappBtn = document.getElementById("shareWhatsApp");
 const translateBtn = document.getElementById("translateBtn");
 
-const lengthInput = document.querySelector("input[name='length_cm']");
-const widthInput = document.querySelector("input[name='width_cm']");
-const heightInput = document.querySelector("input[name='height_cm']");
-const volumeInput = document.querySelector("input[name='volume']");
+const lengthInput = document.getElementById("length_cm");
+const widthInput = document.getElementById("width_cm");
+const heightInput = document.getElementById("height_cm");
+const volumeInput = document.getElementById("volume");
+const roleSelect = document.getElementById("roleSelect");
 
-let currentLang = "en";
+let currentLang = "en"; // default English
 
 // ===============================
-// Calcular volumen automáticamente
+// Calculate Volume
 // ===============================
 function calculateVolume() {
     const l = parseFloat(lengthInput.value);
     const w = parseFloat(widthInput.value);
     const h = parseFloat(heightInput.value);
-
     if (!isNaN(l) && !isNaN(w) && !isNaN(h)) {
-        volumeInput.value = ((l * w * h) / 1000000).toFixed(3);
+        const volume = (l * w * h) / 1000000;
+        volumeInput.value = volume.toFixed(3);
+    } else {
+        volumeInput.value = "";
     }
 }
 
-[lengthInput, widthInput, heightInput].forEach(input => {
-    input.addEventListener("input", calculateVolume);
+lengthInput.addEventListener("input", calculateVolume);
+widthInput.addEventListener("input", calculateVolume);
+heightInput.addEventListener("input", calculateVolume);
+
+// ===============================
+// Role-based UI adaptation
+// ===============================
+function adaptUIForRole(role) {
+    // Show/hide fields or change labels according to role
+    // Example: Shipper sees all document requirements
+    // Warehouse sees only documents from forwarder/driver
+    // Operador sees full review screen
+    // Here you can implement additional dynamic adaptations
+}
+
+roleSelect.addEventListener("change", (e) => adaptUIForRole(e.target.value));
+
+// ===============================
+// Translate EN ⇄ ES
+// ===============================
+translateBtn.addEventListener("click", () => {
+    currentLang = currentLang === "en" ? "es" : "en";
+    document.querySelectorAll("[data-en][data-es]").forEach(el => {
+        el.textContent = currentLang === "en" ? el.getAttribute("data-en") : el.getAttribute("data-es");
+    });
 });
 
 // ===============================
-// Submit principal
+// Form submit
 // ===============================
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     semaforoStatus.textContent = "PROCESSING…";
-    explanationBox.textContent = "";
     advisorBox.textContent = "";
+    explanationBox.textContent = "";
     documentsList.innerHTML = "";
 
     const formData = new FormData(form);
-    const dataToSend = {};
-    formData.forEach((v, k) => dataToSend[k] = v);
+
+    const docsFiles = document.getElementById("documents").files;
+    const docsArray = [];
+    for (let i = 0; i < docsFiles.length; i++) {
+        docsArray.push({ filename: docsFiles[i].name, description: docsFiles[i].name });
+    }
+
+    const payload = new FormData();
+    payload.append("mawb", formData.get("mawb"));
+    payload.append("hawb", formData.get("hawb"));
+    payload.append("origin", formData.get("origin"));
+    payload.append("destination", formData.get("destination"));
+    payload.append("cargo_type", formData.get("cargo_type"));
+    payload.append("flight_date", formData.get("flight_date"));
+    payload.append("weight_kg", formData.get("weight_kg"));
+    payload.append("length_cm", formData.get("length_cm"));
+    payload.append("width_cm", formData.get("width_cm"));
+    payload.append("height_cm", formData.get("height_cm"));
+    payload.append("role", formData.get("role"));
+    payload.append("documents_json", JSON.stringify(docsArray));
 
     try {
         const res = await fetch("/cargo/validate", {
             method: "POST",
-            body: formData
+            body: payload
         });
-
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.detail || "Validation error");
 
-        renderResults(data);
+        // Render results
+        semaforoStatus.textContent = data.semaforo;
+        explanationBox.textContent = data.explanation || "";
+        advisorBox.textContent = data.advisor || "";
+
+        if (data.documents_required) {
+            let html = "<ul>";
+            data.documents_required.forEach(doc => {
+                const missing = data.missing_docs.includes(doc) ? "❌" : "✅";
+                html += `<li>${doc} ${missing}</li>`;
+            });
+            html += "</ul>";
+            documentsList.innerHTML = html;
+        }
 
     } catch (err) {
         semaforoStatus.textContent = "🔴 NOT ACCEPTABLE";
@@ -67,38 +127,14 @@ form.addEventListener("submit", async (e) => {
 });
 
 // ===============================
-// Renderizar resultados con explicación legal
-// ===============================
-function renderResults(data) {
-    semaforoStatus.textContent = data.semaforo || "🔴 NOT ACCEPTABLE";
-
-    // Documentos
-    if (data.documents_required) {
-        let html = "<strong>Required Documents:</strong><ul>";
-        data.documents_required.forEach(doc => {
-            const missing = data.missing_docs.includes(doc) ? " (MISSING)" : "";
-            html += `<li>${doc}${missing}</li>`;
-        });
-        html += "</ul>";
-        documentsList.innerHTML = html;
-    }
-
-    // Explicación
-    explanationBox.textContent = data.explanation || "No explanation generated.";
-
-    // Asesor
-    advisorBox.textContent = data.advisor || "No advisory message generated.";
-}
-
-// ===============================
-// Reset total
+// Reset form
 // ===============================
 resetBtn.addEventListener("click", () => {
     form.reset();
     semaforoStatus.textContent = "-";
     documentsList.innerHTML = "";
-    explanationBox.textContent = "";
     advisorBox.textContent = "";
+    explanationBox.textContent = "";
 });
 
 // ===============================
@@ -109,26 +145,14 @@ printBtn.addEventListener("click", () => {
 });
 
 // ===============================
-// WhatsApp Share
+// WhatsApp share
 // ===============================
 whatsappBtn.addEventListener("click", () => {
     const message =
 `SMARTCARGO-AIPA by May Roga LLC
-Semáforo: ${semaforoStatus.textContent}
-Documents: ${documentsList.innerText}
+Result: ${semaforoStatus.textContent}
 Explanation: ${explanationBox.textContent}
 Advisor: ${advisorBox.textContent}`;
-
     const url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(message);
     window.open(url, "_blank");
-});
-
-// ===============================
-// Traducción EN ⇄ ES
-// ===============================
-translateBtn.addEventListener("click", () => {
-    currentLang = currentLang === "en" ? "es" : "en";
-    document.querySelectorAll("[data-en][data-es]").forEach(el => {
-        el.textContent = currentLang === "en" ? el.getAttribute("data-en") : el.getAttribute("data-es");
-    });
 });
