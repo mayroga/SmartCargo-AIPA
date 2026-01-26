@@ -1,12 +1,12 @@
-from fastapi import FastAPI, Form, Depends, HTTPException
+from fastapi import FastAPI, Form, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from backend.database import SessionLocal
 from backend.roles import verify_user, UserRole
 from backend.rules import validate_cargo
-from backend.storage import save_document, list_documents
 from backend.utils import cargo_dashboard, generate_advisor_message
+from backend.storage import save_document, list_documents
 
 app = FastAPI(
     title="SMARTCARGO-AIPA by May Roga LLC · Sistema de validación documental preventiva"
@@ -27,12 +27,12 @@ def get_db():
 # Autenticación mínima para experto SMARTCARGO-AIPA
 # -----------------------------
 def expert_auth(username: str = Form(...), password: str = Form(...)):
-    if username != "maykel" or password != "********":  # reemplazar con clave real segura
+    if username != "maykel" or password != "********":  # reemplazar con clave segura real
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
 # -----------------------------
-# Ruta principal
+# Servir frontend
 # -----------------------------
 @app.get("/")
 async def serve_index():
@@ -42,7 +42,7 @@ async def serve_index():
     return JSONResponse({"error": "index.html not found"}, status_code=404)
 
 # -----------------------------
-# Endpoint Validación de Cargo
+# Validación de Cargo
 # -----------------------------
 @app.post("/cargo/validate")
 async def cargo_validate(
@@ -53,16 +53,14 @@ async def cargo_validate(
     cargo_type: str = Form(...),
     flight_date: str = Form(...),
     weight_kg: float = Form(...),
-    weight_lbs: float = Form(...),
     length_cm: float = Form(...),
     width_cm: float = Form(...),
     height_cm: float = Form(...),
     role: str = Form(...),
-    documents: str = Form(None),
+    documents: list = Form([]),  # lista de nombres de archivos subidos
     db=Depends(get_db),
     auth=Depends(expert_auth)
 ):
-    # Construir cargo_data
     cargo_data = {
         "mawb": mawb,
         "hawb": hawb,
@@ -71,36 +69,38 @@ async def cargo_validate(
         "cargo_type": cargo_type,
         "flight_date": flight_date,
         "weight_kg": weight_kg,
-        "weight_lbs": weight_lbs,
         "length_cm": length_cm,
         "width_cm": width_cm,
         "height_cm": height_cm,
         "role": role,
-        "documents": documents.split(",") if documents else []
+        "documents": [{"filename": d} for d in documents]
     }
 
-    # Validar cargo estrictamente según reglas Avianca/IATA/DG/TSA/CBP
-    validation_status = validate_cargo(cargo_data)
+    # Validación de reglas duras Avianca/IATA/TSA/CBP
+    validation = validate_cargo(cargo_data)
 
-    # Crear dashboard operativo y asesor
-    dashboard = cargo_dashboard(cargo_data, validation_status)
-    advisor_msg = generate_advisor_message(cargo_data, validation_status)
+    # Generar dashboard y asesor
+    dashboard = cargo_dashboard(cargo_data, validation)
+    advisor_msg = generate_advisor_message(cargo_data, validation)
 
     return JSONResponse({
         "semaforo": dashboard["semaforo"],
         "documents_required": dashboard["documents_required"],
+        "missing_docs": dashboard["missing_docs"],
+        "overweight": dashboard["overweight"],
+        "oversized": dashboard["oversized"],
         "advisor": advisor_msg
     })
 
 # -----------------------------
-# Endpoint para subir documentos
+# Subida de documentos (temporal, solo evidencia)
 # -----------------------------
 @app.post("/cargo/upload_document")
 async def upload_document(
     cargo_id: int = Form(...),
     doc_type: str = Form(...),
     uploaded_by: str = Form(...),
-    file: bytes = Form(...),
+    file: UploadFile = File(...),
     db=Depends(get_db),
     auth=Depends(expert_auth)
 ):
@@ -108,9 +108,25 @@ async def upload_document(
     return JSONResponse({"message": "Documento cargado correctamente", "document": doc.filename})
 
 # -----------------------------
-# Endpoint lista de documentos
+# Listar documentos
 # -----------------------------
 @app.get("/cargo/list_documents/{cargo_id}")
 async def list_docs(cargo_id: int, db=Depends(get_db), auth=Depends(expert_auth)):
     docs = list_documents(cargo_id)
     return JSONResponse(docs)
+
+# -----------------------------
+# Endpoint dinámico según rol (puede expandirse)
+# -----------------------------
+@app.get("/role/view/{role_name}")
+async def view_by_role(role_name: str, auth=Depends(expert_auth)):
+    allowed_roles = [UserRole.SHIPPER, UserRole.FORWARDER, UserRole.CHOFER,
+                     UserRole.WAREHOUSE, UserRole.OPERADOR, UserRole.DESTINATARIO]
+    verify_user(role_name, allowed_roles)
+
+    # Aquí se podría retornar la vista adaptada según rol
+    return JSONResponse({
+        "message": f"View loaded for role: {role_name}",
+        "role": role_name,
+        "instructions": f"Fields editable and documents visible only for {role_name}."
+    })
