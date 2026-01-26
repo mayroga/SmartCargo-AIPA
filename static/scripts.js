@@ -1,105 +1,83 @@
-// scripts.js
+let documentsArray = [];
+let currentLang = 'en';
 
-document.addEventListener("DOMContentLoaded", () => {
-    const roleSelect = document.getElementById("roleSelect");
-    const langSelect = document.getElementById("langSelect");
-    const roleSections = document.querySelectorAll(".role-section");
-    const validateBtn = document.getElementById("validateBtn");
-    const semaforoDiv = document.getElementById("semaforo");
-    const documentsDiv = document.getElementById("documents");
-    const explanationDiv = document.getElementById("explanation");
-    const advisorDiv = document.getElementById("advisor");
-    const fileInput = document.getElementById("fileInput");
-    const docPreviewContainer = document.getElementById("docPreviewContainer");
-
-    let uploadedDocuments = [];
-
-    // Mostrar formulario según rol
-    roleSelect.addEventListener("change", () => {
-        roleSections.forEach(s => s.classList.remove("show"));
-        const selected = roleSelect.value;
-        const section = document.getElementById(selected);
-        if(section) section.classList.add("show");
-    });
-
-    // Traducir (placeholder)
-    langSelect.addEventListener("change", () => {
-        const lang = langSelect.value;
-        alert("Switching language to: " + lang + " (All labels should translate in production)");
-        // Aquí puedes integrar traducción real
-    });
-
-    // Preview documentos
-    if(fileInput){
-        fileInput.addEventListener("change", (e) => {
-            docPreviewContainer.innerHTML = "";
-            uploadedDocuments = [];
-            Array.from(e.target.files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    const div = document.createElement("div");
-                    div.className = "doc-preview";
-                    div.innerHTML = `<img src="${ev.target.result}"><input type="text" value="${file.name}" placeholder="Descripción editable">`;
-                    docPreviewContainer.appendChild(div);
-                    uploadedDocuments.push({filename: file.name, description: file.name});
-                };
-                reader.readAsDataURL(file);
-            });
-        });
+function translatePage(lang) {
+    currentLang = lang;
+    if(lang === 'es') {
+        document.getElementById('title').innerText = "SMARTCARGO-AIPA · Sistema Preventivo de Validación Documental";
+        document.querySelector('label[for="role"]').innerText = "Seleccione Rol:";
+        document.querySelector('#cargoForm label[for="mawb"]').innerText = "MAWB:";
+    } else {
+        document.getElementById('title').innerText = "SMARTCARGO-AIPA · Preventive Documentary Validation System";
+        document.querySelector('label[for="role"]').innerText = "Select Role:";
     }
+}
 
-    // Validar cargo
-    validateBtn.addEventListener("click", async () => {
-        const role = roleSelect.value;
+function renderForm() {
+    const role = document.getElementById('role').value;
+    // Aquí se pueden mostrar/ocultar campos específicos por rol
+    console.log("Role selected:", role);
+}
 
-        // Solo ejemplo para Shipper
-        let payload = {
-            mawb: document.getElementById("mawb_shipper")?.value || "",
-            hawb: document.getElementById("hawb_shipper")?.value || "",
-            origin: document.getElementById("origin_shipper")?.value || "",
-            destination: document.getElementById("destination_shipper")?.value || "",
-            cargo_type: document.getElementById("cargo_type_shipper")?.value || "",
-            flight_date: document.getElementById("flight_date_shipper")?.value || "",
-            weight_kg: parseFloat(document.getElementById("weight_shipper")?.value || 0),
-            length_cm: parseFloat(document.getElementById("length_shipper")?.value || 0),
-            width_cm: parseFloat(document.getElementById("width_shipper")?.value || 0),
-            height_cm: parseFloat(document.getElementById("height_shipper")?.value || 0),
-            role: role,
-            documents_json: JSON.stringify(uploadedDocuments)
+document.getElementById('fileUpload').addEventListener('change', function(event) {
+    const files = Array.from(event.target.files);
+    files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <img src="${e.target.result}" alt="${file.name}" onclick="zoomImage(this)">
+                <input type="text" placeholder="Description" value="${file.name}" onchange="updateDescription(this, '${file.name}')">
+            `;
+            document.getElementById('docPreview').appendChild(div);
+            documentsArray.push({filename: file.name, description: file.name});
         };
+        reader.readAsDataURL(file);
+    });
+});
 
-        const formData = new FormData();
-        for (let key in payload){
-            formData.append(key, payload[key]);
-        }
+function updateDescription(input, filename) {
+    const doc = documentsArray.find(d => d.filename === filename);
+    if(doc) doc.description = input.value;
+}
 
-        try{
-            const response = await fetch("/cargo/validate", {
-                method: "POST",
-                body: formData
-            });
+function zoomImage(img) {
+    const w = window.open("");
+    w.document.write(`<img src="${img.src}" style="width:100%">`);
+}
 
-            const data = await response.json();
+async function validateCargo() {
+    const formData = new FormData();
+    formData.append("mawb", document.getElementById('mawb').value);
+    formData.append("hawb", document.getElementById('hawb').value);
+    formData.append("origin", document.getElementById('origin').value);
+    formData.append("destination", document.getElementById('destination').value);
+    formData.append("cargo_type", document.getElementById('cargo_type').value);
+    formData.append("flight_date", document.getElementById('flight_date').value);
+    formData.append("weight_kg", parseFloat(document.getElementById('weight_kg').value));
+    formData.append("length_cm", parseFloat(document.getElementById('length_cm').value));
+    formData.append("width_cm", parseFloat(document.getElementById('width_cm').value));
+    formData.append("height_cm", parseFloat(document.getElementById('height_cm').value));
+    formData.append("role", document.getElementById('role').value);
+    formData.append("documents_json", JSON.stringify(documentsArray));
 
-            // Semáforo
-            semaforoDiv.textContent = `Semáforo: ${data.semaforo}`;
-            if(data.semaforo.includes("🟢")) semaforoDiv.style.color="green";
-            else if(data.semaforo.includes("🟡")) semaforoDiv.style.color="orange";
-            else semaforoDiv.style.color="red";
-
-            // Documentos
-            documentsDiv.innerHTML = `<strong>Required Docs:</strong> ${data.documents_required.join(", ")}<br><strong>Missing Docs:</strong> ${data.missing_docs.join(", ")}`;
-
-            // Explicación
-            explanationDiv.innerHTML = `<strong>Explanation:</strong> ${data.explanation}`;
-
-            // Asesor
-            advisorDiv.innerHTML = `<strong>Advisor:</strong> ${data.advisor}`;
-
-        } catch(err){
-            console.error(err);
-            alert("Error validating cargo. Check console.");
-        }
+    const response = await fetch("/cargo/validate", {
+        method: "POST",
+        body: formData
     });
 
-});
+    if(response.ok) {
+        const data = await response.json();
+        const semaforoEl = document.getElementById('semaforo');
+        if(data.semaforo === "🟢") semaforoEl.style.color = "green";
+        else if(data.semaforo === "🟡") semaforoEl.style.color = "orange";
+        else semaforoEl.style.color = "red";
+
+        semaforoEl.innerText = `Semáforo: ${data.semaforo}`;
+        document.getElementById('validationDetails').innerHTML = `
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+    } else {
+        alert("Error validating cargo");
+    }
+}
