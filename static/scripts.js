@@ -1,75 +1,60 @@
-let lang = "en";
+let lang="en";
 
-// ====== Navegación ======
-function goStep2() {
-    document.getElementById("page1").classList.add("hidden");
-    document.getElementById("page2").classList.remove("hidden");
+function goStep2(){
+page1.classList.add("hidden");
+page2.classList.remove("hidden");
 }
 
-function restart() {
-    document.getElementById("page2").classList.add("hidden");
-    document.getElementById("result").classList.add("hidden");
-    document.getElementById("page1").classList.remove("hidden");
-    document.getElementById("mawb").value = "";
-    document.getElementById("hawb").value = "";
+function restart(){
+location.reload();
 }
 
-// ====== Validación y subida ======
-function validate() {
-    const data = new FormData();
-    const fields = ["mawb","hawb","role","origin","destination","cargo_type","weight","length","width","height","dot"];
-    fields.forEach(id => data.append(id, document.getElementById(id).value));
+function validate(){
+const data=new FormData();
+["mawb","hawb","role","origin","destination","cargo_type","weight","length","width","height","dot"]
+.forEach(id=>data.append(id,document.getElementById(id).value));
 
-    // fotos
-    const photos = document.getElementById("photos").files;
-    for (let i=0; i<photos.length && i<3; i++) {
-        data.append("files", photos[i]);
-    }
+const photos=document.getElementById("photos").files;
+for(let i=0;i<photos.length && i<3;i++) data.append("files",photos[i]);
 
-    fetch("/validate", {method:"POST", body:data})
-    .then(r => r.json())
-    .then(showResult)
-    .catch(err => alert("Error connecting to server: " + err));
+fetch("/validate",{method:"POST",body:data})
+.then(r=>r.json()).then(showResult);
 }
 
-// ====== Mostrar resultados ======
-function showResult(res) {
-    document.getElementById("page2").classList.add("hidden");
-    document.getElementById("result").classList.remove("hidden");
+function showResult(res){
+page2.classList.add("hidden");
+result.classList.remove("hidden");
+semaforo.innerText=res.status==="GREEN"?"🟢 ACCEPTABLE":"🔴 NOT ACCEPTABLE";
+analysis.innerText=res.advisor;
+issues.innerText=res.issues?.join("\n")||"";
 
-    const map = {
-        GREEN: "🟢 ACCEPTABLE",
-        RED: "🔴 NOT ACCEPTABLE"
-    };
-    document.getElementById("semaforo").innerText = map[res.status];
-    document.getElementById("analysis").innerText = res.ai_advisor;
-    
-    let issuesHTML = "";
-    if (res.issues && res.issues.length > 0) {
-        issuesHTML = "Technical Issues:\n" + res.issues.join("\n");
-    }
-    document.getElementById("issues").innerText = issuesHTML;
+const preview=document.getElementById("photosPreview");
+preview.innerHTML="";
+const input=document.getElementById("photos");
+[...input.files].forEach(f=>{
+const img=document.createElement("img");
+img.src=URL.createObjectURL(f);
+img.className="thumb";
+img.onclick=()=>openModal(img.src);
+preview.appendChild(img);
+});
 }
 
-// ====== WhatsApp ======
-function sendWhatsApp() {
-    const text = document.getElementById("analysis").innerText;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
+function openModal(src){
+modal.style.display="flex";
+modalImg.src=src;
+}
+function closeModal(){modal.style.display="none"}
+
+function sendWhatsApp(){
+window.open(`https://wa.me/?text=${encodeURIComponent(analysis.innerText)}`);
 }
 
-// ====== Texto a voz ======
-function speakResult() {
-    const msg = new SpeechSynthesisUtterance(document.getElementById("analysis").innerText);
-    window.speechSynthesis.speak(msg);
+function speakResult(){
+speechSynthesis.speak(new SpeechSynthesisUtterance(analysis.innerText));
 }
 
-// ====== Idioma ======
-function toggleLang() {
-    if (lang === "en") {
-        document.querySelector("h3").innerText = "Registrar / Validar Carga";
-        document.querySelector("h2").innerText = "SMARTCARGO-AIPA";
-        lang = "es";
-    } else {
-        location.reload();
-    }
+function toggleLang(){
+lang=lang==="en"?"es":"en";
+document.querySelector("h3").innerText=lang==="es"?"Registrar / Validar Carga":"Register / Validate Cargo";
 }
