@@ -1,64 +1,62 @@
-let currentLang = 'en';
+let lang = "en";
 
-function toggleLanguage() {
-    currentLang = currentLang === 'en' ? 'es' : 'en';
-    const btn = document.querySelector('.btn-lang');
-    btn.innerText = currentLang === 'en' ? 'EN / ES' : 'ES / EN';
-    // Aquí se podrían cambiar etiquetas estáticas si se desea más detalle
+function goStep2() {
+  document.getElementById("page1").classList.add("hidden");
+  document.getElementById("page2").classList.remove("hidden");
 }
 
-async function runValidation() {
-    const resultArea = document.getElementById('result-area');
-    const analysisText = document.getElementById('analysis-text');
-    const statusPill = document.getElementById('status-pill');
+function validate() {
+  const data = new FormData();
+  const fileInput = document.getElementById("files");
+  for (let i = 0; i < fileInput.files.length; i++) {
+    data.append("files", fileInput.files[i]);
+  }
 
-    analysisText.innerText = "Consulting SMARTCARGO-AIPA Database & Regulations...";
-    resultArea.style.display = 'block';
+  ["mawb","hawb","role","origin","destination",
+   "cargo_type","weight","length","width","height","dot"].forEach(id => {
+    data.append(id, document.getElementById(id).value);
+  });
 
-    const formData = new FormData();
-    const fields = ['mawb', 'hawb', 'role', 'cargo_type', 'weight', 'length', 'width', 'height', 'origin', 'destination', 'dot'];
-    
-    fields.forEach(field => {
-        formData.append(field, document.getElementById(field).value);
-    });
-
-    try {
-        const response = await fetch('/validate', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await response.json();
-
-        // Manejo de Semáforo
-        const statusMap = {
-            'GREEN': { text: '🟢 ACCEPTABLE', color: '#10b981' },
-            'YELLOW': { text: '🟡 CONDITIONAL / REVIEW', color: '#f59e0b' },
-            'RED': { text: '🔴 REJECTED / CRITICAL', color: '#ef4444' }
-        };
-
-        statusPill.innerText = statusMap[data.status].text;
-        statusPill.style.backgroundColor = statusMap[data.status].color;
-
-        // Renderizar respuesta (Markdown simplificado a HTML)
-        analysisText.innerHTML = `
-            <p><strong>Volume:</strong> ${data.volume} m³</p>
-            <div>${data.analysis.replace(/\n/g, '<br>')}</div>
-            <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
-            <small style="color: #94a3b8;">${data.legal_notice}</small>
-        `;
-
-    } catch (error) {
-        analysisText.innerText = "System error. Please check connection.";
-    }
+  fetch("/validate", { method:"POST", body:data })
+    .then(r=>r.json())
+    .then(showResult);
 }
 
-function resetForm() {
-    document.querySelectorAll('input').forEach(i => i.value = '');
-    document.getElementById('result-area').style.display = 'none';
+function showResult(res) {
+  document.getElementById("page2").classList.add("hidden");
+  document.getElementById("result").classList.remove("hidden");
+  const map = {GREEN:"🟢 ACCEPTABLE",YELLOW:"🟡 CONDITIONAL",RED:"🔴 NOT ACCEPTABLE"};
+  document.getElementById("semaforo").innerText = map[res.status];
+  document.getElementById("analysis").innerHTML = res.analysis.replace(/\n/g,"<br>");
 }
 
-function shareWhatsApp() {
-    const text = document.getElementById('analysis-text').innerText;
-    const url = `https://wa.me/?text=${encodeURIComponent("SMARTCARGO-AIPA REPORT:\n\n" + text)}`;
-    window.open(url, '_blank');
+function sendWhatsApp() {
+  const text = document.getElementById("analysis").innerText;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
+}
+
+function toggleLang() {
+  if (lang === "en") {
+    document.querySelector("h3").innerText = "Registrar / Validar Carga";
+    document.getElementById("origin").placeholder="Origen";
+    document.getElementById("destination").placeholder="Destino";
+    document.getElementById("weight").placeholder="Peso kg";
+    document.getElementById("length").placeholder="Largo cm";
+    document.getElementById("width").placeholder="Ancho cm";
+    document.getElementById("height").placeholder="Alto cm";
+    lang="es";
+  } else {
+    location.reload();
+  }
+}
+
+function readText() {
+  const text = document.getElementById("analysis").innerText;
+  if ('speechSynthesis' in window) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang==="es"?"es-ES":"en-US";
+    speechSynthesis.speak(utterance);
+  } else {
+    alert("Text-to-speech not supported");
+  }
 }
