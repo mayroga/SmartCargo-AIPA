@@ -11,7 +11,6 @@ from backend.rules import validate_cargo
 from backend.utils import generate_advisor_message
 import os
 import json
-import aiohttp
 
 app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC · Preventive Documentary Validation System")
 
