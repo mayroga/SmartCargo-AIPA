@@ -12,11 +12,10 @@ import json
 
 app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC · Preventive Documentary Validation System")
 
-# Montar carpeta static
+# Carpeta estática
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/storage", StaticFiles(directory="storage"), name="storage")
 
-# Base de datos (temporal)
+# DB temporal
 def get_db():
     db = SessionLocal()
     try:
@@ -24,17 +23,13 @@ def get_db():
     finally:
         db.close()
 
-# -----------------------------
-# Autenticación mínima
-# -----------------------------
+# Auth experto
 def expert_auth(username: str = Form(...), password: str = Form(...)):
     if username != "maykel" or password != os.getenv("SMARTCARGO_PASSWORD", "********"):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
-# -----------------------------
 # Ruta principal
-# -----------------------------
 @app.get("/")
 async def serve_index():
     index_path = Path("frontend/index.html")
@@ -42,9 +37,7 @@ async def serve_index():
         return FileResponse(index_path)
     return JSONResponse({"error": "index.html not found"}, status_code=404)
 
-# -----------------------------
-# Validación de Cargo
-# -----------------------------
+# Validación de carga
 @app.post("/cargo/validate")
 async def cargo_validate(
     mawb: str = Form(...),
@@ -62,7 +55,7 @@ async def cargo_validate(
     db=Depends(get_db),
     auth=Depends(expert_auth)
 ):
-    # Parse documents
+    # Parse JSON documentos
     try:
         documents = json.loads(documents_json)
     except Exception:
@@ -83,7 +76,10 @@ async def cargo_validate(
         "documents": documents
     }
 
+    # Validación reglas Avianca/IATA/TSA/CBP/DG/Perishable
     validation_result = validate_cargo(cargo_data)
+
+    # Mensaje asesor IA
     advisor_msg = await generate_advisor_message(cargo_data, validation_result)
 
     return JSONResponse({
@@ -96,14 +92,14 @@ async def cargo_validate(
         "advisor": advisor_msg
     })
 
-# -----------------------------
 # Subir documentos
-# -----------------------------
 @app.post("/cargo/upload_document")
 async def upload_document(
+    cargo_id: int = Form(...),
     doc_type: str = Form(...),
     uploaded_by: str = Form(...),
     file: UploadFile = File(...),
+    db=Depends(get_db),
     auth=Depends(expert_auth)
 ):
     upload_dir = Path("storage/uploads")
@@ -116,5 +112,15 @@ async def upload_document(
         "filename": file.filename,
         "description": doc_type,
         "uploaded_by": uploaded_by,
-        "url": f"/storage/uploads/{file.filename}"
+        "url": f"/static/uploads/{file.filename}"
     })
+
+# Listar documentos
+@app.get("/cargo/list_documents/{cargo_id}")
+async def list_docs(cargo_id: int, db=Depends(get_db), auth=Depends(expert_auth)):
+    upload_dir = Path("storage/uploads")
+    files = []
+    if upload_dir.exists():
+        for f in upload_dir.iterdir():
+            files.append({"filename": f.name, "url": f"/static/uploads/{f.name}"})
+    return JSONResponse(files)
