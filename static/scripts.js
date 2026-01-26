@@ -1,158 +1,105 @@
-// ===============================
-// SMARTCARGO-AIPA Frontend Controller
-// ===============================
+// scripts.js
 
-const form = document.getElementById("formCargo");
-const semaforoStatus = document.getElementById("semaforoStatus");
-const documentsList = document.getElementById("documentsList");
-const advisorBox = document.getElementById("advisor");
-const explanationBox = document.getElementById("explanation");
+document.addEventListener("DOMContentLoaded", () => {
+    const roleSelect = document.getElementById("roleSelect");
+    const langSelect = document.getElementById("langSelect");
+    const roleSections = document.querySelectorAll(".role-section");
+    const validateBtn = document.getElementById("validateBtn");
+    const semaforoDiv = document.getElementById("semaforo");
+    const documentsDiv = document.getElementById("documents");
+    const explanationDiv = document.getElementById("explanation");
+    const advisorDiv = document.getElementById("advisor");
+    const fileInput = document.getElementById("fileInput");
+    const docPreviewContainer = document.getElementById("docPreviewContainer");
 
-const resetBtn = document.getElementById("resetForm");
-const printBtn = document.getElementById("printPDF");
-const whatsappBtn = document.getElementById("shareWhatsApp");
-const translateBtn = document.getElementById("translateBtn");
+    let uploadedDocuments = [];
 
-const lengthInput = document.getElementById("length_cm");
-const widthInput = document.getElementById("width_cm");
-const heightInput = document.getElementById("height_cm");
-const volumeInput = document.getElementById("volume");
-const roleSelect = document.getElementById("roleSelect");
-
-let currentLang = "en"; // default English
-
-// ===============================
-// Calculate Volume
-// ===============================
-function calculateVolume() {
-    const l = parseFloat(lengthInput.value);
-    const w = parseFloat(widthInput.value);
-    const h = parseFloat(heightInput.value);
-    if (!isNaN(l) && !isNaN(w) && !isNaN(h)) {
-        const volume = (l * w * h) / 1000000;
-        volumeInput.value = volume.toFixed(3);
-    } else {
-        volumeInput.value = "";
-    }
-}
-
-lengthInput.addEventListener("input", calculateVolume);
-widthInput.addEventListener("input", calculateVolume);
-heightInput.addEventListener("input", calculateVolume);
-
-// ===============================
-// Role-based UI adaptation
-// ===============================
-function adaptUIForRole(role) {
-    // Show/hide fields or change labels according to role
-    // Example: Shipper sees all document requirements
-    // Warehouse sees only documents from forwarder/driver
-    // Operador sees full review screen
-    // Here you can implement additional dynamic adaptations
-}
-
-roleSelect.addEventListener("change", (e) => adaptUIForRole(e.target.value));
-
-// ===============================
-// Translate EN ⇄ ES
-// ===============================
-translateBtn.addEventListener("click", () => {
-    currentLang = currentLang === "en" ? "es" : "en";
-    document.querySelectorAll("[data-en][data-es]").forEach(el => {
-        el.textContent = currentLang === "en" ? el.getAttribute("data-en") : el.getAttribute("data-es");
+    // Mostrar formulario según rol
+    roleSelect.addEventListener("change", () => {
+        roleSections.forEach(s => s.classList.remove("show"));
+        const selected = roleSelect.value;
+        const section = document.getElementById(selected);
+        if(section) section.classList.add("show");
     });
-});
 
-// ===============================
-// Form submit
-// ===============================
-form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+    // Traducir (placeholder)
+    langSelect.addEventListener("change", () => {
+        const lang = langSelect.value;
+        alert("Switching language to: " + lang + " (All labels should translate in production)");
+        // Aquí puedes integrar traducción real
+    });
 
-    semaforoStatus.textContent = "PROCESSING…";
-    advisorBox.textContent = "";
-    explanationBox.textContent = "";
-    documentsList.innerHTML = "";
-
-    const formData = new FormData(form);
-
-    const docsFiles = document.getElementById("documents").files;
-    const docsArray = [];
-    for (let i = 0; i < docsFiles.length; i++) {
-        docsArray.push({ filename: docsFiles[i].name, description: docsFiles[i].name });
+    // Preview documentos
+    if(fileInput){
+        fileInput.addEventListener("change", (e) => {
+            docPreviewContainer.innerHTML = "";
+            uploadedDocuments = [];
+            Array.from(e.target.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const div = document.createElement("div");
+                    div.className = "doc-preview";
+                    div.innerHTML = `<img src="${ev.target.result}"><input type="text" value="${file.name}" placeholder="Descripción editable">`;
+                    docPreviewContainer.appendChild(div);
+                    uploadedDocuments.push({filename: file.name, description: file.name});
+                };
+                reader.readAsDataURL(file);
+            });
+        });
     }
 
-    const payload = new FormData();
-    payload.append("mawb", formData.get("mawb"));
-    payload.append("hawb", formData.get("hawb"));
-    payload.append("origin", formData.get("origin"));
-    payload.append("destination", formData.get("destination"));
-    payload.append("cargo_type", formData.get("cargo_type"));
-    payload.append("flight_date", formData.get("flight_date"));
-    payload.append("weight_kg", formData.get("weight_kg"));
-    payload.append("length_cm", formData.get("length_cm"));
-    payload.append("width_cm", formData.get("width_cm"));
-    payload.append("height_cm", formData.get("height_cm"));
-    payload.append("role", formData.get("role"));
-    payload.append("documents_json", JSON.stringify(docsArray));
+    // Validar cargo
+    validateBtn.addEventListener("click", async () => {
+        const role = roleSelect.value;
 
-    try {
-        const res = await fetch("/cargo/validate", {
-            method: "POST",
-            body: payload
-        });
-        const data = await res.json();
+        // Solo ejemplo para Shipper
+        let payload = {
+            mawb: document.getElementById("mawb_shipper")?.value || "",
+            hawb: document.getElementById("hawb_shipper")?.value || "",
+            origin: document.getElementById("origin_shipper")?.value || "",
+            destination: document.getElementById("destination_shipper")?.value || "",
+            cargo_type: document.getElementById("cargo_type_shipper")?.value || "",
+            flight_date: document.getElementById("flight_date_shipper")?.value || "",
+            weight_kg: parseFloat(document.getElementById("weight_shipper")?.value || 0),
+            length_cm: parseFloat(document.getElementById("length_shipper")?.value || 0),
+            width_cm: parseFloat(document.getElementById("width_shipper")?.value || 0),
+            height_cm: parseFloat(document.getElementById("height_shipper")?.value || 0),
+            role: role,
+            documents_json: JSON.stringify(uploadedDocuments)
+        };
 
-        if (!res.ok) throw new Error(data.detail || "Validation error");
-
-        // Render results
-        semaforoStatus.textContent = data.semaforo;
-        explanationBox.textContent = data.explanation || "";
-        advisorBox.textContent = data.advisor || "";
-
-        if (data.documents_required) {
-            let html = "<ul>";
-            data.documents_required.forEach(doc => {
-                const missing = data.missing_docs.includes(doc) ? "❌" : "✅";
-                html += `<li>${doc} ${missing}</li>`;
-            });
-            html += "</ul>";
-            documentsList.innerHTML = html;
+        const formData = new FormData();
+        for (let key in payload){
+            formData.append(key, payload[key]);
         }
 
-    } catch (err) {
-        semaforoStatus.textContent = "🔴 NOT ACCEPTABLE";
-        explanationBox.textContent = err.message;
-    }
-});
+        try{
+            const response = await fetch("/cargo/validate", {
+                method: "POST",
+                body: formData
+            });
 
-// ===============================
-// Reset form
-// ===============================
-resetBtn.addEventListener("click", () => {
-    form.reset();
-    semaforoStatus.textContent = "-";
-    documentsList.innerHTML = "";
-    advisorBox.textContent = "";
-    explanationBox.textContent = "";
-});
+            const data = await response.json();
 
-// ===============================
-// Print / PDF
-// ===============================
-printBtn.addEventListener("click", () => {
-    window.print();
-});
+            // Semáforo
+            semaforoDiv.textContent = `Semáforo: ${data.semaforo}`;
+            if(data.semaforo.includes("🟢")) semaforoDiv.style.color="green";
+            else if(data.semaforo.includes("🟡")) semaforoDiv.style.color="orange";
+            else semaforoDiv.style.color="red";
 
-// ===============================
-// WhatsApp share
-// ===============================
-whatsappBtn.addEventListener("click", () => {
-    const message =
-`SMARTCARGO-AIPA by May Roga LLC
-Result: ${semaforoStatus.textContent}
-Explanation: ${explanationBox.textContent}
-Advisor: ${advisorBox.textContent}`;
-    const url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(message);
-    window.open(url, "_blank");
+            // Documentos
+            documentsDiv.innerHTML = `<strong>Required Docs:</strong> ${data.documents_required.join(", ")}<br><strong>Missing Docs:</strong> ${data.missing_docs.join(", ")}`;
+
+            // Explicación
+            explanationDiv.innerHTML = `<strong>Explanation:</strong> ${data.explanation}`;
+
+            // Asesor
+            advisorDiv.innerHTML = `<strong>Advisor:</strong> ${data.advisor}`;
+
+        } catch(err){
+            console.error(err);
+            alert("Error validating cargo. Check console.");
+        }
+    });
+
 });
