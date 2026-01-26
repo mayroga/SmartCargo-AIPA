@@ -37,12 +37,16 @@ def run_gemini(prompt: str):
     if not GEMINI_API_KEY:
         return None
     try:
-        from google import genai
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        # Se debe especificar el modelo explícitamente
-model = genai.GenerativeModel('gemini-1.5-flash')
-response = model.generate_content(tu_texto)
-        return response.text
+        import google.generativeai as genai
+        genai.configure(api_key=GEMINI_API_KEY)
+
+        model = genai.GenerativeModel("gemini-pro")
+        response = model.generate_content(prompt)
+
+        if response and response.text:
+            return response.text
+        return None
+
     except Exception as e:
         print("Gemini failed:", e)
         return None
@@ -54,12 +58,14 @@ def run_openai(prompt: str):
     try:
         from openai import OpenAI
         client = OpenAI(api_key=OPENAI_API_KEY)
+
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2
         )
         return completion.choices[0].message.content
+
     except Exception as e:
         print("OpenAI failed:", e)
         return None
@@ -67,9 +73,9 @@ def run_openai(prompt: str):
 # ---------------- SEMAFORO ----------------
 def semaforo(text: str):
     t = text.lower()
-    if any(w in t for w in ["reject", "forbidden", "prohibited", "not allowed"]):
+    if any(w in t for w in ["reject", "rejection", "forbidden", "prohibited", "not allowed", "must be rejected"]):
         return "RED"
-    if any(w in t for w in ["review", "verify", "conditional", "warning"]):
+    if any(w in t for w in ["conditional", "review", "verify", "correct", "re-label", "fix", "warning"]):
         return "YELLOW"
     return "GREEN"
 
@@ -86,15 +92,60 @@ def validate(
     dossier: str = Form(...)
 ):
     prompt = f"""
-You are SMARTCARGO-AIPA, acting as an experienced cargo advisory assistant.
-Analyze the following cargo documentation in simple, clear language.
-Classify strictly as GREEN, YELLOW, RED and provide actionable steps.
+You are SMARTCARGO-AIPA, acting as a SENIOR AIR CARGO COUNTER SUPERVISOR
+with deep operational knowledge of Avianca Cargo, IATA DGR, TSA and CBP rules.
 
-Documentation:
+Your task is to PREVENT rejections, delays and fines BEFORE cargo acceptance.
+
+Analyze the cargo documentation below exactly as a real counter agent would.
+
+MANDATORY OUTPUT STRUCTURE:
+
+1. OVERALL STATUS
+   - Clearly state ONE of the following:
+     🟢 GREEN – ACCEPTABLE
+     🟡 YELLOW – CONDITIONAL / CORRECTABLE
+     🔴 RED – NOT ACCEPTABLE / REJECT AT COUNTER
+
+2. DETAILED FINDINGS (Counter-Level)
+   - List EACH issue separately.
+   - For every issue include:
+     • What is wrong
+     • Why it is a problem (operational / safety / regulatory)
+     • Which party is responsible (Shipper, Driver, Agent, Warehouse)
+
+3. RISK LEVEL
+   - Explain the real operational risk:
+     Delay / Fine / Rejection / Safety violation
+
+4. REQUIRED COUNTER ACTIONS (VERY IMPORTANT)
+   - Write EXACT actions a counter agent must take, using imperative language:
+     Examples:
+     • RE-LABEL OUTSIDE SHRINK WRAP
+     • REJECT UNTIL DOCUMENT CORRECTED
+     • HOLD CARGO – DO NOT ACCEPT
+     • REQUEST NEW HAWB
+     • REMOVE PLASTIC COVERING HAZMAT LABELS
+
+5. FINAL DECISION
+   - One clear sentence:
+     “Cargo may proceed once corrections are completed”
+     OR
+     “Cargo must be rejected until fully compliant”
+
+STRICT RULES:
+- Do NOT be vague
+- Do NOT say “review” without saying HOW
+- If labels are hidden, handwriting illegible, documents inconsistent → this is NOT GREEN
+- Use professional aviation language
+- Assume this is a REAL shipment at MIA counter
+
+Cargo documentation:
 {dossier}
 """
 
     analysis = run_gemini(prompt) or run_openai(prompt)
+
     if not analysis:
         analysis = (
             "System advisory notice: Unable to process the document at this time. "
@@ -116,5 +167,6 @@ def admin(
 ):
     if password != ADMIN_PASSWORD:
         return JSONResponse({"answer": "Unauthorized"}, status_code=401)
+
     answer = run_openai(question) or "AI unavailable"
     return {"answer": answer}
