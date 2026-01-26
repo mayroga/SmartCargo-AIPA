@@ -1,55 +1,64 @@
-let currentLang = "en";
+let currentLang = 'en';
 
-function toggleLang() {
-  if (currentLang === "en") {
-    currentLang = "es";
-    document.querySelector("#langBtn").innerText = "English";
-    document.querySelector("h2").innerText = "SMARTCARGO-AIPA por May Roga LLC";
-    document.querySelector("p").innerText = "Sistema Preventivo de Validación Documental · No reemplaza decisiones de aerolínea";
-    document.querySelector("[data-i18n='step1']").innerText = "Registrar / Validar Carga";
-  } else {
-    currentLang = "en";
-    document.querySelector("#langBtn").innerText = "Español";
-    document.querySelector("h2").innerText = "SMARTCARGO-AIPA by May Roga LLC";
-    document.querySelector("p").innerText = "Preventive Documentary Validation System · Does not replace airline decisions";
-    document.querySelector("[data-i18n='step1']").innerText = "Register / Validate Cargo";
-  }
+function toggleLanguage() {
+    currentLang = currentLang === 'en' ? 'es' : 'en';
+    const btn = document.querySelector('.btn-lang');
+    btn.innerText = currentLang === 'en' ? 'EN / ES' : 'ES / EN';
+    // Aquí se podrían cambiar etiquetas estáticas si se desea más detalle
 }
 
-function goStep2() {
-  const mawb = document.querySelector("#mawb").value;
-  const hawb = document.querySelector("#hawb").value;
-  const role = document.querySelector("#role").value;
-  if (!mawb || !hawb) { alert("Please fill MAWB & HAWB"); return; }
-  document.querySelector("#page1").classList.add("hidden");
-  document.querySelector("#page2").classList.remove("hidden");
+async function runValidation() {
+    const resultArea = document.getElementById('result-area');
+    const analysisText = document.getElementById('analysis-text');
+    const statusPill = document.getElementById('status-pill');
+
+    analysisText.innerText = "Consulting SMARTCARGO-AIPA Database & Regulations...";
+    resultArea.style.display = 'block';
+
+    const formData = new FormData();
+    const fields = ['mawb', 'hawb', 'role', 'cargo_type', 'weight', 'length', 'width', 'height', 'origin', 'destination', 'dot'];
+    
+    fields.forEach(field => {
+        formData.append(field, document.getElementById(field).value);
+    });
+
+    try {
+        const response = await fetch('/validate', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        // Manejo de Semáforo
+        const statusMap = {
+            'GREEN': { text: '🟢 ACCEPTABLE', color: '#10b981' },
+            'YELLOW': { text: '🟡 CONDITIONAL / REVIEW', color: '#f59e0b' },
+            'RED': { text: '🔴 REJECTED / CRITICAL', color: '#ef4444' }
+        };
+
+        statusPill.innerText = statusMap[data.status].text;
+        statusPill.style.backgroundColor = statusMap[data.status].color;
+
+        // Renderizar respuesta (Markdown simplificado a HTML)
+        analysisText.innerHTML = `
+            <p><strong>Volume:</strong> ${data.volume} m³</p>
+            <div>${data.analysis.replace(/\n/g, '<br>')}</div>
+            <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
+            <small style="color: #94a3b8;">${data.legal_notice}</small>
+        `;
+
+    } catch (error) {
+        analysisText.innerText = "System error. Please check connection.";
+    }
 }
 
-async function validateCargo() {
-  const data = new FormData();
-  data.append("mawb", document.querySelector("#mawb").value);
-  data.append("hawb", document.querySelector("#hawb").value);
-  data.append("role", document.querySelector("#role").value);
-  data.append("origin", document.querySelector("#origin").value);
-  data.append("destination", document.querySelector("#destination").value);
-  data.append("cargo_type", document.querySelector("#cargo_type").value);
-  data.append("weight", document.querySelector("#weight").value);
-  data.append("length", document.querySelector("#length").value);
-  data.append("width", document.querySelector("#width").value);
-  data.append("height", document.querySelector("#height").value);
-  data.append("dot", document.querySelector("#dot").value);
-
-  const resp = await fetch("/validate", { method: "POST", body: data });
-  const json = await resp.json();
-
-  document.querySelector("#page2").classList.add("hidden");
-  document.querySelector("#result").classList.remove("hidden");
-  document.querySelector("#semaforo").innerText = json.semaforo;
-  document.querySelector("#analysis").innerText = json.advisor + "\n\n" + json.legal_notice;
+function resetForm() {
+    document.querySelectorAll('input').forEach(i => i.value = '');
+    document.getElementById('result-area').style.display = 'none';
 }
 
-function sendWhatsApp() {
-  const analysis = document.querySelector("#analysis").innerText;
-  const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(analysis)}`;
-  window.open(url, "_blank");
+function shareWhatsApp() {
+    const text = document.getElementById('analysis-text').innerText;
+    const url = `https://wa.me/?text=${encodeURIComponent("SMARTCARGO-AIPA REPORT:\n\n" + text)}`;
+    window.open(url, '_blank');
 }
