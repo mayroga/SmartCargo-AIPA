@@ -14,10 +14,10 @@
 <body>
 
 <div class="box">
-  <h2>SMARTCARGO-AIPA</h2>
+  <h2>SMARTCARGO-AIPA by May Roga LLC</h2>
   <p>Preventive Documentary Validation System · Does not replace airline decisions</p>
 
-  <button onclick="toggleLang()">Español</button>
+  <button id="langBtn">Español</button>
 
   <!-- PAGE 1 -->
   <div id="page1">
@@ -29,6 +29,7 @@
       <option>Driver</option>
       <option>Warehouse</option>
       <option>Counter</option>
+      <option>Destinatario</option>
     </select><br>
     <button onclick="goStep2()">Continue</button>
   </div>
@@ -47,14 +48,12 @@
     <input id="length" placeholder="Length cm"><br>
     <input id="width" placeholder="Width cm"><br>
     <input id="height" placeholder="Height cm"><br>
-
     <label>DOT Declared?</label>
     <select id="dot">
       <option>No</option>
       <option>Yes</option>
     </select><br>
-
-    <button onclick="validate()">Validate</button>
+    <button onclick="validateCargo()">Validate</button>
   </div>
 
   <!-- RESULT -->
