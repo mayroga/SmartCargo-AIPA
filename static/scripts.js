@@ -1,111 +1,56 @@
-/* SMARTCARGO-AIPA BY MAY ROGA LLC - Motor de Ejecución Técnica */
+et currentLang = "en";
 
-let currentLang = 'es';
-let synth = window.speechSynthesis;
-
-/**
- * Alterna el idioma global del sistema
- */
 function toggleLang() {
-    currentLang = currentLang === 'es' ? 'en' : 'es';
-    const msg = currentLang === 'es' ? "Idioma: ESPAÑOL" : "Language: ENGLISH";
-    alert(msg);
+  if (currentLang === "en") {
+    currentLang = "es";
+    document.querySelector("#langBtn").innerText = "English";
+    document.querySelector("h2").innerText = "SMARTCARGO-AIPA por May Roga LLC";
+    document.querySelector("p").innerText = "Sistema Preventivo de Validación Documental · No reemplaza decisiones de aerolínea";
+    document.querySelector("[data-i18n='step1']").innerText = "Registrar / Validar Carga";
+  } else {
+    currentLang = "en";
+    document.querySelector("#langBtn").innerText = "Español";
+    document.querySelector("h2").innerText = "SMARTCARGO-AIPA by May Roga LLC";
+    document.querySelector("p").innerText = "Preventive Documentary Validation System · Does not replace airline decisions";
+    document.querySelector("[data-i18n='step1']").innerText = "Register / Validate Cargo";
+  }
 }
 
-/**
- * Valida la carga contra regulaciones Avianca/IATA/DOT/TSA/CBP
- */
+function goStep2() {
+  const mawb = document.querySelector("#mawb").value;
+  const hawb = document.querySelector("#hawb").value;
+  const role = document.querySelector("#role").value;
+  if (!mawb || !hawb) { alert("Please fill MAWB & HAWB"); return; }
+  document.querySelector("#page1").classList.add("hidden");
+  document.querySelector("#page2").classList.remove("hidden");
+}
+
 async function validateCargo() {
-    const fields = ['mawb', 'role', 'cargo_type', 'weight', 'length', 'width', 'height'];
-    const data = new FormData();
-    
-    // Validación de integridad de datos
-    for (const id of fields) {
-        const element = document.getElementById(id);
-        if (!element || !element.value) {
-            alert(currentLang === 'es' ? "ERROR: Datos técnicos incompletos." : "ERROR: Incomplete technical data.");
-            return;
-        }
-        data.append(id, element.value);
-    }
-    data.append('lang', currentLang);
+  const data = new FormData();
+  data.append("mawb", document.querySelector("#mawb").value);
+  data.append("hawb", document.querySelector("#hawb").value);
+  data.append("role", document.querySelector("#role").value);
+  data.append("origin", document.querySelector("#origin").value);
+  data.append("destination", document.querySelector("#destination").value);
+  data.append("cargo_type", document.querySelector("#cargo_type").value);
+  data.append("weight", document.querySelector("#weight").value);
+  data.append("length", document.querySelector("#length").value);
+  data.append("width", document.querySelector("#width").value);
+  data.append("height", document.querySelector("#height").value);
+  data.append("dot", document.querySelector("#dot").value);
 
-    // Transición de interfaz
-    document.getElementById('form-cargo').style.display = 'none';
-    const resPage = document.getElementById('result-page');
-    resPage.style.display = 'block';
-    document.getElementById('analysis-text').innerText = currentLang === 'es' ? "EJECUTANDO PROTOCOLO DE VALIDACIÓN..." : "EXECUTING VALIDATION PROTOCOL...";
+  const resp = await fetch("/validate", { method: "POST", body: data });
+  const json = await resp.json();
 
-    try {
-        const response = await fetch('/validate', {
-            method: 'POST',
-            body: data
-        });
-
-        if (!response.ok) throw new Error("Server Connection Failed");
-
-        const result = await response.json();
-
-        // Actualización de Semáforo Visual
-        const sem = document.getElementById('semaforo');
-        sem.className = `semaphore ${result.status}`;
-        
-        // Etiqueta de Estado
-        const label = document.getElementById('status-label');
-        label.innerText = result.status === 'GREEN' ? "ACEPTABLE / COMPLIANT" : (result.status === 'RED' ? "RECHAZADO / REJECTED" : "REVISIÓN / WARNING");
-        label.style.color = result.status === 'RED' ? '#b91c1c' : '#0f172a';
-
-        // Renderizado de Análisis Técnico (Azul) y Legal (Rojo)
-        document.getElementById('analysis-text').innerHTML = parseMarkdownTable(result.analysis);
-        document.getElementById('legal-block').innerText = result.legal;
-
-    } catch (error) {
-        document.getElementById('analysis-text').innerText = "ERROR DE SISTEMA: Fallo en la conexión con el nodo de cumplimiento.";
-        console.error(error);
-    }
+  document.querySelector("#page2").classList.add("hidden");
+  document.querySelector("#result").classList.remove("hidden");
+  document.querySelector("#semaforo").innerText = json.semaforo;
+  document.querySelector("#analysis").innerText = json.advisor + "\n\n" + json.legal_notice;
 }
 
-/**
- * Ejecuta la lectura auditiva del asesor (Bocina)
- */
-function speakResult() {
-    if (synth.speaking) synth.cancel();
-    
-    const text = document.getElementById('analysis-text').innerText;
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    utterance.lang = currentLang === 'es' ? 'es-ES' : 'en-US';
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
-    
-    synth.speak(utterance);
+function sendWhatsApp() {
+  const analysis = document.querySelector("#analysis").innerText;
+  const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(analysis)}`;
+  window.open(url, "_blank");
 }
 
-/**
- * Borrado total de formulario y reinicio de estado
- */
-function resetForm() {
-    if (confirm(currentLang === 'es' ? "¿Confirmar borrado de datos?" : "Confirm data deletion?")) {
-        document.querySelectorAll('input, select').forEach(el => el.value = '');
-        synth.cancel();
-    }
-}
-
-/**
- * Retorno al ingreso de datos
- */
-function backToInput() {
-    synth.cancel();
-    document.getElementById('result-page').style.display = 'none';
-    document.getElementById('form-cargo').style.display = 'block';
-}
-
-/**
- * Formatea tablas de texto a estructura visual clara
- */
-function parseMarkdownTable(text) {
-    // Reemplaza saltos de línea y asegura que las tablas de la IA se vean profesionales
-    return text
-        .replace(/\n/g, '<br>')
-        .replace(/\|/g, '<span style="color:#cbd5e1">|</span>');
-}
