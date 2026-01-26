@@ -1,56 +1,47 @@
-et currentLang = "en";
-
-function toggleLang() {
-  if (currentLang === "en") {
-    currentLang = "es";
-    document.querySelector("#langBtn").innerText = "English";
-    document.querySelector("h2").innerText = "SMARTCARGO-AIPA por May Roga LLC";
-    document.querySelector("p").innerText = "Sistema Preventivo de Validación Documental · No reemplaza decisiones de aerolínea";
-    document.querySelector("[data-i18n='step1']").innerText = "Registrar / Validar Carga";
-  } else {
-    currentLang = "en";
-    document.querySelector("#langBtn").innerText = "Español";
-    document.querySelector("h2").innerText = "SMARTCARGO-AIPA by May Roga LLC";
-    document.querySelector("p").innerText = "Preventive Documentary Validation System · Does not replace airline decisions";
-    document.querySelector("[data-i18n='step1']").innerText = "Register / Validate Cargo";
-  }
-}
+let lang = "en";
 
 function goStep2() {
-  const mawb = document.querySelector("#mawb").value;
-  const hawb = document.querySelector("#hawb").value;
-  const role = document.querySelector("#role").value;
-  if (!mawb || !hawb) { alert("Please fill MAWB & HAWB"); return; }
-  document.querySelector("#page1").classList.add("hidden");
-  document.querySelector("#page2").classList.remove("hidden");
+  document.getElementById("page1").classList.add("hidden");
+  document.getElementById("page2").classList.remove("hidden");
 }
 
-async function validateCargo() {
+function validate() {
   const data = new FormData();
-  data.append("mawb", document.querySelector("#mawb").value);
-  data.append("hawb", document.querySelector("#hawb").value);
-  data.append("role", document.querySelector("#role").value);
-  data.append("origin", document.querySelector("#origin").value);
-  data.append("destination", document.querySelector("#destination").value);
-  data.append("cargo_type", document.querySelector("#cargo_type").value);
-  data.append("weight", document.querySelector("#weight").value);
-  data.append("length", document.querySelector("#length").value);
-  data.append("width", document.querySelector("#width").value);
-  data.append("height", document.querySelector("#height").value);
-  data.append("dot", document.querySelector("#dot").value);
+  [
+    "mawb","hawb","role","origin","destination",
+    "cargo_type","weight","length","width","height","dot"
+  ].forEach(id => data.append(id, document.getElementById(id).value));
 
-  const resp = await fetch("/validate", { method: "POST", body: data });
-  const json = await resp.json();
+  fetch("/validate", { method:"POST", body:data })
+    .then(r => r.json())
+    .then(showResult);
+}
 
-  document.querySelector("#page2").classList.add("hidden");
-  document.querySelector("#result").classList.remove("hidden");
-  document.querySelector("#semaforo").innerText = json.semaforo;
-  document.querySelector("#analysis").innerText = json.advisor + "\n\n" + json.legal_notice;
+function showResult(res) {
+  document.getElementById("page2").classList.add("hidden");
+  document.getElementById("result").classList.remove("hidden");
+
+  const map = {
+    GREEN:"🟢 ACCEPTABLE",
+    YELLOW:"🟡 CONDITIONAL",
+    RED:"🔴 NOT ACCEPTABLE"
+  };
+
+  document.getElementById("semaforo").innerText = map[res.status];
+  document.getElementById("analysis").innerText =
+    res.analysis + "\n\n" + res.disclaimer;
 }
 
 function sendWhatsApp() {
-  const analysis = document.querySelector("#analysis").innerText;
-  const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(analysis)}`;
-  window.open(url, "_blank");
+  const text = document.getElementById("analysis").innerText;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
 }
 
+function toggleLang() {
+  if (lang === "en") {
+    document.querySelector("h3").innerText = "Registrar / Validar Carga";
+    lang = "es";
+  } else {
+    location.reload();
+  }
+}
