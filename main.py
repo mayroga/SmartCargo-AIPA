@@ -1,12 +1,14 @@
-from fastapi import FastAPI, Form, Depends, HTTPException
+# main.py
+from fastapi import FastAPI, Form, UploadFile, File, Depends, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from typing import List, Dict
 from backend.database import SessionLocal
 from backend.roles import verify_user, UserRole
 from backend.rules import validate_cargo
 from backend.utils import generate_advisor_message
+import aiohttp
+import os
 import json
 
 app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC · Preventive Documentary Validation System")
@@ -14,7 +16,7 @@ app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC · Preventive Documentary V
 # Montar carpeta static
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Base de datos
+# Base de datos (temporal)
 def get_db():
     db = SessionLocal()
     try:
@@ -26,7 +28,7 @@ def get_db():
 # Autenticación mínima para experto SMARTCARGO-AIPA
 # -----------------------------
 def expert_auth(username: str = Form(...), password: str = Form(...)):
-    if username != "maykel" or password != "********":  # reemplazar con clave segura real
+    if username != "maykel" or password != os.getenv("SMARTCARGO_PASSWORD", "********"):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
@@ -55,16 +57,16 @@ async def cargo_validate(
     length_cm: float = Form(...),
     width_cm: float = Form(...),
     height_cm: float = Form(...),
-    volume_m3: float = Form(...),
     role: str = Form(...),
-    documents: str = Form(...),  # JSON string: [{"filename": "...", "description": "..."}]
+    documents_json: str = Form(...),
     db=Depends(get_db),
     auth=Depends(expert_auth)
 ):
+    # Parse documents
     try:
-        docs_list = json.loads(documents)
+        documents = json.loads(documents_json)
     except Exception:
-        docs_list = []
+        documents = []
 
     cargo_data = {
         "mawb": mawb,
@@ -77,26 +79,63 @@ async def cargo_validate(
         "length_cm": length_cm,
         "width_cm": width_cm,
         "height_cm": height_cm,
-        "volume_m3": volume_m3,
         "role": role,
-        "documents": docs_list
+        "documents": documents
     }
 
-    # Validación estricta y cálculo de semáforo
-    validation_results = validate_cargo(cargo_data)
+    # Validar reglas duras Avianca/IATA/TSA/CBP/DG/Perishable
+    validation_result = validate_cargo(cargo_data)
 
-    # Mensaje de asesor legal y operativo usando IA o lógica interna
-    advisor_msg = generate_advisor_message(cargo_data, validation_results)
+    # Generar asesoramiento operativo/legal usando IA (Gemini -> OpenAI)
+    advisor_msg = await generate_advisor_message(cargo_data, validation_result)
 
-    # Preparar respuesta
-    response = {
-        "semaforo": validation_results["semaforo"],
-        "documents_required": validation_results["required_docs"],
-        "missing_docs": validation_results["missing_docs"],
-        "overweight": validation_results["overweight"],
-        "oversized": validation_results["oversized"],
-        "explanation": validation_results["explanation"],  # explicación legal detallada
+    # Resultado completo
+    return JSONResponse({
+        "semaforo": validation_result["semaforo"],
+        "documents_required": validation_result["required_docs"],
+        "missing_docs": validation_result["missing_docs"],
+        "overweight": validation_result["overweight"],
+        "oversized": validation_result["oversized"],
+        "explanation": validation_result["explanation"],
         "advisor": advisor_msg
-    }
+    })
 
-    return JSONResponse(response)
+# -----------------------------
+# Endpoint para subir documentos
+# -----------------------------
+@app.post("/cargo/upload_document")
+async def upload_document(
+    cargo_id: int = Form(...),
+    doc_type: str = Form(...),
+    uploaded_by: str = Form(...),
+    file: UploadFile = File(...),
+    db=Depends(get_db),
+    auth=Depends(expert_auth)
+):
+    # Guardar documento temporalmente
+    upload_dir = Path("storage/uploads")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    file_path = upload_dir / file.filename
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+
+    # Retornar información para frontend
+    return JSONResponse({
+        "filename": file.filename,
+        "description": doc_type,
+        "uploaded_by": uploaded_by,
+        "url": f"/static/uploads/{file.filename}"
+    })
+
+# -----------------------------
+# Endpoint lista de documentos
+# -----------------------------
+@app.get("/cargo/list_documents/{cargo_id}")
+async def list_docs(cargo_id: int, db=Depends(get_db), auth=Depends(expert_auth)):
+    # Solo listar documentos de manera temporal
+    upload_dir = Path("storage/uploads")
+    files = []
+    if upload_dir.exists():
+        for f in upload_dir.iterdir():
+            files.append({"filename": f.name, "url": f"/static/uploads/{f.name}"})
+    return JSONResponse(files)
