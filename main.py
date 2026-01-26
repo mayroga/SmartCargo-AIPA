@@ -1,124 +1,132 @@
-# main.py
 import os
-import httpx
-from pathlib import Path
-from fastapi import FastAPI, Form, UploadFile, File, Depends
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, Form, UploadFile, File
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
+import pytesseract
+from PIL import Image
+import google.generativeai as genai
+import openai
 
-app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC")
+# ---------------- APP ----------------
+app = FastAPI(title="SMARTCARGO-AIPA")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-FRONTEND_DIR = Path(__file__).parent / "frontend"
-INDEX_FILE = FRONTEND_DIR / "index.html"
+FRONTEND = Path("frontend/index.html")
 
+# ---------------- ENV ----------------
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
-@app.get("/")
-async def index():
-    return FileResponse(INDEX_FILE)
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+if OPENAI_API_KEY:
+    openai.api_key = OPENAI_API_KEY
 
-# ---------- SMARTCARGO CORE ----------
-async def call_gemini(prompt):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={GEMINI_API_KEY}"
-    payload = {"contents":[{"parts":[{"text":prompt}]}]}
-    async with httpx.AsyncClient(timeout=40) as c:
-        r = await c.post(url, json=payload)
-        r.raise_for_status()
-        return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+# ---------------- FRONT ----------------
+@app.get("/", response_class=HTMLResponse)
+def home():
+    return FRONTEND.read_text(encoding="utf-8")
 
-async def call_openai(prompt):
-    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
-    payload = {
-        "model": "gpt-4.1-mini",
-        "messages": [
-            {"role": "system", "content": "You are SMARTCARGO-AIPA, aviation cargo compliance advisor."},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.2
-    }
-    async with httpx.AsyncClient(timeout=40) as c:
-        r = await c.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-        r.raise_for_status()
-        return r.json()["choices"][0]["message"]["content"]
+# ---------------- OCR ----------------
+def extract_text_from_images(files):
+    text = ""
+    for file in files:
+        img = Image.open(file.file)
+        text += pytesseract.image_to_string(img)
+    return text
 
-async def smartcargo_engine(prompt):
-    try:
-        if GEMINI_API_KEY:
-            return await call_gemini(prompt)
-    except:
-        pass
+# ---------------- IA CORE ----------------
+def run_ai(prompt):
+    if GEMINI_API_KEY:
+        try:
+            model = genai.GenerativeModel("gemini-pro")
+            return model.generate_content(prompt).text
+        except:
+            pass
+
     if OPENAI_API_KEY:
-        return await call_openai(prompt)
-    return "SMARTCARGO-AIPA advisory engine unavailable."
+        res = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2
+        )
+        return res.choices[0].message.content
 
-# ---------- VALIDATION ----------
+    return "AI unavailable."
+
+# ---------------- VALIDATION ----------------
 @app.post("/validate")
-async def validate(
-    mawb: str = Form(...),
-    hawb: str = Form(""),
+def validate(
     role: str = Form(...),
-    origin: str = Form(...),
-    destination: str = Form(...),
-    cargo_type: str = Form(...),
-    weight: float = Form(...),
-    length: float = Form(...),
-    width: float = Form(...),
-    height: float = Form(...),
-    dot: str = Form("No"),
-    admin_user: str = Form(""),
-    admin_pass: str = Form(""),
+    lang: str = Form(...),
+    dossier: str = Form(...),
     files: list[UploadFile] = File(default=[])
 ):
-    volume = round((length * width * height) / 1_000_000, 3)
-    issues = []
+    ocr_text = extract_text_from_images(files) if files else ""
 
-    if height > 244:
-        issues.append("Height exceeds wide-body aircraft maximum (244 cm).")
-    if weight > 4500:
-        issues.append("Weight exceeds pallet structural limit (4500 kg).")
-    if not files:
-        issues.append("No cargo photos provided.")
+    full_text = f"""
+CLIENT INPUT:
+{dossier}
 
-    status = "RED" if issues else "GREEN"
-
-    is_admin = admin_user == ADMIN_USERNAME and admin_pass == ADMIN_PASSWORD
-
-    prompt = f"""
-SMARTCARGO-AIPA advisory.
-
-ROLE: {role}
-ADMIN MODE: {is_admin}
-
-MAWB: {mawb}
-HAWB: {hawb}
-Route: {origin} → {destination}
-Cargo: {cargo_type}
-Weight: {weight} kg
-Dimensions: {length}x{width}x{height} cm
-Volume: {volume} m3
-DOT Declared: {dot}
-
-Findings: {issues if issues else "No discrepancies"}
-
-TASK:
-- If ADMIN: provide expert-level counter/warehouse guidance.
-- If CLIENT: guide only on documentation and corrections.
-- Explain acceptance status.
-- Include legal disclaimer.
+OCR EXTRACTION:
+{ocr_text}
 """
 
-    advisory = await smartcargo_engine(prompt)
+    prompt = f"""
+You are SMARTCARGO-AIPA, senior Avianca Cargo MIA counter.
+
+Analyze exactly as counter would.
+Detect documentary, TSA, CBP, DOT, IATA issues.
+Decide GREEN / YELLOW / RED.
+Explain clearly.
+Educate client.
+Language: {lang}.
+
+TEXT:
+{full_text}
+"""
+
+    analysis = run_ai(prompt)
+
+    status = "GREEN"
+    if "REJECT" in analysis.upper():
+        status = "RED"
+    elif "WARNING" in analysis.upper():
+        status = "YELLOW"
 
     return JSONResponse({
         "status": status,
-        "volume": volume,
-        "issues": issues,
-        "advisor": advisory,
-        "photos": [f.filename for f in files],
-        "disclaimer": "SMARTCARGO-AIPA is a preventive advisory system. Final acceptance decisions belong exclusively to the airline, TSA, CBP and DOT."
+        "analysis": analysis,
+        "disclaimer": "SMARTCARGO-AIPA is a preventive advisory system. Final authority belongs to Avianca Cargo, TSA and CBP."
     })
+
+# ---------------- ADMIN ----------------
+@app.post("/admin")
+def admin(
+    username: str = Form(...),
+    password: str = Form(...),
+    question: str = Form(...)
+):
+    if username != ADMIN_USERNAME or password != ADMIN_PASSWORD:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+    prompt = f"""
+You are SMARTCARGO-AIPA ADMIN CORE.
+Answer with full Avianca, IATA, TSA, CBP, DOT expertise.
+
+QUESTION:
+{question}
+"""
+    answer = run_ai(prompt)
+    return {"answer": answer}
