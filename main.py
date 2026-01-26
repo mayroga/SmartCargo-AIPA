@@ -39,7 +39,9 @@ def run_gemini(prompt: str):
     try:
         from google import genai
         client = genai.Client(api_key=GEMINI_API_KEY)
-        response = client.models.generate_content(contents=prompt)
+        # Se debe especificar el modelo explícitamente
+model = genai.GenerativeModel('gemini-1.5-flash')
+response = model.generate_content(tu_texto)
         return response.text
     except Exception as e:
         print("Gemini failed:", e)
