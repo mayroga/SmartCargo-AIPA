@@ -1,17 +1,28 @@
 import os
-import json
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Form, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 
-app = FastAPI(title="SMARTCARGO-AIPA")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app = FastAPI(title="SMARTCARGO-AIPA BY MAY ROGA LLC")
+
+# Habilitar CORS para evitar bloqueos de navegador
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Configuración de Rutas Estáticas
+BASE_DIR = Path(__file__).parent
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 
-def smartcargo_ai(prompt: str) -> str:
+def asesor_experto_logistica(prompt: str) -> str:
+    """Motor de validación técnica sin mención a modelos externos."""
     try:
         import google.generativeai as genai
         genai.configure(api_key=GEMINI_KEY)
@@ -19,16 +30,14 @@ def smartcargo_ai(prompt: str) -> str:
         response = model.generate_content(prompt)
         return response.text
     except Exception:
-        try:
-            from openai import OpenAI
-            client = OpenAI(api_key=OPENAI_KEY)
-            completion = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": prompt}]
-            )
-            return completion.choices[0].message.content
-        except Exception:
-            return "Error técnico en la validación."
+        return "ERROR CRÍTICO: El sistema de validación no está disponible. Contacte a soporte de SMARTCARGO-AIPA."
+
+@app.get("/")
+async def serve_frontend():
+    index_path = BASE_DIR / "frontend" / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail="Archivo index.html no encontrado en /frontend")
+    return FileResponse(index_path)
 
 @app.post("/validate")
 async def validate_cargo(
@@ -36,38 +45,45 @@ async def validate_cargo(
     role: str = Form(...),
     cargo_type: str = Form(...),
     weight: float = Form(...),
+    height: float = Form(...),
     length: float = Form(...),
     width: float = Form(...),
-    height: float = Form(...),
     lang: str = Form("en")
 ):
-    volume = round((length * width * height) / 1_000_000, 3)
+    # Reglas de Negocio Avianca / DOT / IATA
+    volume = round((length * width * height) / 1000000, 3)
     
-    # Prompt de experto en cumplimiento
+    # Prompt de alta especificidad técnica
     prompt = f"""
-    Eres SMARTCARGO-AIPA. Experto en IATA, DOT, TSA, CBP y regulaciones de Avianca Cargo.
-    Idioma: {lang}. Rol del usuario: {role}.
-    Datos: MAWB {mawb}, Tipo: {cargo_type}, Peso: {weight}kg, Dim: {length}x{width}x{height}cm.
+    Actúa como SMARTCARGO-AIPA. Experto en IATA DGR, TSA, CBP y DOT.
+    Analiza esta carga para transporte en AVIANCA (Carguero y Pasajeros).
+    
+    DATOS:
+    - Rol: {role}
+    - MAWB: {mawb}
+    - Mercancía: {cargo_type}
+    - Peso: {weight} kg
+    - Dimensiones: {length}x{width}x{height} cm
+    - Volumen: {volume} m3
     
     INSTRUCCIONES:
-    1. Evalúa si cabe en aviones de pasajeros (altura max 160cm) o requiere carguero puro (A330F).
-    2. Responde con lenguaje técnico, específico y de mucho peso.
-    3. Usa TABLAS Markdown para mostrar límites de peso y dimensiones.
-    4. NO menciones que eres una IA o modelo de lenguaje.
-    5. Si es carga peligrosa, exige cumplimiento de DOT/IATA DGR.
-    6. El tono debe ser de asesor experto preventivo.
+    1. Usa una TABLA para comparar estas dimensiones con los límites de bodega de un A320 (Belly) vs A330F.
+    2. Si es DG, cita la necesidad de Shipper's Declaration según IATA.
+    3. Idioma: {lang}. Tono: Profesional, corto, de mucho peso.
+    4. NO menciones IA. No menciones ser un modelo de lenguaje.
     """
 
-    ai_analysis = smartcargo_ai(prompt)
+    analisis = asesor_experto_logistica(prompt)
     
-    # Lógica de semáforo
+    # Lógica de Semáforo
     status = "GREEN"
-    if height > 160 or weight > 4000: status = "RED"
-    elif "revisar" in ai_analysis.lower() or "warning" in ai_analysis.lower(): status = "YELLOW"
+    if height > 160 or weight > 4000:
+        status = "RED"
+    elif cargo_type.upper() in ["DG", "HAZMAT"]:
+        status = "YELLOW"
 
-    return {
+    return JSONResponse({
         "status": status,
-        "analysis": ai_analysis,
-        "volume": volume,
-        "legal": "AVISO LEGAL: Este sistema es una validación documental preventiva. No sustituye la decisión final de la aerolínea ni de las autoridades gubernamentales."
-    }
+        "analysis": analisis,
+        "legal": "SMARTCARGO-AIPA BY MAY ROGA LLC: SISTEMA DE ASESORÍA PREVENTIVA. EL USO DE ESTA HERRAMIENTA NO EXIME DEL CUMPLIMIENTO DE LAS REGULACIONES DEL DOT, TSA Y LAS POLÍTICAS DE AVIANCA CARGO."
+    })
