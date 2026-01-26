@@ -1,13 +1,11 @@
 import os
-from fastapi import FastAPI, Form, UploadFile, File
+from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from pathlib import Path
-import pytesseract
-from PIL import Image
 import google.generativeai as genai
 import openai
+from pathlib import Path
 
 # ---------------- APP ----------------
 app = FastAPI(title="SMARTCARGO-AIPA")
@@ -38,14 +36,6 @@ if OPENAI_API_KEY:
 def home():
     return FRONTEND.read_text(encoding="utf-8")
 
-# ---------------- OCR ----------------
-def extract_text_from_images(files):
-    text = ""
-    for file in files:
-        img = Image.open(file.file)
-        text += pytesseract.image_to_string(img)
-    return text
-
 # ---------------- IA CORE ----------------
 def run_ai(prompt):
     if GEMINI_API_KEY:
@@ -70,17 +60,11 @@ def run_ai(prompt):
 def validate(
     role: str = Form(...),
     lang: str = Form(...),
-    dossier: str = Form(...),
-    files: list[UploadFile] = File(default=[])
+    dossier: str = Form(...)
 ):
-    ocr_text = extract_text_from_images(files) if files else ""
-
     full_text = f"""
 CLIENT INPUT:
 {dossier}
-
-OCR EXTRACTION:
-{ocr_text}
 """
 
     prompt = f"""
