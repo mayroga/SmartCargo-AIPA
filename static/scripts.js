@@ -1,35 +1,37 @@
 const form = document.getElementById("formCargo");
 const semaforoStatus = document.getElementById("semaforoStatus");
 const documentsList = document.getElementById("documentsList");
+const explanationBox = document.getElementById("explanation");
 const advisorBox = document.getElementById("advisor");
+
 const resetBtn = document.getElementById("resetForm");
 const printBtn = document.getElementById("printPDF");
 const whatsappBtn = document.getElementById("shareWhatsApp");
 const translateBtn = document.getElementById("translateBtn");
 
-const lengthInput = document.getElementById("length_cm");
-const widthInput  = document.getElementById("width_cm");
-const heightInput = document.getElementById("height_cm");
-const volumeInput = document.getElementById("volume");
+const lengthInput = document.querySelector("input[name='length_cm']");
+const widthInput = document.querySelector("input[name='width_cm']");
+const heightInput = document.querySelector("input[name='height_cm']");
+const volumeInput = document.querySelector("input[name='volume']");
 
 let currentLang = "en";
 
 // ===============================
-// Volumen automático
+// Calcular volumen automáticamente
 // ===============================
 function calculateVolume() {
     const l = parseFloat(lengthInput.value);
     const w = parseFloat(widthInput.value);
     const h = parseFloat(heightInput.value);
+
     if (!isNaN(l) && !isNaN(w) && !isNaN(h)) {
         volumeInput.value = ((l * w * h) / 1000000).toFixed(3);
-    } else {
-        volumeInput.value = "";
     }
 }
-lengthInput.addEventListener("input", calculateVolume);
-widthInput.addEventListener("input", calculateVolume);
-heightInput.addEventListener("input", calculateVolume);
+
+[lengthInput, widthInput, heightInput].forEach(input => {
+    input.addEventListener("input", calculateVolume);
+});
 
 // ===============================
 // Submit principal
@@ -38,71 +40,64 @@ form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     semaforoStatus.textContent = "PROCESSING…";
+    explanationBox.textContent = "";
     advisorBox.textContent = "";
     documentsList.innerHTML = "";
 
     const formData = new FormData(form);
-    const cargoData = {
-        mawb: formData.get("mawb"),
-        hawb: formData.get("hawb"),
-        origin: formData.get("origin"),
-        destination: formData.get("destination"),
-        cargo_type: formData.get("cargo_type"),
-        flight_date: formData.get("flight_date"),
-        weight_kg: parseFloat(formData.get("weight_kg")),
-        length_cm: parseFloat(formData.get("length_cm")),
-        width_cm: parseFloat(formData.get("width_cm")),
-        height_cm: parseFloat(formData.get("height_cm")),
-        role: formData.get("role"),
-        documents: formData.get("documents") // JSON string
-    };
+    const dataToSend = {};
+    formData.forEach((v, k) => dataToSend[k] = v);
 
     try {
         const res = await fetch("/cargo/validate", {
             method: "POST",
-            body: new URLSearchParams(cargoData)
+            body: formData
         });
 
         const data = await res.json();
+
         if (!res.ok) throw new Error(data.detail || "Validation error");
 
         renderResults(data);
+
     } catch (err) {
         semaforoStatus.textContent = "🔴 NOT ACCEPTABLE";
-        advisorBox.textContent = err.message;
+        explanationBox.textContent = err.message;
     }
 });
 
 // ===============================
-// Render resultados
+// Renderizar resultados con explicación legal
 // ===============================
 function renderResults(data) {
     semaforoStatus.textContent = data.semaforo || "🔴 NOT ACCEPTABLE";
 
-    if (data.documents_required.length > 0) {
-        let html = "<strong>Documents Required:</strong><ul>";
-        data.documents_required.forEach(d => html += `<li>${d}</li>`);
+    // Documentos
+    if (data.documents_required) {
+        let html = "<strong>Required Documents:</strong><ul>";
+        data.documents_required.forEach(doc => {
+            const missing = data.missing_docs.includes(doc) ? " (MISSING)" : "";
+            html += `<li>${doc}${missing}</li>`;
+        });
         html += "</ul>";
-        if (data.missing_docs.length > 0) {
-            html += "<strong>Missing Documents:</strong><ul>";
-            data.missing_docs.forEach(d => html += `<li>${d}</li>`);
-            html += "</ul>";
-        }
         documentsList.innerHTML = html;
-    } else {
-        documentsList.innerHTML = "<strong>No documents required</strong>";
     }
 
+    // Explicación
+    explanationBox.textContent = data.explanation || "No explanation generated.";
+
+    // Asesor
     advisorBox.textContent = data.advisor || "No advisory message generated.";
 }
 
 // ===============================
-// Reset
+// Reset total
 // ===============================
 resetBtn.addEventListener("click", () => {
     form.reset();
     semaforoStatus.textContent = "-";
     documentsList.innerHTML = "";
+    explanationBox.textContent = "";
     advisorBox.textContent = "";
 });
 
@@ -114,13 +109,14 @@ printBtn.addEventListener("click", () => {
 });
 
 // ===============================
-// WhatsApp
+// WhatsApp Share
 // ===============================
 whatsappBtn.addEventListener("click", () => {
     const message =
 `SMARTCARGO-AIPA by May Roga LLC
-
-Status: ${semaforoStatus.textContent}
+Semáforo: ${semaforoStatus.textContent}
+Documents: ${documentsList.innerText}
+Explanation: ${explanationBox.textContent}
 Advisor: ${advisorBox.textContent}`;
 
     const url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(message);
@@ -128,7 +124,7 @@ Advisor: ${advisorBox.textContent}`;
 });
 
 // ===============================
-// Translate EN ⇄ ES
+// Traducción EN ⇄ ES
 // ===============================
 translateBtn.addEventListener("click", () => {
     currentLang = currentLang === "en" ? "es" : "en";
