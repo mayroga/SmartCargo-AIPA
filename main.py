@@ -3,9 +3,20 @@ from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-import google.generativeai as genai
-import openai
 from pathlib import Path
+
+# ---------------- IA ----------------
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
 
 # ---------------- APP ----------------
 app = FastAPI(title="SMARTCARGO-AIPA")
@@ -17,7 +28,6 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
 FRONTEND = Path("frontend/index.html")
 
 # ---------------- ENV ----------------
@@ -26,9 +36,12 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
-if GEMINI_API_KEY:
+# Configura Gemini si está disponible
+if GEMINI_AVAILABLE and GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
-if OPENAI_API_KEY:
+
+# Configura OpenAI si está disponible
+if OPENAI_AVAILABLE and OPENAI_API_KEY:
     openai.api_key = OPENAI_API_KEY
 
 # ---------------- FRONT ----------------
@@ -37,21 +50,31 @@ def home():
     return FRONTEND.read_text(encoding="utf-8")
 
 # ---------------- IA CORE ----------------
-def run_ai(prompt):
-    if GEMINI_API_KEY:
+def run_ai(prompt: str) -> str:
+    """
+    Primero intenta Gemini, si falla o no está disponible usa OpenAI.
+    """
+    # ---------------- GEMINI ----------------
+    if GEMINI_AVAILABLE and GEMINI_API_KEY:
         try:
             model = genai.GenerativeModel("gemini-pro")
-            return model.generate_content(prompt).text
-        except:
-            pass
+            response = model.generate_content(prompt)
+            if hasattr(response, "text") and response.text:
+                return response.text
+        except Exception as e:
+            print("Gemini failed:", e)
 
-    if OPENAI_API_KEY:
-        res = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2
-        )
-        return res.choices[0].message.content
+    # ---------------- OPENAI ----------------
+    if OPENAI_AVAILABLE and OPENAI_API_KEY:
+        try:
+            res = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2
+            )
+            return res.choices[0].message.content
+        except Exception as e:
+            print("OpenAI failed:", e)
 
     return "AI unavailable."
 
