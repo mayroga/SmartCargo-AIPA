@@ -1,65 +1,82 @@
 // ===============================
 // SMARTCARGO-AIPA by May Roga LLC
-// Frontend Operational Controller
+// Frontend Dynamic Controller
 // ===============================
 
 const form = document.getElementById("formCargo");
 const semaforoStatus = document.getElementById("semaforoStatus");
 const documentsList = document.getElementById("documentsList");
 const advisorBox = document.getElementById("advisor");
-
 const resetBtn = document.getElementById("resetForm");
 const printBtn = document.getElementById("printPDF");
 const whatsappBtn = document.getElementById("shareWhatsApp");
 const translateBtn = document.getElementById("translateBtn");
+const roleSelect = document.getElementById("roleSelect");
 
-const lengthInput = document.querySelector("input[name='length_cm']");
-const widthInput  = document.querySelector("input[name='width_cm']");
-const heightInput = document.querySelector("input[name='height_cm']");
-const volumeInput = document.querySelector("input[name='volume']");
+const lengthInput = form.querySelector("[name=length_cm]");
+const widthInput  = form.querySelector("[name=width_cm]");
+const heightInput = form.querySelector("[name=height_cm]");
+const volumeInput = form.querySelector("[name=volume_cm]") || form.querySelector("[name=volume]");
 
-// Estado de idioma
 let currentLang = "en";
 
 // ===============================
-// Cálculo automático de volumen
+// Auto Volume Calculation
 // ===============================
 function calculateVolume() {
     const l = parseFloat(lengthInput.value);
     const w = parseFloat(widthInput.value);
     const h = parseFloat(heightInput.value);
-
     if (!isNaN(l) && !isNaN(w) && !isNaN(h)) {
-        const volume = (l * w * h) / 1000000; // cm³ → m³
+        const volume = (l * w * h) / 1000000;
         volumeInput.value = volume.toFixed(3);
     } else {
         volumeInput.value = "";
     }
 }
 
-lengthInput.addEventListener("input", calculateVolume);
-widthInput.addEventListener("input", calculateVolume);
-heightInput.addEventListener("input", calculateVolume);
+[lengthInput, widthInput, heightInput].forEach(input => input.addEventListener("input", calculateVolume));
 
 // ===============================
-// Submit principal
+// Role-based dynamic view
+// ===============================
+roleSelect.addEventListener("change", () => {
+    const role = roleSelect.value;
+    adjustFormByRole(role);
+});
+
+function adjustFormByRole(role) {
+    // Oculta/Deshabilita campos según rol
+    const editableFields = {
+        "Shipper": ["mawb","hawb","origin","destination","cargo_type","flight_date","weight_kg","length_cm","width_cm","height_cm","documents"],
+        "Forwarder": ["mawb","hawb","documents"],
+        "Chofer": ["mawb","hawb","documents"],
+        "Warehouse": ["documents"],
+        "Operador": [],
+        "Destinatario": []
+    };
+    const allFields = ["mawb","hawb","origin","destination","cargo_type","flight_date","weight_kg","length_cm","width_cm","height_cm","documents"];
+    allFields.forEach(f => {
+        const el = form.querySelector(`[name=${f}]`);
+        if (!el) return;
+        if (editableFields[role].includes(f)) el.disabled = false;
+        else el.disabled = true;
+    });
+}
+
+// ===============================
+// Submit Cargo Validation
 // ===============================
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
-
     semaforoStatus.textContent = "PROCESSING…";
     advisorBox.textContent = "";
     documentsList.innerHTML = "";
 
     const formData = new FormData(form);
-
-    // Preparar documentos
     const docs = [];
     const files = formData.getAll("documents");
-
-    for (let i = 0; i < files.length; i++) {
-        docs.push({ filename: files[i].name });
-    }
+    files.forEach(f => docs.push({filename: f.name}));
 
     const cargoData = {
         mawb: formData.get("mawb"),
@@ -69,7 +86,6 @@ form.addEventListener("submit", async (e) => {
         cargo_type: formData.get("cargo_type"),
         flight_date: formData.get("flight_date"),
         weight_kg: Number(formData.get("weight_kg")),
-        weight_lbs: Number(formData.get("weight_kg")) * 2.20462,
         length_cm: Number(formData.get("length_cm")),
         width_cm: Number(formData.get("width_cm")),
         height_cm: Number(formData.get("height_cm")),
@@ -81,46 +97,36 @@ form.addEventListener("submit", async (e) => {
     try {
         const res = await fetch("/cargo/validate", {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams(cargoData)
+            body: JSON.stringify(cargoData),
+            headers: {"Content-Type":"application/json"}
         });
-
         const data = await res.json();
-
-        if (!res.ok) {
-            throw new Error(data.detail || "Validation error");
-        }
-
         renderResults(data);
-
-    } catch (err) {
-        semaforoStatus.textContent = "🔴 NOT ACCEPTABLE";
-        advisorBox.textContent = err.message;
+    } catch(err){
+        semaforoStatus.textContent="🔴 ERROR";
+        advisorBox.textContent=err.message;
     }
 });
 
 // ===============================
-// Render resultados
+// Render Results
 // ===============================
-function renderResults(data) {
-    semaforoStatus.textContent = data.semaforo || "🔴 NOT ACCEPTABLE";
+function renderResults(data){
+    semaforoStatus.textContent = data.status || "🔴 NOT ACCEPTABLE";
 
-    if (data.documents_required && data.documents_required.length > 0) {
-        let html = "<strong>Required Documents:</strong><ul>";
-        data.documents_required.forEach(doc => {
-            html += `<li>${doc}</li>`;
-        });
-        html += "</ul>";
-        documentsList.innerHTML = html;
-    } else {
-        documentsList.innerHTML = "<strong>No documents required</strong>";
-    }
+    let docHtml = "<strong>Documents:</strong><ul>";
+    (data.documents_required || []).forEach(doc=>{
+        const missing = data.missing_docs && data.missing_docs.includes(doc);
+        docHtml += `<li>${doc} ${missing ? "(MISSING)" : "(OK)"}</li>`;
+    });
+    docHtml += "</ul>";
+    documentsList.innerHTML = docHtml;
 
     advisorBox.textContent = data.advisor || "No advisory message generated.";
 }
 
 // ===============================
-// Reset total
+// Reset
 // ===============================
 resetBtn.addEventListener("click", () => {
     form.reset();
@@ -132,40 +138,25 @@ resetBtn.addEventListener("click", () => {
 // ===============================
 // Print / PDF
 // ===============================
-printBtn.addEventListener("click", () => {
-    window.print();
-});
+printBtn.addEventListener("click", () => window.print());
 
 // ===============================
 // WhatsApp Share
 // ===============================
-whatsappBtn.addEventListener("click", () => {
-    const message =
-`SMARTCARGO-AIPA by May Roga LLC
-
-Operational Result:
-${semaforoStatus.textContent}
-
-Advisor:
-${advisorBox.textContent}
-
-Disclaimer:
-Preventive documentary validation system.
-Does not replace airline or authority decisions.`;
-
-    const url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(message);
-    window.open(url, "_blank");
+whatsappBtn.addEventListener("click", ()=>{
+    const message = `
+SMARTCARGO-AIPA by May Roga LLC
+Semáforo: ${semaforoStatus.textContent}
+Advisor: ${advisorBox.textContent}`;
+    window.open("https://api.whatsapp.com/send?text="+encodeURIComponent(message),"_blank");
 });
 
 // ===============================
-// Traducción EN ⇄ ES
+// Translate EN ⇄ ES
 // ===============================
-translateBtn.addEventListener("click", () => {
-    currentLang = currentLang === "en" ? "es" : "en";
-
-    document.querySelectorAll("[data-en][data-es]").forEach(el => {
-        el.textContent = currentLang === "en"
-            ? el.getAttribute("data-en")
-            : el.getAttribute("data-es");
+translateBtn.addEventListener("click", ()=>{
+    currentLang = currentLang==="en"?"es":"en";
+    document.querySelectorAll("[data-en][data-es]").forEach(el=>{
+        el.textContent = currentLang==="en"?el.getAttribute("data-en"):el.getAttribute("data-es");
     });
 });
