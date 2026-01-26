@@ -1,41 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>SMARTCARGO-AIPA</title>
-    <link rel="stylesheet" href="/static/styles.css">
+<meta charset="UTF-8" />
+<title>SMARTCARGO-AIPA by May Roga LLC</title>
+<link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <header>
-        <h1>SMARTCARGO-AIPA by May Roga LLC</h1>
-        <button id="translateBtn">Español</button>
-    </header>
 
-    <main>
-        <section>
-            <label for="roleSelect">Select Role / Seleccione Rol:</label>
-            <select id="roleSelect">
-                <option value="Shipper">Shipper</option>
-                <option value="Forwarder">Forwarder</option>
-                <option value="Counter">Counter</option>
-                <option value="Warehouse">Warehouse</option>
-                <option value="Destinatario">Destinatario</option>
-            </select>
-        </section>
+<header>
+  <h1>SMARTCARGO-AIPA by May Roga LLC</h1>
+  <p>Preventive Documentary Validation System · Does not replace airline decisions</p>
+  <button id="langToggle">Español</button>
+</header>
 
-        <section id="cargoFormContainer">
-            <!-- El formulario cambia dinámicamente según rol -->
-        </section>
+<section id="step1">
+  <h2>Register / Validate Cargo</h2>
 
-        <section id="validationResult">
-            <h2>Validation Results / Resultados</h2>
-            <div id="semaforo" style="font-size:2em"></div>
-            <div id="explanation"></div>
-            <div id="documentsPreview"></div>
-            <div id="advisorMessage"></div>
-        </section>
-    </main>
+  <input id="mawb" placeholder="MAWB" />
+  <input id="hawb" placeholder="HAWB" />
+  <input id="origin" placeholder="Origin" />
+  <input id="destination" placeholder="Destination" />
+  <input id="date" type="date" />
+  <input id="cargo_type" placeholder="Cargo Type (General, DG, PER)" />
 
-    <script src="/static/scripts.js"></script>
+  <input id="weight" type="number" placeholder="Weight (kg)" />
+  <input id="length" type="number" placeholder="Length (cm)" />
+  <input id="width" type="number" placeholder="Width (cm)" />
+  <input id="height" type="number" placeholder="Height (cm)" />
+  <input id="volume" placeholder="Volume (m³)" readonly />
+
+  <select id="role">
+    <option value="">Select Role</option>
+    <option>Shipper</option>
+    <option>Forwarder</option>
+    <option>Driver</option>
+    <option>Warehouse</option>
+    <option>Counter</option>
+    <option>Operator</option>
+    <option>Consignee</option>
+  </select>
+
+  <button onclick="validateCargo()">Validate</button>
+</section>
+
+<section id="results">
+  <h2>Validation Results</h2>
+  <div id="semaphore"></div>
+  <div id="details"></div>
+  <div id="advisor"></div>
+  <div class="legal" id="legal"></div>
+
+  <button onclick="printPDF()">Print / PDF</button>
+  <button onclick="sendWhatsApp()">WhatsApp</button>
+</section>
+
+<script src="/static/scripts.js"></script>
 </body>
 </html>
