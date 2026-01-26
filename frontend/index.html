@@ -1,15 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>SMARTCARGO-AIPA</title>
-  <script defer src="/static/scripts.js"></script>
-  <style>
-    body { font-family: Arial; background:#f4f6f8; padding:20px }
-    .box { background:#fff; padding:20px; border-radius:8px; max-width:800px; margin:auto }
-    .hidden { display:none }
-    button { padding:10px 16px; margin-top:10px }
-  </style>
+<meta charset="UTF-8">
+<title>SMARTCARGO-AIPA</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/static/styles.css">
+<style>
+  body { font-family: Arial; background:#f4f6f8; padding:20px; }
+  .box { background:#fff; padding:20px; border-radius:8px; max-width:900px; margin:auto; }
+  .hidden { display:none; }
+  button { padding:10px 16px; margin-top:10px; cursor:pointer; }
+  #analysis { color: blue; white-space: pre-wrap; }
+  #issues { color: red; }
+  input, select { width:100%; margin:5px 0; padding:8px; border-radius:5px; }
+</style>
 </head>
 <body>
 
@@ -17,7 +21,7 @@
   <h2>SMARTCARGO-AIPA</h2>
   <p>Preventive Documentary Validation System · Does not replace airline decisions</p>
 
-  <button onclick="toggleLang()">Español</button>
+  <button onclick="toggleLang()">Español / English</button>
 
   <!-- PAGE 1 -->
   <div id="page1">
@@ -43,10 +47,10 @@
       <option>DG</option>
       <option>Hazmat</option>
     </select><br>
-    <input id="weight" placeholder="Weight kg"><br>
-    <input id="length" placeholder="Length cm"><br>
-    <input id="width" placeholder="Width cm"><br>
-    <input id="height" placeholder="Height cm"><br>
+    <input id="weight" type="number" placeholder="Weight kg"><br>
+    <input id="length" type="number" placeholder="Length cm"><br>
+    <input id="width" type="number" placeholder="Width cm"><br>
+    <input id="height" type="number" placeholder="Height cm"><br>
 
     <label>DOT Declared?</label>
     <select id="dot">
@@ -54,17 +58,24 @@
       <option>Yes</option>
     </select><br>
 
-    <button onclick="validate()">Validate</button>
+    <label>Upload Photos (max 3)</label>
+    <input type="file" id="photos" multiple accept="image/*"><br>
+
+    <button onclick="validate()">Validate Cargo</button>
   </div>
 
   <!-- RESULT -->
   <div id="result" class="hidden">
     <h3 id="semaforo"></h3>
     <pre id="analysis"></pre>
+    <div id="issues"></div>
     <button onclick="window.print()">Print / PDF</button>
     <button onclick="sendWhatsApp()">WhatsApp</button>
+    <button onclick="speakResult()">Listen</button>
+    <button onclick="restart()">New Cargo</button>
   </div>
 </div>
 
+<script src="/static/scripts.js"></script>
 </body>
 </html>
