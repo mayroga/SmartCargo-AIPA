@@ -1,96 +1,192 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
+# main.py
 import os
 import json
 import httpx
+from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
-app = FastAPI(title="SMARTCARGO-AIPA")
+# ==============================
+# APP CONFIG
+# ==============================
+app = FastAPI(
+    title="SMARTCARGO-AIPA by May Roga LLC",
+    description="Preventive Documentary Validation System · Does not replace airline or authority decisions",
+    version="1.0.0"
+)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# ==============================
+# API KEYS (Render ENV)
+# ==============================
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+if not GEMINI_API_KEY and not OPENAI_API_KEY:
+    raise RuntimeError("No AI provider keys configured")
 
-def call_ai_expert(prompt: str) -> str:
-    # 1️⃣ Try Gemini first
+# ==============================
+# ROOT
+# ==============================
+@app.get("/")
+async def index():
+    index_path = Path("frontend/index.html")
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail="index.html not found")
+    return FileResponse(index_path)
+
+# ==============================
+# AI CORE (Gemini → OpenAI fallback)
+# ==============================
+async def call_gemini(prompt: str):
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+    async with httpx.AsyncClient(timeout=40) as client:
+        r = await client.post(url, json=payload)
+        r.raise_for_status()
+        data = r.json()
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+
+async def call_openai(prompt: str):
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "gpt-4.1-mini",
+        "messages": [
+            {"role": "system", "content": "You are SMARTCARGO-AIPA, an aviation cargo compliance expert."},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.2
+    }
+    async with httpx.AsyncClient(timeout=40) as client:
+        r = await client.post(url, headers=headers, json=payload)
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]["content"]
+
+async def ai_engine(prompt: str):
     if GEMINI_API_KEY:
         try:
-            url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
-            headers = {"Content-Type": "application/json"}
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}]
-            }
-            params = {"key": GEMINI_API_KEY}
-
-            r = httpx.post(url, headers=headers, params=params, json=payload, timeout=15)
-            if r.status_code == 200:
-                return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            return await call_gemini(prompt)
         except Exception:
             pass
-
-    # 2️⃣ Fallback OpenAI
     if OPENAI_API_KEY:
-        try:
-            headers = {
-                "Authorization": f"Bearer {OPENAI_API_KEY}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "model": "gpt-4o-mini",
-                "messages": [
-                    {"role": "system", "content": "You are SMARTCARGO-AIPA expert advisor."},
-                    {"role": "user", "content": prompt}
-                ]
-            }
-            r = httpx.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=15)
-            return r.json()["choices"][0]["message"]["content"]
-        except Exception:
-            pass
+        return await call_openai(prompt)
+    raise HTTPException(status_code=500, detail="No AI engine available")
 
-    return "SMARTCARGO-AIPA could not generate advisory at this moment."
+# ==============================
+# VALIDATION ENDPOINT
+# ==============================
+@app.post("/cargo/validate")
+async def validate_cargo(
+    request: Request,
+    language: str = Form("en"),  # en | es
+    mawb: str = Form(...),
+    origin: str = Form(...),
+    destination: str = Form(...),
+    flight_date: str = Form(...),
+    role: str = Form(...),
+    cargo_type: str = Form(...),
+    weight_kg: float = Form(...),
+    length_cm: float = Form(...),
+    width_cm: float = Form(...),
+    height_cm: float = Form(...),
+    documents_json: str = Form("[]")
+):
+    try:
+        documents = json.loads(documents_json)
+    except Exception:
+        documents = []
 
+    volume_m3 = round((length_cm * width_cm * height_cm) / 1_000_000, 3)
 
-@app.get("/", response_class=HTMLResponse)
-def index():
-    with open("frontend/index.html", "r", encoding="utf-8") as f:
-        return f.read()
+    # ==============================
+    # SYSTEM HARD RULES (NO IA)
+    # ==============================
+    issues = []
+    required_docs = ["AWB", "Commercial Invoice", "Packing List"]
 
+    if cargo_type.upper() in ["DG", "DANGEROUS GOODS", "HAZMAT"]:
+        required_docs += ["Shipper Declaration", "MSDS"]
 
-@app.post("/validate")
-async def validate_cargo(request: Request):
-    data = await request.json()
+    if height_cm > 244:
+        issues.append("Height exceeds wide-body aircraft acceptance limits (244 cm).")
 
-    weight = data["weight"]
-    height = data["height"]
-    role = data["role"]
+    if weight_kg > 4500:
+        issues.append("Weight exceeds standard pallet structural limits.")
 
-    oversized = height > 244
-    overweight = weight > 4500
+    missing_docs = [
+        d for d in required_docs
+        if d not in [doc.get("type") for doc in documents]
+    ]
 
-    if oversized or overweight:
+    # ==============================
+    # SEMAFORO
+    # ==============================
+    if missing_docs or issues:
         semaforo = "🔴 NOT ACCEPTABLE"
     else:
         semaforo = "🟢 ACCEPTABLE"
 
+    # ==============================
+    # AI PROMPT (REAL OPERATIONAL)
+    # ==============================
     prompt = f"""
-You are a senior cargo expert for Avianca.
-Role: {role}
-Weight: {weight} kg
-Height: {height} cm
+You are SMARTCARGO-AIPA, an aviation cargo compliance expert for Avianca.
 
-Explain clearly if this cargo can be accepted,
-what regulations apply (IATA, TSA, CBP),
-and what corrections are required if not acceptable.
+Respond ONLY as SMARTCARGO-AIPA.
+DO NOT mention AI, Gemini, OpenAI, or models.
+
+LANGUAGE: {language}
+
+CARGO DATA:
+- MAWB: {mawb}
+- Origin: {origin}
+- Destination: {destination}
+- Flight date: {flight_date}
+- Role: {role}
+- Cargo type: {cargo_type}
+- Weight: {weight_kg} kg
+- Dimensions: {length_cm} x {width_cm} x {height_cm} cm
+- Volume: {volume_m3} m3
+
+DOCUMENTS PROVIDED:
+{documents}
+
+SYSTEM FINDINGS:
+- Missing documents: {missing_docs}
+- Technical issues: {issues}
+
+TASK:
+1. Explain clearly WHY this cargo is {semaforo}.
+2. Reference Avianca / IATA / TSA / CBP / DOT rules naturally.
+3. Give a corrective action list if NOT ACCEPTABLE.
+4. Include a permanent legal disclaimer.
+5. Be concise, operational, and authoritative.
 """
 
-    advisory = call_ai_expert(prompt)
+    advisor_text = await ai_engine(prompt)
 
+    # ==============================
+    # RESPONSE
+    # ==============================
     return JSONResponse({
         "semaforo": semaforo,
-        "oversized": oversized,
-        "overweight": overweight,
-        "advisory": advisory,
-        "legal": "SMARTCARGO-AIPA is a preventive advisory system and does not replace airline decisions."
+        "volume_m3": volume_m3,
+        "required_documents": required_docs,
+        "missing_documents": missing_docs,
+        "technical_issues": issues,
+        "advisor": advisor_text,
+        "legal_notice": (
+            "Preventive documentary validation system. "
+            "Does not replace airline, airport, TSA, CBP, DOT, or authority decisions."
+        )
     })
