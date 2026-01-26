@@ -1,58 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>SMARTCARGO-AIPA by May Roga LLC</title>
+<meta charset="UTF-8">
+<title>SMARTCARGO-AIPA</title>
 <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
 
 <header>
-  <h1>SMARTCARGO-AIPA by May Roga LLC</h1>
-  <p>Preventive Documentary Validation System · Does not replace airline decisions</p>
-  <button id="langToggle">Español</button>
+  <h1>SMARTCARGO-AIPA</h1>
+  <button id="langBtn">ES</button>
 </header>
 
-<section id="step1">
-  <h2>Register / Validate Cargo</h2>
-
-  <input id="mawb" placeholder="MAWB" />
-  <input id="hawb" placeholder="HAWB" />
-  <input id="origin" placeholder="Origin" />
-  <input id="destination" placeholder="Destination" />
-  <input id="date" type="date" />
-  <input id="cargo_type" placeholder="Cargo Type (General, DG, PER)" />
-
-  <input id="weight" type="number" placeholder="Weight (kg)" />
-  <input id="length" type="number" placeholder="Length (cm)" />
-  <input id="width" type="number" placeholder="Width (cm)" />
-  <input id="height" type="number" placeholder="Height (cm)" />
-  <input id="volume" placeholder="Volume (m³)" readonly />
-
+<section id="formSection">
+  <input id="mawb" placeholder="MAWB">
+  <input id="hawb" placeholder="HAWB">
+  <input id="origin" placeholder="Origin">
+  <input id="destination" placeholder="Destination">
+  <input id="weight" type="number" placeholder="Weight (kg)">
+  <input id="height" type="number" placeholder="Height (cm)">
   <select id="role">
-    <option value="">Select Role</option>
     <option>Shipper</option>
     <option>Forwarder</option>
     <option>Driver</option>
     <option>Warehouse</option>
     <option>Counter</option>
-    <option>Operator</option>
-    <option>Consignee</option>
   </select>
 
   <button onclick="validateCargo()">Validate</button>
 </section>
 
-<section id="results">
-  <h2>Validation Results</h2>
-  <div id="semaphore"></div>
-  <div id="details"></div>
-  <div id="advisor"></div>
-  <div class="legal" id="legal"></div>
-
-  <button onclick="printPDF()">Print / PDF</button>
-  <button onclick="sendWhatsApp()">WhatsApp</button>
-</section>
+<section id="results"></section>
 
 <script src="/static/scripts.js"></script>
 </body>
