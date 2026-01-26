@@ -1,5 +1,4 @@
-// ================= VALIDATE =================
-
+// ---------------- VALIDATE ----------------
 function validate() {
   const data = new FormData();
   data.append("role", document.getElementById("role").value);
@@ -8,55 +7,38 @@ function validate() {
 
   fetch("/validate", { method: "POST", body: data })
     .then(r => r.json())
-    .then(showResult)
-    .catch(() => {
-      alert("System error. Please try again.");
-    });
+    .then(showResult);
 }
 
 function showResult(res) {
-  const resultBox = document.getElementById("result");
+  document.getElementById("result").classList.remove("hidden");
+
   const semaforo = document.getElementById("semaforo");
-  const analysis = document.getElementById("analysis");
-  const legal = document.getElementById("legal");
+  semaforo.innerText =
+    res.status === "GREEN" ? "🟢 ACCEPTABLE" :
+    res.status === "YELLOW" ? "🟡 CONDITIONAL" :
+    "🔴 NOT ACCEPTABLE";
 
-  resultBox.classList.remove("hidden");
+  semaforo.style.color =
+    res.status === "GREEN" ? "green" :
+    res.status === "YELLOW" ? "orange" :
+    "red";
 
-  semaforo.className = "";
-  if (res.status === "GREEN") {
-    semaforo.innerText = "ACCEPTABLE";
-    semaforo.classList.add("semaforo-green");
-  } else if (res.status === "YELLOW") {
-    semaforo.innerText = "CONDITIONAL";
-    semaforo.classList.add("semaforo-yellow");
-  } else {
-    semaforo.innerText = "NOT ACCEPTABLE";
-    semaforo.classList.add("semaforo-red");
-  }
-
-  analysis.innerText = res.analysis;
-  legal.innerText = res.legal_notice;
+  document.getElementById("analysis").innerText =
+    res.analysis + "\n\n" + res.disclaimer;
 }
 
-// ================= VOICE =================
-
+// ---------------- VOICE ----------------
 function speak() {
   const text = document.getElementById("analysis").innerText;
   if (!text) return;
 
-  const lang = document.getElementById("lang").value;
   const msg = new SpeechSynthesisUtterance(text);
-
-  msg.lang = lang === "Spanish" ? "es-ES" : "en-US";
-  msg.rate = 0.95;
-  msg.pitch = 1;
-
-  speechSynthesis.cancel();
+  msg.lang = document.getElementById("lang").value === "Spanish" ? "es-ES" : "en-US";
   speechSynthesis.speak(msg);
 }
 
-// ================= ADMIN =================
-
+// ---------------- ADMIN ----------------
 function adminAsk() {
   const data = new FormData();
   data.append("username", document.getElementById("adminUser").value);
@@ -67,12 +49,11 @@ function adminAsk() {
     .then(r => r.json())
     .then(r => {
       document.getElementById("adminAnswer").innerText =
-        r.answer || "Unauthorized access";
+        r.answer || "Unauthorized";
     });
 }
 
-// ================= LANG SWITCH =================
-
+// ---------------- LANG SWITCH ----------------
 function switchLang() {
   const lang = document.getElementById("lang").value;
 
@@ -82,7 +63,7 @@ function switchLang() {
   document.getElementById("dossier").placeholder =
     lang === "Spanish"
       ? "Pegue aquí toda la documentación revisada en counter"
-      : "Paste here the complete documentation reviewed at counter";
+      : "Paste here the FULL documentation reviewed at counter";
 
   document.getElementById("validateBtn").innerText =
     lang === "Spanish" ? "Validar Carga" : "Validate Cargo";
