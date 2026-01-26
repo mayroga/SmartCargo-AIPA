@@ -1,82 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>SMARTCARGO-AIPA</title>
-    <link rel="stylesheet" href="/static/styles.css">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        label { display: block; margin-top: 10px; }
-        input, select, textarea { width: 300px; padding: 5px; }
-        .doc-preview { margin-top: 10px; border: 1px solid #ccc; padding: 5px; display: flex; align-items: center; gap: 10px; }
-        .doc-preview img { max-width: 80px; max-height: 80px; }
-        .semaforo { font-size: 24px; margin-top: 10px; font-weight: bold; }
-        .role-section { display: none; margin-top: 20px; border: 1px solid #ddd; padding: 15px; }
-        .show { display: block; }
-        button { margin-top: 10px; padding: 5px 10px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMARTCARGO-AIPA</title>
+<link rel="stylesheet" href="/static/styles.css">
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; }
+label { display: block; margin-top: 10px; }
+input, select { width: 100%; padding: 5px; margin-top: 5px; }
+button { margin-top: 15px; padding: 10px 20px; }
+.semaforo { font-size: 1.5em; font-weight: bold; margin-top: 10px; }
+.doc-preview { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
+.doc-preview div { border: 1px solid #ccc; padding: 5px; text-align: center; }
+.doc-preview img { max-width: 150px; max-height: 150px; cursor: zoom-in; }
+.lang-btn { margin-right: 10px; }
+</style>
 </head>
 <body>
-    <h1>SMARTCARGO-AIPA · Preventive Documentary Validation</h1>
+<h1 id="title">SMARTCARGO-AIPA · Preventive Documentary Validation System</h1>
 
-    <label>Idioma / Language:
-        <select id="langSelect">
-            <option value="en">English</option>
-            <option value="es">Español</option>
-        </select>
-    </label>
+<div>
+  <button class="lang-btn" onclick="translatePage('es')">Español</button>
+  <button class="lang-btn" onclick="translatePage('en')">English</button>
+</div>
 
-    <label>Seleccione rol / Select role:
-        <select id="roleSelect">
-            <option value="Shipper">Shipper</option>
-            <option value="Forwarder">Forwarder</option>
-            <option value="Counter">Counter</option>
-            <option value="Warehouse">Warehouse</option>
-        </select>
-    </label>
+<label for="role">Select Role / Seleccione Rol:</label>
+<select id="role" onchange="renderForm()">
+  <option value="Shipper">Shipper</option>
+  <option value="Forwarder">Forwarder</option>
+  <option value="Counter">Counter</option>
+  <option value="Warehouse">Warehouse</option>
+  <option value="Operator">Operator</option>
+  <option value="Recipient">Recipient</option>
+</select>
 
-    <!-- Formularios por rol -->
-    <div id="Shipper" class="role-section">
-        <h3>Shipper / Remitente</h3>
-        <label>MAWB: <input type="text" id="mawb_shipper"></label>
-        <label>HAWB: <input type="text" id="hawb_shipper"></label>
-        <label>Origen / Origin: <input type="text" id="origin_shipper"></label>
-        <label>Destino / Destination: <input type="text" id="destination_shipper"></label>
-        <label>Tipo de carga / Cargo Type: <input type="text" id="cargo_type_shipper"></label>
-        <label>Fecha de vuelo / Flight Date: <input type="date" id="flight_date_shipper"></label>
-        <label>Peso (kg) / Weight (kg): <input type="number" id="weight_shipper"></label>
-        <label>Largo (cm) / Length (cm): <input type="number" id="length_shipper"></label>
-        <label>Ancho (cm) / Width (cm): <input type="number" id="width_shipper"></label>
-        <label>Alto (cm) / Height (cm): <input type="number" id="height_shipper"></label>
-    </div>
+<form id="cargoForm">
+  <label>MAWB:</label><input type="text" id="mawb" required>
+  <label>HAWB:</label><input type="text" id="hawb" required>
+  <label>Origin:</label><input type="text" id="origin" required>
+  <label>Destination:</label><input type="text" id="destination" required>
+  <label>Cargo Type:</label><input type="text" id="cargo_type" required>
+  <label>Flight Date:</label><input type="date" id="flight_date" required>
+  <label>Weight (kg):</label><input type="number" step="0.01" id="weight_kg" required>
+  <label>Length (cm):</label><input type="number" step="0.01" id="length_cm" required>
+  <label>Width (cm):</label><input type="number" step="0.01" id="width_cm" required>
+  <label>Height (cm):</label><input type="number" step="0.01" id="height_cm" required>
 
-    <div id="Forwarder" class="role-section">
-        <h3>Forwarder</h3>
-        <p>Formulario adaptado para Forwarder</p>
-        <!-- Puede agregar campos específicos -->
-    </div>
+  <label>Upload Documents:</label>
+  <input type="file" id="fileUpload" multiple>
+  <div class="doc-preview" id="docPreview"></div>
 
-    <div id="Counter" class="role-section">
-        <h3>Counter</h3>
-        <p>Formulario adaptado para Counter</p>
-    </div>
+  <button type="button" onclick="validateCargo()">Validate / Validar</button>
+</form>
 
-    <div id="Warehouse" class="role-section">
-        <h3>Warehouse / Almacén</h3>
-        <p>Formulario adaptado para Warehouse</p>
-        <input type="file" id="fileInput" multiple>
-        <div id="docPreviewContainer"></div>
-    </div>
+<div class="semaforo" id="semaforo">Semáforo: 🔴</div>
+<div id="validationDetails"></div>
 
-    <button id="validateBtn">Validate / Validar</button>
-
-    <div id="results">
-        <div class="semaforo" id="semaforo">Semáforo: -</div>
-        <div id="documents"></div>
-        <div id="explanation"></div>
-        <div id="advisor"></div>
-    </div>
-
-    <script src="/static/scripts.js"></script>
+<script src="/static/scripts.js"></script>
 </body>
 </html>
