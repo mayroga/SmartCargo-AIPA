@@ -1,62 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SMARTCARGO-AIPA</title>
-<link rel="stylesheet" href="/static/styles.css">
-<style>
-body { font-family: Arial, sans-serif; margin: 20px; }
-label { display: block; margin-top: 10px; }
-input, select { width: 100%; padding: 5px; margin-top: 5px; }
-button { margin-top: 15px; padding: 10px 20px; }
-.semaforo { font-size: 1.5em; font-weight: bold; margin-top: 10px; }
-.doc-preview { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
-.doc-preview div { border: 1px solid #ccc; padding: 5px; text-align: center; }
-.doc-preview img { max-width: 150px; max-height: 150px; cursor: zoom-in; }
-.lang-btn { margin-right: 10px; }
-</style>
+    <meta charset="UTF-8">
+    <title>SMARTCARGO-AIPA</title>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-<h1 id="title">SMARTCARGO-AIPA · Preventive Documentary Validation System</h1>
+    <header>
+        <h1>SMARTCARGO-AIPA by May Roga LLC</h1>
+        <button id="translateBtn">Español</button>
+    </header>
 
-<div>
-  <button class="lang-btn" onclick="translatePage('es')">Español</button>
-  <button class="lang-btn" onclick="translatePage('en')">English</button>
-</div>
+    <main>
+        <section>
+            <label for="roleSelect">Select Role / Seleccione Rol:</label>
+            <select id="roleSelect">
+                <option value="Shipper">Shipper</option>
+                <option value="Forwarder">Forwarder</option>
+                <option value="Counter">Counter</option>
+                <option value="Warehouse">Warehouse</option>
+                <option value="Destinatario">Destinatario</option>
+            </select>
+        </section>
 
-<label for="role">Select Role / Seleccione Rol:</label>
-<select id="role" onchange="renderForm()">
-  <option value="Shipper">Shipper</option>
-  <option value="Forwarder">Forwarder</option>
-  <option value="Counter">Counter</option>
-  <option value="Warehouse">Warehouse</option>
-  <option value="Operator">Operator</option>
-  <option value="Recipient">Recipient</option>
-</select>
+        <section id="cargoFormContainer">
+            <!-- El formulario cambia dinámicamente según rol -->
+        </section>
 
-<form id="cargoForm">
-  <label>MAWB:</label><input type="text" id="mawb" required>
-  <label>HAWB:</label><input type="text" id="hawb" required>
-  <label>Origin:</label><input type="text" id="origin" required>
-  <label>Destination:</label><input type="text" id="destination" required>
-  <label>Cargo Type:</label><input type="text" id="cargo_type" required>
-  <label>Flight Date:</label><input type="date" id="flight_date" required>
-  <label>Weight (kg):</label><input type="number" step="0.01" id="weight_kg" required>
-  <label>Length (cm):</label><input type="number" step="0.01" id="length_cm" required>
-  <label>Width (cm):</label><input type="number" step="0.01" id="width_cm" required>
-  <label>Height (cm):</label><input type="number" step="0.01" id="height_cm" required>
+        <section id="validationResult">
+            <h2>Validation Results / Resultados</h2>
+            <div id="semaforo" style="font-size:2em"></div>
+            <div id="explanation"></div>
+            <div id="documentsPreview"></div>
+            <div id="advisorMessage"></div>
+        </section>
+    </main>
 
-  <label>Upload Documents:</label>
-  <input type="file" id="fileUpload" multiple>
-  <div class="doc-preview" id="docPreview"></div>
-
-  <button type="button" onclick="validateCargo()">Validate / Validar</button>
-</form>
-
-<div class="semaforo" id="semaforo">Semáforo: 🔴</div>
-<div id="validationDetails"></div>
-
-<script src="/static/scripts.js"></script>
+    <script src="/static/scripts.js"></script>
 </body>
 </html>
