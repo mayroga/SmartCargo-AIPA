@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>SMARTCARGO-AIPA by May Roga LLC</title>
@@ -7,43 +7,40 @@
 </head>
 <body>
     <header>
-        <h1 data-en="SMARTCARGO-AIPA by May Roga LLC" data-es="SMARTCARGO-AIPA por May Roga LLC">SMARTCARGO-AIPA por May Roga LLC</h1>
-        <button id="translateBtn">ES / EN</button>
-        <p data-en="Preventive Documentary Validation System · Does not replace airline decisions" 
-           data-es="Sistema de Validación Documental Preventiva · No sustituye decisiones de la aerolínea">
-           Sistema de Validación Documental Preventiva · No sustituye decisiones de la aerolínea
-        </p>
+        <h1>SMARTCARGO-AIPA by May Roga LLC</h1>
+        <p>Preventive Documentary Validation System · Does not replace airline decisions</p>
+        <button id="translateBtn">Translate / Traducir</button>
     </header>
 
     <section id="cargo-form">
-        <h2 data-en="Register / Validate Cargo" data-es="Registrar / Validar Carga">Registrar / Validar Carga</h2>
+        <h2 data-en="Register / Validate Cargo" data-es="Registrar / Validar Carga">Register / Validate Cargo</h2>
         <form id="formCargo">
-            <label>MAWB:<input type="text" name="mawb" required></label>
-            <label>HAWB:<input type="text" name="hawb" required></label>
-            <label data-en="Origin" data-es="Origen">Origen:<input type="text" name="origin" required></label>
-            <label data-en="Destination" data-es="Destino">Destino:<input type="text" name="destination" required></label>
+            <label data-en="MAWB" data-es="MAWB">MAWB:<input type="text" name="mawb" required></label>
+            <label data-en="HAWB" data-es="HAWB">HAWB:<input type="text" name="hawb" required></label>
+            <label data-en="Origin" data-es="Origen">Origin:<input type="text" name="origin" required></label>
+            <label data-en="Destination" data-es="Destino">Destination:<input type="text" name="destination" required></label>
             <label data-en="Cargo Type" data-es="Tipo de carga">
-                Tipo de carga:
+                Cargo Type:
                 <select name="cargo_type" required>
-                    <option value="General" data-en="General" data-es="General">General</option>
-                    <option value="Dangerous Goods" data-en="Dangerous Goods" data-es="Mercancía Peligrosa">Mercancía Peligrosa</option>
-                    <option value="Perishable" data-en="Perishable" data-es="Perecedero">Perecedero</option>
+                    <option value="General">General</option>
+                    <option value="Dangerous Goods">Dangerous Goods</option>
+                    <option value="Perishable">Perishable</option>
                 </select>
             </label>
-            <label data-en="Flight Date" data-es="Fecha de vuelo">Fecha de vuelo:<input type="date" name="flight_date" required></label>
-            <label data-en="Weight (kg)" data-es="Peso (kg)">Peso (kg):<input type="number" name="weight_kg" required></label>
-            <label data-en="Volume (m³)" data-es="Volumen (m³)">Volumen (m³):<input type="number" name="volume" step="0.001"></label>
-            <label data-en="Length (cm)" data-es="Largo (cm)">Largo (cm):<input type="number" name="length_cm" required></label>
-            <label data-en="Width (cm)" data-es="Ancho (cm)">Ancho (cm):<input type="number" name="width_cm" required></label>
-            <label data-en="Height (cm)" data-es="Alto (cm)">Alto (cm):<input type="number" name="height_cm" required></label>
+            <label data-en="Flight Date" data-es="Fecha de vuelo">Flight Date:<input type="date" name="flight_date" required></label>
+            <label data-en="Weight (kg)" data-es="Peso (kg)">Weight (kg):<input type="number" name="weight_kg" required></label>
+            <label data-en="Length (cm)" data-es="Largo (cm)">Length (cm):<input type="number" name="length_cm" id="length_cm" required></label>
+            <label data-en="Width (cm)" data-es="Ancho (cm)">Width (cm):<input type="number" name="width_cm" id="width_cm" required></label>
+            <label data-en="Height (cm)" data-es="Alto (cm)">Height (cm):<input type="number" name="height_cm" id="height_cm" required></label>
+            <label data-en="Volume (m³)" data-es="Volumen (m³)">Volume (m³):<input type="number" name="volume" id="volume" readonly></label>
 
-            <label data-en="Upload Documents (max 2 per type)" data-es="Subir Documentos (máx 2 por tipo)">
-                Subir Documentos (máx 2 por tipo):
-                <input type="file" name="documents" multiple accept="image/*">
+            <label data-en="Upload Documents" data-es="Subir Documentos">
+                Upload Documents (JSON format with description, max 2 per type):
+                <input type="text" name="documents" placeholder='[{"filename":"AWB.jpg","description":"Front"}]'>
             </label>
 
             <label data-en="Role" data-es="Rol">
-                Rol:
+                Role:
                 <select name="role" required>
                     <option value="Shipper">Shipper</option>
                     <option value="Forwarder">Forwarder</option>
@@ -54,15 +51,15 @@
                 </select>
             </label>
 
-            <button type="submit" data-en="Validate" data-es="Validar">Validar</button>
-            <button type="button" id="resetForm" data-en="Reset" data-es="Reiniciar">Reiniciar</button>
-            <button type="button" id="printPDF" data-en="Print / PDF" data-es="Imprimir / PDF">Imprimir / PDF</button>
+            <button type="submit" data-en="Validate" data-es="Validar">Validate</button>
+            <button type="button" id="resetForm" data-en="Reset" data-es="Reiniciar">Reset</button>
+            <button type="button" id="printPDF" data-en="Print / PDF" data-es="Imprimir / PDF">Print / PDF</button>
             <button type="button" id="shareWhatsApp" data-en="WhatsApp" data-es="WhatsApp">WhatsApp</button>
         </form>
     </section>
 
     <section id="results">
-        <h2 data-en="Validation Results" data-es="Resultados de Validación">Resultados de Validación</h2>
+        <h2 data-en="Validation Results" data-es="Resultados de Validación">Validation Results</h2>
         <div id="semaforo">Semáforo: <span id="semaforoStatus">-</span></div>
         <div id="documentsList">Documents:</div>
         <div id="advisor">Advisor:</div>
