@@ -16,18 +16,24 @@
 Avoid rejections · Delays · Fines · Save time, effort and money
 </div>
 
-<textarea id="dossier" placeholder="Paste FULL documentary file reviewed at counter"></textarea>
-
-<input type="file" id="photos" multiple accept="image/*">
-
-<select id="role">
-<option>Shipper</option>
-<option>Driver</option>
-<option>Warehouse</option>
-<option>Counter</option>
+<!-- Language Selector -->
+<select id="lang" onchange="switchLang()">
+  <option value="English">English</option>
+  <option value="Spanish">Spanish</option>
 </select>
 
-<button onclick="validate()">Validate Cargo</button>
+<label id="roleLabel" for="role">Role</label>
+<select id="role">
+  <option>Shipper</option>
+  <option>Driver</option>
+  <option>Warehouse</option>
+  <option>Counter</option>
+</select>
+
+<textarea id="dossier" placeholder="Paste FULL documentary file reviewed at counter"></textarea>
+
+<button id="validateBtn" onclick="validate()">Validate Cargo</button>
+<button id="continueBtn">Continue</button>
 
 <div id="result" class="hidden">
 <h3 id="semaforo"></h3>
