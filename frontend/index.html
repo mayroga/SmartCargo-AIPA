@@ -1,83 +1,51 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>SMARTCARGO-AIPA</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="/static/styles.css">
-<style>
-body{font-family:Arial;background:#f4f6f8;padding:20px}
-.box{background:#fff;padding:20px;border-radius:8px;max-width:900px;margin:auto}
-.hidden{display:none}
-#analysis{color:blue;white-space:pre-wrap}
-#issues{color:red}
-input,select,textarea{width:100%;padding:8px;margin:5px 0}
-.marquee{color:#0a58ca;overflow:hidden;white-space:nowrap}
-.marquee span{display:inline-block;animation:scroll 15s linear infinite}
-@keyframes scroll{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
-img.thumb{max-width:100px;cursor:pointer;margin:5px}
-#modal{position:fixed;top:0;left:0;width:100%;height:100%;background:#000c;display:none}
-#modal img{max-width:90%;max-height:90%;margin:auto;display:block}
-</style>
+<script defer src="/static/scripts.js"></script>
 </head>
 
 <body>
+<div class="box">
 
-<div class="marquee">
-<span>SMARTCARGO-AIPA by May Roga LLC · Prevents rejections · Saves time, money and delays · Advisory system</span>
+<h2>SMARTCARGO-AIPA</h2>
+
+<div class="banner">
+Avoid rejections · Delays · Fines · Save time, effort and money
 </div>
 
-<div class="box">
-<button onclick="toggleLang()">Español / English</button>
+<textarea id="dossier" placeholder="Paste FULL documentary file reviewed at counter"></textarea>
 
-<div id="page1">
-<h3>Register / Validate Cargo</h3>
-<input id="mawb" placeholder="MAWB">
-<input id="hawb" placeholder="HAWB">
+<input type="file" id="photos" multiple accept="image/*">
+
 <select id="role">
 <option>Shipper</option>
 <option>Driver</option>
 <option>Warehouse</option>
 <option>Counter</option>
 </select>
-<button onclick="goStep2()">Continue</button>
-</div>
 
-<div id="page2" class="hidden">
-<input id="origin" placeholder="Origin">
-<input id="destination" placeholder="Destination">
-<select id="cargo_type">
-<option>General</option>
-<option>Perishable</option>
-<option>DG</option>
-<option>Hazmat</option>
-</select>
-<input id="weight" type="number" placeholder="Weight kg">
-<input id="length" type="number" placeholder="Length cm">
-<input id="width" type="number" placeholder="Width cm">
-<input id="height" type="number" placeholder="Height cm">
-<select id="dot"><option>No</option><option>Yes</option></select>
-<input type="file" id="photos" multiple accept="image/*">
-<button onclick="validate()">Validate</button>
-</div>
+<button onclick="validate()">Validate Cargo</button>
 
 <div id="result" class="hidden">
 <h3 id="semaforo"></h3>
 <pre id="analysis"></pre>
-<div id="issues"></div>
-<div id="photosPreview"></div>
-<p style="color:red;font-size:12px">SMARTCARGO-AIPA is preventive advisory only.</p>
-<button onclick="window.print()">Print / PDF</button>
-<button onclick="sendWhatsApp()">WhatsApp</button>
-<button onclick="speakResult()">Listen</button>
-<button onclick="restart()">New</button>
-</div>
+
+<button onclick="speak()">🔊 Listen</button>
+<button onclick="window.print()">📑 PDF</button>
 </div>
 
-<div id="modal" onclick="closeModal()">
-<img id="modalImg">
-</div>
+<hr>
 
-<script src="/static/scripts.js"></script>
+<h3>Admin Login</h3>
+<input id="adminUser" placeholder="Username">
+<input id="adminPass" type="password" placeholder="Password">
+<textarea id="adminQ" placeholder="Admin question"></textarea>
+<button onclick="adminAsk()">Ask</button>
+<pre id="adminAnswer"></pre>
+
+</div>
 </body>
 </html>
