@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
 # ======================================================
-# IA IMPORTS (SAFE)
+# SAFE IA IMPORTS
 # ======================================================
 
 GEMINI_AVAILABLE = False
@@ -38,11 +38,10 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
 FRONTEND = Path("frontend/index.html")
 
 # ======================================================
-# ENV VARIABLES
+# ENV
 # ======================================================
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -62,7 +61,7 @@ if OPENAI_AVAILABLE and OPENAI_API_KEY:
     openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ======================================================
-# FRONTEND
+# FRONT
 # ======================================================
 
 @app.get("/", response_class=HTMLResponse)
@@ -70,22 +69,22 @@ def home():
     return FRONTEND.read_text(encoding="utf-8")
 
 # ======================================================
-# IA CORE (GEMINI → OPENAI FALLBACK)
+# IA CORE (AUTO GEMINI → OPENAI)
 # ======================================================
 
 def run_ai(prompt: str) -> str:
 
-    # ---------- GEMINI 1.5 ----------
+    # ---------- GEMINI (AUTO MODEL) ----------
     if GEMINI_AVAILABLE and GEMINI_API_KEY:
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel()  # ← SIN FORZAR NOMBRE
             response = model.generate_content(prompt)
-            if response and response.text:
+            if response and hasattr(response, "text") and response.text:
                 return response.text
         except Exception as e:
             print("Gemini failed:", e)
 
-    # ---------- OPENAI ----------
+    # ---------- OPENAI FALLBACK ----------
     if openai_client:
         try:
             response = openai_client.chat.completions.create(
@@ -97,10 +96,10 @@ def run_ai(prompt: str) -> str:
         except Exception as e:
             print("OpenAI failed:", e)
 
-    return "AI unavailable. Please contact system administrator."
+    return "System temporarily unavailable. Please try again later."
 
 # ======================================================
-# VALIDATE CARGO
+# VALIDATE
 # ======================================================
 
 @app.post("/validate")
@@ -110,52 +109,51 @@ def validate(
     dossier: str = Form(...)
 ):
     prompt = f"""
-You are SMARTCARGO-AIPA, acting as a SENIOR AVIanca Cargo MIA counter agent.
+You are SMARTCARGO-AIPA, acting as a senior Avianca Cargo counter agent in Miami.
 
-Analyze EXACTLY as a real cargo counter would.
+Analyze the documentation EXACTLY as a real counter would.
 
-You MUST:
-- Detect documentary errors
-- Detect TSA violations
-- Detect CBP issues
-- Detect DOT and IATA compliance issues
-- Evaluate shipper, driver, warehouse responsibility
+Evaluate:
+- Documentary accuracy
+- TSA compliance
+- CBP requirements
+- DOT and IATA regulations
+- Operational responsibility (shipper, driver, warehouse)
 
-STRICT DECISION RULES:
-GREEN  = Fully acceptable
-YELLOW = Conditional / Correctable
-RED    = Reject – Not acceptable
+Decision rules:
+GREEN  = Acceptable
+YELLOW = Conditional (can be corrected)
+RED    = Rejected (not acceptable)
 
-Explain clearly.
-Educate the client.
-Be professional and precise.
+Explain clearly, simply and professionally.
+Your explanation must be understandable for any person, not only professionals.
 Language: {lang}
 
-DOCUMENTATION PROVIDED:
+DOCUMENTATION:
 {dossier}
 """
 
     analysis = run_ai(prompt)
+    text = analysis.upper()
 
     status = "GREEN"
-    analysis_upper = analysis.upper()
-
-    if "REJECT" in analysis_upper or "NOT ACCEPTABLE" in analysis_upper:
+    if "REJECT" in text or "NOT ACCEPTABLE" in text:
         status = "RED"
-    elif "WARNING" in analysis_upper or "CONDITIONAL" in analysis_upper:
+    elif "CONDITIONAL" in text or "WARNING" in text:
         status = "YELLOW"
 
-    return JSONResponse({
+    return {
         "status": status,
         "analysis": analysis,
-        "disclaimer": (
-            "SMARTCARGO-AIPA is a preventive advisory system. "
-            "Final authority belongs to Avianca Cargo, TSA and CBP."
+        "legal_notice": (
+            "SMARTCARGO-AIPA is an advisory and preventive system. "
+            "Final decisions and legal responsibility remain with Avianca Cargo, "
+            "TSA, CBP and applicable authorities."
         )
-    })
+    }
 
 # ======================================================
-# ADMIN CORE
+# ADMIN
 # ======================================================
 
 @app.post("/admin")
@@ -170,11 +168,10 @@ def admin(
     prompt = f"""
 You are SMARTCARGO-AIPA ADMIN CORE.
 
-Answer with full authority using:
+Provide authoritative answers based on:
 - Avianca Cargo procedures
-- IATA regulations
-- TSA / CBP / DOT compliance
-- Real operational counter logic
+- IATA standards
+- TSA, CBP and DOT regulations
 
 QUESTION:
 {question}
