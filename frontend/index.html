@@ -1,81 +1,94 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SMARTCARGO-AIPA BY MAY ROGA LLC</title>
     <style>
-        :root { --blue-res: #2563eb; --red-legal: #dc2626; --bg: #f8fafc; }
-        body { font-family: 'Arial', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .marquee-legal { color: var(--red-legal); font-weight: bold; background: #fee2e2; padding: 10px; margin-bottom: 20px; border: 1px solid var(--red-legal); }
-        .card { border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 15px; }
-        input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 5px; }
-        .btn-validate { background: #0f172a; color: white; padding: 15px; width: 100%; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; }
-        .btn-delete { background: #64748b; color: white; border: none; padding: 10px; cursor: pointer; border-radius: 5px; margin-top: 10px; }
-        .lang-btn { float: right; background: #e2e8f0; border: none; padding: 5px 15px; cursor: pointer; border-radius: 20px; }
+        :root { --blue-text: #1d4ed8; --red-legal: #b91c1c; --bg: #f1f5f9; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #334155; }
+        .app-container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
         
-        /* Semáforos */
-        .semaphore { width: 50px; height: 50px; border-radius: 50%; display: inline-block; margin-right: 15px; border: 3px solid #333; }
-        .GREEN { background: #22c55e; box-shadow: 0 0 15px #22c55e; }
-        .YELLOW { background: #eab308; box-shadow: 0 0 15px #eab308; }
-        .RED { background: #ef4444; box-shadow: 0 0 15px #ef4444; }
+        /* Blindaje Legal */
+        .marquee-container { background: #fee2e2; border: 2px solid var(--red-legal); margin-bottom: 20px; overflow: hidden; }
+        .legal-marquee { color: var(--red-legal); font-weight: bold; white-space: nowrap; padding: 10px; display: block; }
+        .legal-static { color: var(--red-legal); font-weight: bold; border-top: 2px solid var(--red-legal); padding-top: 15px; margin-top: 20px; text-transform: uppercase; font-size: 0.85em; }
+
+        /* Formulario */
+        .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        input, select { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; width: 100%; box-sizing: border-box; }
         
-        .result-text { color: var(--blue-res); font-size: 1.1em; line-height: 1.6; }
-        .legal-static { color: var(--red-legal); font-weight: bold; font-size: 0.9em; margin-top: 20px; border-top: 2px solid var(--red-legal); padding-top: 10px; }
-        .speaker-btn { font-size: 24px; cursor: pointer; background: none; border: none; vertical-align: middle; }
-        .hidden { display: none; }
+        /* Botones */
+        .btn-main { background: #0f172a; color: white; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
+        .btn-main:hover { background: #1e293b; }
+        .btn-delete { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+        .lang-switch { float: right; cursor: pointer; background: #e2e8f0; border: none; padding: 5px 15px; border-radius: 20px; font-weight: bold; }
+
+        /* Resultados */
+        .result-box { display: none; margin-top: 30px; animation: fadeIn 0.5s; }
+        .semaphore { width: 60px; height: 60px; border-radius: 50%; border: 4px solid #334155; display: inline-block; }
+        .GREEN { background: #22c55e; box-shadow: 0 0 20px #22c55e; }
+        .YELLOW { background: #eab308; box-shadow: 0 0 20px #eab308; }
+        .RED { background: #ef4444; box-shadow: 0 0 20px #ef4444; }
+        .analysis-content { color: var(--blue-text); line-height: 1.6; font-size: 1.1em; background: #eff6ff; padding: 20px; border-radius: 10px; margin-top: 15px; }
+        .speaker-btn { font-size: 30px; border: none; background: none; cursor: pointer; margin-left: 20px; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @media print { .btn-main, .btn-delete, .lang-switch, .speaker-btn { display: none; } }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <button class="lang-btn" onclick="toggleLang()">ES / EN</button>
-    <h1 style="font-size: 20px; color: #1e293b;">SMARTCARGO-AIPA BY MAY ROGA LLC</h1>
+<div class="app-container">
+    <button class="lang-switch" onclick="toggleLang()">ES / EN</button>
+    <h2 style="margin:0 0 10px 0;">SMARTCARGO-AIPA BY MAY ROGA LLC</h2>
     
-    <marquee class="marquee-legal" scrollamount="5">PROHIBIDO EL INGRESO DE CARGA SIN VALIDACIÓN PREVENTIVA · CUMPLIMIENTO IATA/TSA/DOT REQUERIDO</marquee>
-
-    <div id="form-container">
-        <div class="card">
-            <input type="text" id="mawb" placeholder="MAWB (XXX-XXXXXXXX)">
-            <select id="role">
-                <option value="Shipper">Shipper (Dueño)</option>
-                <option value="Trucker">Trucker (Camionero)</option>
-                <option value="Forwarder">Forwarder</option>
-                <option value="Counter">Counter / Agent</option>
-                <option value="Warehouse">Warehouse</option>
-            </select>
-            <div style="display:flex; gap:10px;">
-                <input type="number" id="weight" placeholder="Peso (kg)">
-                <input type="number" id="height" placeholder="Altura (cm)">
-            </div>
-            <div style="display:flex; gap:10px;">
-                <input type="number" id="length" placeholder="Largo (cm)">
-                <input type="number" id="width" placeholder="Ancho (cm)">
-            </div>
-            <select id="cargo_type">
-                <option value="General">General Cargo</option>
-                <option value="DG">Dangerous Goods / Hazmat</option>
-                <option value="PER">Perishables</option>
-            </select>
-            <button class="btn-validate" onclick="validate()">VALIDAR CARGA</button>
-            <button class="btn-delete" onclick="clearAll()">BORRAR TODO</button>
-        </div>
+    <div class="marquee-container">
+        <marquee class="legal-marquee" scrollamount="6">VALIDACIÓN PREVENTIVA OBLIGATORIA - ESTE SISTEMA NO REEMPLAZA LAS DECISIONES OFICIALES DE AVIANCA, TSA O CBP.</marquee>
     </div>
 
-    <div id="result-page" class="hidden">
-        <div style="display: flex; align-items: center; margin-bottom: 20px;">
-            <div id="semaphore-circle" class="semaphore"></div>
-            <h2 id="status-title" style="margin: 0;"></h2>
-            <button class="speaker-btn" onclick="readResult()">🔊</button>
+    <div id="form-cargo">
+        <div class="input-group">
+            <input type="text" id="mawb" placeholder="MAWB (Guía Aérea)">
+            <select id="role">
+                <option value="Shipper">Shipper (Dueño de Carga)</option>
+                <option value="Trucker">Trucker (Camionero)</option>
+                <option value="Counter">Counter / Agente</option>
+                <option value="Warehouse">Warehouse (Bodega)</option>
+                <option value="Forwarder">Forwarder</option>
+            </select>
         </div>
-        
-        <div id="ai-analysis" class="result-text"></div>
-        
-        <div class="legal-static" id="legal-disclaimer"></div>
-        
-        <div style="margin-top:20px; display: flex; gap:10px;">
-            <button class="btn-validate" style="background:#059669" onclick="window.print()">IMPRIMIR / PDF</button>
-            <button class="btn-delete" onclick="backToForm()">VOLVER</button>
+        <div class="input-group">
+            <select id="cargo_type">
+                <option value="General">Carga General</option>
+                <option value="DG">Mercancía Peligrosa (DG)</option>
+                <option value="PER">Perecederos</option>
+                <option value="VAL">Valores</option>
+            </select>
+            <input type="number" id="weight" placeholder="Peso Total (kg)">
+        </div>
+        <div class="input-group">
+            <input type="number" id="length" placeholder="Largo (cm)">
+            <input type="number" id="width" placeholder="Ancho (cm)">
+            <input type="number" id="height" placeholder="Alto (cm)">
+        </div>
+        <button class="btn-main" onclick="validateCargo()">EJECUTAR VALIDACIÓN TÉCNICA</button>
+        <button class="btn-delete" onclick="resetForm()">BORRAR FORMULARIO</button>
+    </div>
+
+    <div id="result-page" class="result-box">
+        <div style="display: flex; align-items: center;">
+            <div id="semaforo" class="semaphore"></div>
+            <h1 id="status-label" style="margin-left: 20px; font-size: 24px;"></h1>
+            <button class="speaker-btn" onclick="speakResult()" title="Escuchar Asesoría">🔊</button>
+        </div>
+
+        <div id="analysis-text" class="analysis-content"></div>
+        <div id="legal-block" class="legal-static"></div>
+
+        <div class="input-group" style="margin-top:20px;">
+            <button class="btn-main" style="background:#059669;" onclick="window.print()">IMPRIMIR PDF</button>
+            <button class="btn-main" style="background:#64748b;" onclick="backToInput()">NUEVA CONSULTA</button>
         </div>
     </div>
 </div>
