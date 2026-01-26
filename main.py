@@ -1,30 +1,23 @@
-from fastapi import FastAPI, Form, Depends, HTTPException, Request
+from fastapi import FastAPI, Form, Depends, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from backend.database import SessionLocal
-from backend.roles import verify_user
 from backend.rules import validate_cargo
 from backend.utils import cargo_dashboard, generate_advisor_message
+from backend.roles import verify_user
 
-app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC · Sistema de validación documental preventiva")
+app = FastAPI(
+    title="SMARTCARGO-AIPA by May Roga LLC · Preventive Documentary Validation System"
+)
 
 # Montar carpeta static
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Base de datos
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 # -----------------------------
-# Autenticación mínima para experto SMARTCARGO-AIPA
+# Autenticación mínima experto
 # -----------------------------
 def expert_auth(username: str = Form(...), password: str = Form(...)):
-    if username != "maykel" or password != "********":  # reemplazar con clave real
+    if username != "maykel" or password != "********":
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
@@ -42,24 +35,42 @@ async def serve_index():
 # Endpoint Validación de Cargo
 # -----------------------------
 @app.post("/cargo/validate")
-async def cargo_validate(request: Request, db=Depends(get_db), auth=Depends(expert_auth)):
-    data = await request.json()
+async def cargo_validate(
+    mawb: str = Form(...),
+    hawb: str = Form(...),
+    origin: str = Form(...),
+    destination: str = Form(...),
+    cargo_type: str = Form(...),
+    flight_date: str = Form(...),
+    weight_kg: float = Form(...),
+    length_cm: float = Form(...),
+    width_cm: float = Form(...),
+    height_cm: float = Form(...),
+    role: str = Form(...),
+    documents: str = Form(None),  # JSON string con docs y descripciones
+    auth=Depends(expert_auth)
+):
+    import json
+    try:
+        docs = json.loads(documents) if documents else []
+    except:
+        docs = []
+
     cargo_data = {
-        "mawb": data.get("mawb"),
-        "hawb": data.get("hawb"),
-        "origin": data.get("origin"),
-        "destination": data.get("destination"),
-        "cargo_type": data.get("cargo_type"),
-        "flight_date": data.get("flight_date"),
-        "weight_kg": data.get("weight_kg"),
-        "length_cm": data.get("length_cm"),
-        "width_cm": data.get("width_cm"),
-        "height_cm": data.get("height_cm"),
-        "role": data.get("role"),
-        "documents": data.get("documents", [])
+        "mawb": mawb,
+        "hawb": hawb,
+        "origin": origin,
+        "destination": destination,
+        "cargo_type": cargo_type,
+        "flight_date": flight_date,
+        "weight_kg": weight_kg,
+        "length_cm": length_cm,
+        "width_cm": width_cm,
+        "height_cm": height_cm,
+        "role": role,
+        "documents": docs
     }
 
-    # Validación estricta
     validation = validate_cargo(cargo_data)
     dashboard = cargo_dashboard(cargo_data, validation)
     advisor_msg = generate_advisor_message(cargo_data, validation)
@@ -67,8 +78,8 @@ async def cargo_validate(request: Request, db=Depends(get_db), auth=Depends(expe
     return JSONResponse({
         "semaforo": dashboard["semaforo"],
         "documents_required": dashboard["documents_required"],
-        "missing_docs": dashboard.get("missing_docs", []),
-        "overweight": dashboard.get("overweight", False),
-        "oversized": dashboard.get("oversized", False),
+        "missing_docs": dashboard["missing_docs"],
+        "overweight": dashboard["overweight"],
+        "oversized": dashboard["oversized"],
         "advisor": advisor_msg
     })
