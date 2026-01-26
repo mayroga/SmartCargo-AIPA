@@ -1,60 +1,47 @@
-let lang="en";
+function validate() {
+  const data = new FormData();
+  data.append("role", document.getElementById("role").value);
+  data.append("lang", "English");
+  data.append("dossier", document.getElementById("dossier").value);
 
-function goStep2(){
-page1.classList.add("hidden");
-page2.classList.remove("hidden");
+  const photos = document.getElementById("photos").files;
+  for (let i = 0; i < photos.length; i++) {
+    data.append("files", photos[i]);
+  }
+
+  fetch("/validate", { method: "POST", body: data })
+    .then(r => r.json())
+    .then(showResult);
 }
 
-function restart(){
-location.reload();
+function showResult(res) {
+  document.getElementById("result").classList.remove("hidden");
+  document.getElementById("semaforo").innerText =
+    res.status === "GREEN" ? "🟢 ACCEPTABLE" :
+    res.status === "YELLOW" ? "🟡 CONDITIONAL" :
+    "🔴 NOT ACCEPTABLE";
+
+  document.getElementById("analysis").innerText =
+    res.analysis + "\n\n" + res.disclaimer;
 }
 
-function validate(){
-const data=new FormData();
-["mawb","hawb","role","origin","destination","cargo_type","weight","length","width","height","dot"]
-.forEach(id=>data.append(id,document.getElementById(id).value));
-
-const photos=document.getElementById("photos").files;
-for(let i=0;i<photos.length && i<3;i++) data.append("files",photos[i]);
-
-fetch("/validate",{method:"POST",body:data})
-.then(r=>r.json()).then(showResult);
+function speak() {
+  const msg = new SpeechSynthesisUtterance(
+    document.getElementById("analysis").innerText
+  );
+  speechSynthesis.speak(msg);
 }
 
-function showResult(res){
-page2.classList.add("hidden");
-result.classList.remove("hidden");
-semaforo.innerText=res.status==="GREEN"?"🟢 ACCEPTABLE":"🔴 NOT ACCEPTABLE";
-analysis.innerText=res.advisor;
-issues.innerText=res.issues?.join("\n")||"";
+function adminAsk() {
+  const data = new FormData();
+  data.append("username", document.getElementById("adminUser").value);
+  data.append("password", document.getElementById("adminPass").value);
+  data.append("question", document.getElementById("adminQ").value);
 
-const preview=document.getElementById("photosPreview");
-preview.innerHTML="";
-const input=document.getElementById("photos");
-[...input.files].forEach(f=>{
-const img=document.createElement("img");
-img.src=URL.createObjectURL(f);
-img.className="thumb";
-img.onclick=()=>openModal(img.src);
-preview.appendChild(img);
-});
-}
-
-function openModal(src){
-modal.style.display="flex";
-modalImg.src=src;
-}
-function closeModal(){modal.style.display="none"}
-
-function sendWhatsApp(){
-window.open(`https://wa.me/?text=${encodeURIComponent(analysis.innerText)}`);
-}
-
-function speakResult(){
-speechSynthesis.speak(new SpeechSynthesisUtterance(analysis.innerText));
-}
-
-function toggleLang(){
-lang=lang==="en"?"es":"en";
-document.querySelector("h3").innerText=lang==="es"?"Registrar / Validar Carga":"Register / Validate Cargo";
+  fetch("/admin", { method: "POST", body: data })
+    .then(r => r.json())
+    .then(r => {
+      document.getElementById("adminAnswer").innerText =
+        r.answer || "Unauthorized";
+    });
 }
