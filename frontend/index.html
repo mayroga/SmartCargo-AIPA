@@ -1,98 +1,71 @@
+
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMARTCARGO-AIPA BY MAY ROGA LLC</title>
-    <style>
-        :root { --blue-text: #1d4ed8; --red-legal: #b91c1c; --bg: #f1f5f9; }
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #334155; }
-        .app-container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        
-        /* Blindaje Legal */
-        .marquee-container { background: #fee2e2; border: 2px solid var(--red-legal); margin-bottom: 20px; overflow: hidden; }
-        .legal-marquee { color: var(--red-legal); font-weight: bold; white-space: nowrap; padding: 10px; display: block; }
-        .legal-static { color: var(--red-legal); font-weight: bold; border-top: 2px solid var(--red-legal); padding-top: 15px; margin-top: 20px; text-transform: uppercase; font-size: 0.85em; }
-
-        /* Formulario */
-        .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        input, select { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; width: 100%; box-sizing: border-box; }
-        
-        /* Botones */
-        .btn-main { background: #0f172a; color: white; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
-        .btn-main:hover { background: #1e293b; }
-        .btn-delete { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
-        .lang-switch { float: right; cursor: pointer; background: #e2e8f0; border: none; padding: 5px 15px; border-radius: 20px; font-weight: bold; }
-
-        /* Resultados */
-        .result-box { display: none; margin-top: 30px; animation: fadeIn 0.5s; }
-        .semaphore { width: 60px; height: 60px; border-radius: 50%; border: 4px solid #334155; display: inline-block; }
-        .GREEN { background: #22c55e; box-shadow: 0 0 20px #22c55e; }
-        .YELLOW { background: #eab308; box-shadow: 0 0 20px #eab308; }
-        .RED { background: #ef4444; box-shadow: 0 0 20px #ef4444; }
-        .analysis-content { color: var(--blue-text); line-height: 1.6; font-size: 1.1em; background: #eff6ff; padding: 20px; border-radius: 10px; margin-top: 15px; }
-        .speaker-btn { font-size: 30px; border: none; background: none; cursor: pointer; margin-left: 20px; }
-        
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @media print { .btn-main, .btn-delete, .lang-switch, .speaker-btn { display: none; } }
-    </style>
+  <meta charset="UTF-8">
+  <title>SMARTCARGO-AIPA</title>
+  <script defer src="/static/scripts.js"></script>
+  <style>
+    body { font-family: Arial; background:#f4f6f8; padding:20px }
+    .box { background:#fff; padding:20px; border-radius:8px; max-width:800px; margin:auto }
+    .hidden { display:none }
+    button { padding:10px 16px; margin-top:10px }
+  </style>
 </head>
 <body>
 
-<div class="app-container">
-    <button class="lang-switch" onclick="toggleLang()">ES / EN</button>
-    <h2 style="margin:0 0 10px 0;">SMARTCARGO-AIPA BY MAY ROGA LLC</h2>
-    
-    <div class="marquee-container">
-        <marquee class="legal-marquee" scrollamount="6">VALIDACIÓN PREVENTIVA OBLIGATORIA - ESTE SISTEMA NO REEMPLAZA LAS DECISIONES OFICIALES DE AVIANCA, TSA O CBP.</marquee>
-    </div>
+<div class="box">
+  <h2>SMARTCARGO-AIPA by May Roga LLC</h2>
+  <p>Preventive Documentary Validation System · Does not replace airline decisions</p>
 
-    <div id="form-cargo">
-        <div class="input-group">
-            <input type="text" id="mawb" placeholder="MAWB (Guía Aérea)">
-            <select id="role">
-                <option value="Shipper">Shipper (Dueño de Carga)</option>
-                <option value="Trucker">Trucker (Camionero)</option>
-                <option value="Counter">Counter / Agente</option>
-                <option value="Warehouse">Warehouse (Bodega)</option>
-                <option value="Forwarder">Forwarder</option>
-            </select>
-        </div>
-        <div class="input-group">
-            <select id="cargo_type">
-                <option value="General">Carga General</option>
-                <option value="DG">Mercancía Peligrosa (DG)</option>
-                <option value="PER">Perecederos</option>
-                <option value="VAL">Valores</option>
-            </select>
-            <input type="number" id="weight" placeholder="Peso Total (kg)">
-        </div>
-        <div class="input-group">
-            <input type="number" id="length" placeholder="Largo (cm)">
-            <input type="number" id="width" placeholder="Ancho (cm)">
-            <input type="number" id="height" placeholder="Alto (cm)">
-        </div>
-        <button class="btn-main" onclick="validateCargo()">EJECUTAR VALIDACIÓN TÉCNICA</button>
-        <button class="btn-delete" onclick="resetForm()">BORRAR FORMULARIO</button>
-    </div>
+  <button id="langBtn">Español</button>
 
-    <div id="result-page" class="result-box">
-        <div style="display: flex; align-items: center;">
-            <div id="semaforo" class="semaphore"></div>
-            <h1 id="status-label" style="margin-left: 20px; font-size: 24px;"></h1>
-            <button class="speaker-btn" onclick="speakResult()" title="Escuchar Asesoría">🔊</button>
-        </div>
+  <!-- PAGE 1 -->
+  <div id="page1">
+    <h3 data-i18n="step1">Register / Validate Cargo</h3>
+    <input id="mawb" placeholder="MAWB"><br>
+    <input id="hawb" placeholder="HAWB"><br>
+    <select id="role">
+      <option>Shipper</option>
+      <option>Driver</option>
+      <option>Warehouse</option>
+      <option>Counter</option>
+      <option>Destinatario</option>
+    </select><br>
+    <button onclick="goStep2()">Continue</button>
+  </div>
 
-        <div id="analysis-text" class="analysis-content"></div>
-        <div id="legal-block" class="legal-static"></div>
+  <!-- PAGE 2 -->
+  <div id="page2" class="hidden">
+    <input id="origin" placeholder="Origin"><br>
+    <input id="destination" placeholder="Destination"><br>
+    <select id="cargo_type">
+      <option>General</option>
+      <option>Perishable</option>
+      <option>DG</option>
+      <option>Hazmat</option>
+    </select><br>
+    <input id="weight" placeholder="Weight kg"><br>
+    <input id="length" placeholder="Length cm"><br>
+    <input id="width" placeholder="Width cm"><br>
+    <input id="height" placeholder="Height cm"><br>
+    <label>DOT Declared?</label>
+    <select id="dot">
+      <option>No</option>
+      <option>Yes</option>
+    </select><br>
+    <button onclick="validateCargo()">Validate</button>
+  </div>
 
-        <div class="input-group" style="margin-top:20px;">
-            <button class="btn-main" style="background:#059669;" onclick="window.print()">IMPRIMIR PDF</button>
-            <button class="btn-main" style="background:#64748b;" onclick="backToInput()">NUEVA CONSULTA</button>
-        </div>
-    </div>
+  <!-- RESULT -->
+  <div id="result" class="hidden">
+    <h3 id="semaforo"></h3>
+    <pre id="analysis"></pre>
+    <button onclick="window.print()">Print / PDF</button>
+    <button onclick="sendWhatsApp()">WhatsApp</button>
+  </div>
 </div>
 
-<script src="/static/scripts.js"></script>
 </body>
 </html>
+
