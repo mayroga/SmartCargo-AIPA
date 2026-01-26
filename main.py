@@ -1,15 +1,11 @@
-# main.py
+from fastapi import FastAPI, UploadFile, Form
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import os
 import json
-from fastapi import FastAPI, Form
-from fastapi.responses import JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from pathlib import Path
 
-app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC")
+app = FastAPI(title="SMARTCARGO-AIPA")
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,19 +13,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Montar estáticos
-app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
-
-# Claves de IA
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 
+# ---------- IA CORE (SMARTCARGO-AIPA) ----------
 
-# ---------- IA CORE ----------
 def smartcargo_ai(prompt: str) -> str:
     """
-    SMARTCARGO-AIPA IA core: Gemini primero, OpenAI si falla.
+    Intenta Gemini primero, si falla usa OpenAI.
+    El cliente JAMÁS ve el proveedor.
     """
     try:
         import google.generativeai as genai
@@ -49,17 +41,8 @@ def smartcargo_ai(prompt: str) -> str:
         except Exception:
             return "System error. Unable to validate cargo at this moment."
 
+# ---------- VALIDATION ENDPOINT ----------
 
-# ---------- ROOT ----------
-@app.get("/")
-async def root():
-    path = Path("frontend/index.html")
-    if not path.exists():
-        return JSONResponse({"error": "index.html not found"}, status_code=404)
-    return FileResponse(path)
-
-
-# ---------- VALIDATION ----------
 @app.post("/validate")
 async def validate_cargo(
     mawb: str = Form(...),
@@ -72,61 +55,57 @@ async def validate_cargo(
     length: float = Form(...),
     width: float = Form(...),
     height: float = Form(...),
-    dot: str = Form(...)
+    dot: str = Form(...),
 ):
     volume = round((length * width * height) / 1_000_000, 3)
 
-    # --------- REGLAS DURAS ---------
-    issues = []
-    required_docs = ["AWB", "Commercial Invoice", "Packing List"]
+    hard_fail = False
+    reasons = []
 
-    if cargo_type.lower() in ["dg", "hazmat"]:
-        required_docs += ["Shipper Declaration", "MSDS"]
+    # --------- REGLAS DURAS (NO IA) ---------
+    if height > 160:
+        hard_fail = True
+        reasons.append("Height exceeds standard aircraft belly limits.")
 
-    if height > 244:
-        issues.append("Height exceeds aircraft maximum limit (244 cm).")
-    if weight > 4500:
-        issues.append("Weight exceeds standard pallet structural limits.")
     if cargo_type.lower() in ["dg", "hazmat"] and dot.lower() != "yes":
-        issues.append("Dangerous goods without DOT declaration.")
-
-    semaforo = "🟢 ACCEPTABLE" if not issues else "🔴 NOT ACCEPTABLE"
+        hard_fail = True
+        reasons.append("Dangerous cargo without DOT declaration.")
 
     # --------- IA PROMPT ---------
     prompt = f"""
-You are SMARTCARGO-AIPA, acting as an airline cargo expert. You do not mention AI.
-LANGUAGE: en
+    You are SMARTCARGO-AIPA, a preventive documentary validation system.
+    You do not approve cargo. You simulate an experienced airline cargo counter.
 
-DATA:
-- Role: {role}
-- MAWB: {mawb}
-- HAWB: {hawb}
-- Origin: {origin}
-- Destination: {destination}
-- Cargo type: {cargo_type}
-- Weight: {weight} kg
-- Dimensions: {length}x{width}x{height} cm
-- Volume: {volume} m3
-- DOT declared: {dot}
+    DATA:
+    Role: {role}
+    MAWB: {mawb}
+    HAWB: {hawb}
+    Origin: {origin}
+    Destination: {destination}
+    Cargo Type: {cargo_type}
+    Weight: {weight} kg
+    Dimensions: {length} x {width} x {height} cm
+    Volume: {volume} m3
+    DOT Declared: {dot}
 
-SYSTEM:
-- Required documents per role: {required_docs}
-- Technical issues: {issues}
+    TASK:
+    - Determine operational acceptability.
+    - Anticipate counter rejection reasons.
+    - Give clear operational guidance.
+    - Never promise acceptance.
+    """
 
-TASK:
-1. Explain clearly WHY this cargo is {semaforo}.
-2. Reference Avianca/IATA/TSA/CBP rules naturally.
-3. Provide corrective actions if NOT ACCEPTABLE.
-4. Include a permanent legal disclaimer.
-"""
+    ai_response = smartcargo_ai(prompt)
 
-    advisor_text = smartcargo_ai(prompt)
+    if hard_fail:
+        status = "RED"
+    else:
+        status = "YELLOW" if "risk" in ai_response.lower() else "GREEN"
 
     return JSONResponse({
-        "semaforo": semaforo,
+        "status": status,
         "volume": volume,
-        "required_documents": required_docs,
-        "technical_issues": issues,
-        "advisor": advisor_text,
-        "legal_notice": "Preventive Documentary Validation System. Does not replace airline, TSA, CBP, DOT or authority decisions."
+        "reasons": reasons,
+        "analysis": ai_response,
+        "disclaimer": "Preventive Documentary Validation System. Does not replace airline decisions."
     })
