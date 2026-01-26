@@ -1,156 +1,104 @@
 body {
-    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background: #f4f6f8;
-    color: #1a1a1a;
+    background: #f8f9fa;
 }
 
-/* ================= HEADER ================= */
-
+/* ---------------- HEADER ---------------- */
 header {
-    background: linear-gradient(90deg, #003366, #0059b3);
-    color: #ffffff;
-    padding: 24px;
+    background: #004080;
+    color: #fff;
+    padding: 20px;
     text-align: center;
 }
 
-header h1 {
-    font-size: 1.8em;
-    letter-spacing: 0.5px;
+/* ---------------- BLUE TICKER ---------------- */
+#ticker {
+    background: #007bff;
+    color: #ffffff;
+    font-weight: bold;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
-header p {
-    margin-top: 8px;
-    font-size: 0.95em;
-    opacity: 0.9;
+#ticker span {
+    display: inline-block;
+    padding-left: 100%;
+    animation: tickerMove 20s linear infinite;
+    font-size: 1rem;
 }
 
-/* ================= SECTIONS ================= */
+@keyframes tickerMove {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+}
 
+/* ---------------- SECTIONS ---------------- */
 section {
-    margin: 24px auto;
-    max-width: 860px;
-    background: #ffffff;
-    padding: 24px;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    margin: 20px auto;
+    max-width: 800px;
+    background: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
-h2 {
-    margin-bottom: 16px;
-    color: #003366;
+h1, h2 {
+    margin: 0 0 10px 0;
 }
 
-/* ================= FORMS ================= */
-
+/* ---------------- FORM ---------------- */
 form label {
     display: block;
-    margin-bottom: 12px;
-    font-weight: 500;
+    margin-bottom: 10px;
 }
 
 input, select, textarea {
     width: 100%;
-    padding: 10px;
-    margin-top: 6px;
+    padding: 8px;
+    margin-top: 4px;
     box-sizing: border-box;
-    border-radius: 6px;
-    border: 1px solid #ccd6e0;
-    font-size: 0.95em;
 }
 
-textarea {
-    min-height: 140px;
-    resize: vertical;
-}
-
-input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: #0059b3;
-}
-
-/* ================= BUTTONS ================= */
-
+/* ---------------- BUTTONS ---------------- */
 button {
-    margin-top: 12px;
-    padding: 12px 22px;
-    background: #0059b3;
-    color: #ffffff;
+    margin: 5px;
+    padding: 10px 20px;
+    background: #004080;
+    color: #fff;
     border: none;
     cursor: pointer;
-    border-radius: 6px;
-    font-size: 0.95em;
+    border-radius: 5px;
 }
 
 button:hover {
-    background: #0073e6;
+    background: #0066cc;
 }
 
-/* ================= RESULT ================= */
-
-#result {
-    margin-top: 20px;
-}
-
-.hidden {
-    display: none;
-}
-
-/* ================= SEMAFORO ================= */
-
+/* ---------------- SEMAFORO ---------------- */
 #semaforo {
     font-weight: bold;
     font-size: 1.3em;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
-.semaforo-green {
-    color: #1e7e34;
-}
-
-.semaforo-yellow {
-    color: #d39e00;
-}
-
-.semaforo-red {
-    color: #c82333;
-}
-
-/* ================= ANALYSIS ================= */
-
-#analysis {
-    white-space: pre-wrap;
-    line-height: 1.5;
-    font-size: 0.95em;
-}
-
-/* ================= LEGAL ================= */
-
-#legal {
-    margin-top: 16px;
-    padding: 12px;
-    border-radius: 6px;
-    background: #fff5f5;
-    color: #a71d2a;
-    font-size: 0.85em;
-    border: 1px solid #f1b0b7;
-}
-
-/* ================= ADMIN ================= */
-
-#adminAnswer {
-    margin-top: 12px;
-    font-size: 0.9em;
-    white-space: pre-wrap;
-}
-
-/* ================= FOOTER / BRAND ================= */
-
-footer {
-    text-align: center;
-    padding: 16px;
-    font-size: 0.8em;
+/* ---------------- LEGAL SHIELD ---------------- */
+#legalShield {
+    background: #b30000;
     color: #ffffff;
-    background: #0059b3;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+    font-size: 0.95em;
+    line-height: 1.5em;
+}
+
+#legalShield strong {
+    font-size: 1.05em;
+}
+
+/* ---------------- UTIL ---------------- */
+.hidden {
+    display: none;
 }
