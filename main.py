@@ -1,69 +1,45 @@
-# main.py
 import os
 import json
-from fastapi import FastAPI, Form
+import httpx
+from fastapi import FastAPI, Form, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from pathlib import Path
+from sqlalchemy.orm import Session
+from backend.database import SessionLocal, init_db
+from models import Cargo, Document
+from datetime import datetime
 
 app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC")
-
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Montar estáticos
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 
-# Claves de IA
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+# Inicializar Base de Datos
+init_db()
 
-
-# ---------- IA CORE ----------
-def smartcargo_ai(prompt: str) -> str:
-    """
-    SMARTCARGO-AIPA IA core: Gemini primero, OpenAI si falla.
-    """
+def get_db():
+    db = SessionLocal()
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=GEMINI_KEY)
-        model = genai.GenerativeModel("gemini-pro")
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception:
-        try:
-            from openai import OpenAI
-            client = OpenAI(api_key=OPENAI_KEY)
-            completion = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}]
-            )
-            return completion.choices[0].message.content
-        except Exception:
-            return "System error. Unable to validate cargo at this moment."
+        yield db
+    finally:
+        db.close()
 
+# Configuración de Claves
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 
-# ---------- ROOT ----------
+async def advisor_engine(prompt: str):
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    async with httpx.AsyncClient(timeout=40) as client:
+        r = await client.post(url, json=payload)
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+
 @app.get("/")
-async def root():
-    path = Path("frontend/index.html")
-    if not path.exists():
-        return JSONResponse({"error": "index.html not found"}, status_code=404)
-    return FileResponse(path)
+async def read_index():
+    return FileResponse("frontend/index.html")
 
-
-# ---------- VALIDATION ----------
 @app.post("/validate")
 async def validate_cargo(
     mawb: str = Form(...),
-    hawb: str = Form(...),
+    hawb: str = Form(None),
     role: str = Form(...),
     origin: str = Form(...),
     destination: str = Form(...),
@@ -72,61 +48,61 @@ async def validate_cargo(
     length: float = Form(...),
     width: float = Form(...),
     height: float = Form(...),
-    dot: str = Form(...)
+    dot: str = Form(...),
+    db: Session = Depends(get_db)
 ):
     volume = round((length * width * height) / 1_000_000, 3)
+    
+    # --- REGLAS TÉCNICAS AVIANCA / IATA ---
+    status = "GREEN"
+    technical_notes = []
+    
+    # Límite de altura para aviones de pasajeros (Belly Cargo)
+    if height > 114 and height <= 160:
+        technical_notes.append("REQUIRES WIDE-BODY AIRCRAFT (A330/B787). Cannot fit in A320 family.")
+        status = "YELLOW"
+    elif height > 160:
+        technical_notes.append("CARGO AIRCRAFT ONLY (A330F). Exceeds passenger belly height limits.")
+        status = "RED" if height > 244 else "YELLOW"
 
-    # --------- REGLAS DURAS ---------
-    issues = []
-    required_docs = ["AWB", "Commercial Invoice", "Packing List"]
+    if cargo_type.upper() in ["DG", "HAZMAT"] and dot.upper() != "YES":
+        status = "RED"
+        technical_notes.append("CRITICAL: DOT Declaration missing for Dangerous Goods.")
 
-    if cargo_type.lower() in ["dg", "hazmat"]:
-        required_docs += ["Shipper Declaration", "MSDS"]
+    # Guardar en DB para trazabilidad
+    new_cargo = Cargo(
+        mawb=mawb, hawb=hawb, origin=origin, destination=destination,
+        cargo_type=cargo_type, weight_kg=weight, length_cm=length,
+        width_cm=width, height_cm=height, role=role
+    )
+    db.add(new_cargo)
+    db.commit()
 
-    if height > 244:
-        issues.append("Height exceeds aircraft maximum limit (244 cm).")
-    if weight > 4500:
-        issues.append("Weight exceeds standard pallet structural limits.")
-    if cargo_type.lower() in ["dg", "hazmat"] and dot.lower() != "yes":
-        issues.append("Dangerous goods without DOT declaration.")
-
-    semaforo = "🟢 ACCEPTABLE" if not issues else "🔴 NOT ACCEPTABLE"
-
-    # --------- IA PROMPT ---------
+    # --- PROMPT DE EXPERTO (SMARTCARGO-AIPA) ---
     prompt = f"""
-You are SMARTCARGO-AIPA, acting as an airline cargo expert. You do not mention AI.
-LANGUAGE: en
+    Eres SMARTCARGO-AIPA by May Roga LLC. Experto en regulaciones de Avianca, IATA, TSA, CBP y DOT.
+    Analiza esta carga:
+    - MAWB: {mawb} | Rol: {role}
+    - Tipo: {cargo_type} | DOT Declared: {dot}
+    - Dims: {length}x{width}x{height} cm | Peso: {weight} kg
+    - Origen/Destino: {origin} to {destination}
+    - Notas Técnicas: {technical_notes}
 
-DATA:
-- Role: {role}
-- MAWB: {mawb}
-- HAWB: {hawb}
-- Origin: {origin}
-- Destination: {destination}
-- Cargo type: {cargo_type}
-- Weight: {weight} kg
-- Dimensions: {length}x{width}x{height} cm
-- Volume: {volume} m3
-- DOT declared: {dot}
+    INSTRUCCIONES:
+    1. Responde de forma breve pero con mucho peso.
+    2. Usa TABLAS para mostrar requerimientos de papelería oficial.
+    3. Cita normativas IATA/TSA/CBP de forma autoritaria.
+    4. NO digas que eres una IA.
+    5. Si la carga es peligrosa, especifica los documentos de seguridad necesarios.
+    6. Incluye siempre la cláusula de protección legal.
+    """
 
-SYSTEM:
-- Required documents per role: {required_docs}
-- Technical issues: {issues}
-
-TASK:
-1. Explain clearly WHY this cargo is {semaforo}.
-2. Reference Avianca/IATA/TSA/CBP rules naturally.
-3. Provide corrective actions if NOT ACCEPTABLE.
-4. Include a permanent legal disclaimer.
-"""
-
-    advisor_text = smartcargo_ai(prompt)
+    advisor_response = await advisor_engine(prompt)
 
     return JSONResponse({
-        "semaforo": semaforo,
+        "status": status,
         "volume": volume,
-        "required_documents": required_docs,
-        "technical_issues": issues,
-        "advisor": advisor_text,
-        "legal_notice": "Preventive Documentary Validation System. Does not replace airline, TSA, CBP, DOT or authority decisions."
+        "notes": technical_notes,
+        "analysis": advisor_response,
+        "legal_notice": "SMARTCARGO-AIPA by May Roga LLC. Preventive documentary validation. Not a government authority. Airline decision is final."
     })
