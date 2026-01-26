@@ -1,137 +1,131 @@
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import os
 
-# ===============================
-# APP
-# ===============================
 app = FastAPI(title="SmartCargo-AIPA")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ===============================
-# ENV
-# ===============================
+# ---------------- ENV ----------------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "disabled")
 
-# ===============================
-# LEGAL SHIELD (CENTRAL)
-# ===============================
-LEGAL_DISCLAIMER = {
+# ---------------- LEGAL CORE ----------------
+LEGAL_TEXT = {
     "Spanish": (
-        "SmartCargo-AIPA by May Roga LLC actúa exclusivamente como una plataforma "
-        "de asesoría técnica y documental. No sustituimos ni reemplazamos decisiones "
-        "de aerolíneas, autoridades aeroportuarias, aduanas ni entidades gubernamentales. "
-        "Las validaciones emitidas son orientativas y preventivas, basadas únicamente en "
-        "la información suministrada por el usuario. La responsabilidad final sobre la "
-        "carga, su documentación y su presentación oficial recae exclusivamente en el usuario."
+        "🔴 AVISO LEGAL – SMARTCARGO-AIPA by May Roga LLC\n\n"
+        "SmartCargo-AIPA opera exclusivamente como plataforma de ASESORÍA PREVENTIVA.\n"
+        "No sustituimos decisiones de aerolíneas, agentes de carga, autoridades aeroportuarias, "
+        "TSA, CBP, DOT ni ninguna entidad gubernamental.\n\n"
+        "La información proporcionada tiene como único objetivo reducir rechazos, demoras, "
+        "multas y pérdidas económicas mediante orientación anticipada.\n\n"
+        "La responsabilidad final sobre la carga, documentación y cumplimiento normativo "
+        "recae exclusivamente en el usuario.\n"
     ),
     "English": (
-        "SmartCargo-AIPA by May Roga LLC operates strictly as a technical and documentary "
-        "advisory platform. We do not replace or override decisions made by airlines, "
-        "airport authorities, customs, or any governmental entity. All validations are "
-        "preventive and advisory in nature, based solely on information provided by the user. "
-        "Final responsibility for cargo, documentation, and official presentation remains "
-        "entirely with the user."
+        "🔴 LEGAL NOTICE – SMARTCARGO-AIPA by May Roga LLC\n\n"
+        "SmartCargo-AIPA operates strictly as a PREVENTIVE ADVISORY platform.\n"
+        "We do not replace decisions made by airlines, cargo agents, airport authorities, "
+        "TSA, CBP, DOT or any governmental entity.\n\n"
+        "The information provided is intended solely to reduce rejections, delays, fines "
+        "and financial losses through early guidance.\n\n"
+        "Final responsibility for cargo, documentation and regulatory compliance "
+        "remains exclusively with the user.\n"
     )
 }
 
-# ===============================
-# AI HANDLERS
-# ===============================
-def analyze_with_gemini(text: str) -> str:
+# ---------------- GEMINI ----------------
+def run_gemini(prompt: str):
+    if not GEMINI_API_KEY:
+        return None
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=GEMINI_API_KEY)
-
-        model = genai.GenerativeModel("gemini-pro")
-        response = model.generate_content(text)
+        from google import genai
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        response = client.models.generate_content(
+            model="gemini-pro",
+            contents=prompt
+        )
         return response.text
-
     except Exception as e:
         print("Gemini failed:", e)
         return None
 
+# ---------------- OPENAI ----------------
+def run_openai(prompt: str):
+    if not OPENAI_API_KEY:
+        return None
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        print("OpenAI failed:", e)
+        return None
 
-def analyze_with_openai(text: str) -> str:
-    from openai import OpenAI
-    client = OpenAI(api_key=OPENAI_API_KEY)
-
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are a cargo documentation validation advisor."},
-            {"role": "user", "content": text}
-        ]
-    )
-    return completion.choices[0].message.content
-
-
-# ===============================
-# BUSINESS LOGIC
-# ===============================
-def semaforo_logic(analysis: str) -> str:
-    text = analysis.lower()
-
-    if any(w in text for w in ["prohibited", "forbidden", "not allowed", "rechazada"]):
+# ---------------- SEMAFORO ----------------
+def semaforo(text: str):
+    t = text.lower()
+    if any(w in t for w in ["reject", "forbidden", "prohibited", "not allowed"]):
         return "RED"
-    if any(w in text for w in ["review", "conditional", "verify", "posible"]):
+    if any(w in t for w in ["review", "verify", "conditional", "warning"]):
         return "YELLOW"
     return "GREEN"
 
-
-# ===============================
-# ROUTES
-# ===============================
+# ---------------- FRONT ----------------
 @app.get("/", response_class=HTMLResponse)
-async def home():
-    with open("static/index.html", "r", encoding="utf-8") as f:
-        return f.read()
+def home():
+    return open("frontend/index.html", encoding="utf-8").read()
 
-
+# ---------------- VALIDATE ----------------
 @app.post("/validate")
-async def validate(
+def validate(
     role: str = Form(...),
     lang: str = Form(...),
     dossier: str = Form(...)
 ):
     prompt = f"""
-You are acting as a cargo counter inspector.
-Role: {role}
-Language: {lang}
+You are SMARTCARGO-AIPA, acting as an experienced cargo advisory assistant.
+Analyze the following cargo documentation and explain in simple, clear language.
 
-Analyze the following cargo documentation text.
-Determine if the cargo is acceptable, conditional, or not acceptable.
-Explain clearly in simple language.
+Classify the result strictly as:
+GREEN – acceptable
+YELLOW – conditional
+RED – not acceptable
 
-DOCUMENT:
+Documentation:
 {dossier}
 """
 
-    analysis = analyze_with_gemini(prompt)
+    analysis = run_gemini(prompt) or run_openai(prompt)
 
     if not analysis:
-        analysis = analyze_with_openai(prompt)
-
-    status = semaforo_logic(analysis)
+        analysis = (
+            "System advisory notice: Unable to process the document at this time. "
+            "Please review documentation manually or try again later."
+        )
 
     return JSONResponse({
-        "status": status,
-        "analysis": analysis.strip(),
-        "disclaimer": LEGAL_DISCLAIMER.get(lang, LEGAL_DISCLAIMER["English"])
+        "status": semaforo(analysis),
+        "analysis": analysis,
+        "disclaimer": LEGAL_TEXT.get(lang, LEGAL_TEXT["English"])
     })
 
-
+# ---------------- ADMIN ----------------
 @app.post("/admin")
-async def admin(
+def admin(
     username: str = Form(...),
     password: str = Form(...),
     question: str = Form(...)
 ):
-    if username != "admin" or password != os.getenv("ADMIN_PASSWORD"):
-        return JSONResponse({"answer": "Unauthorized"})
+    if password != ADMIN_PASSWORD:
+        return JSONResponse({"answer": "Unauthorized"}, status_code=401)
 
-    answer = analyze_with_openai(question)
-    return JSONResponse({"answer": answer})
+    answer = run_openai(question) or "AI unavailable"
+    return {"answer": answer}
