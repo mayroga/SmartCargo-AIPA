@@ -24,6 +24,10 @@ function showResult(res) {
     res.status === "YELLOW" ? "orange" :
     "red";
 
+  // Banner azul
+  document.getElementById("banner").innerText = "💙 SMARTCARGO-AIPA: Evita rechazos, delays, multas, ahorra tiempo y dinero";
+  document.getElementById("banner").style.color = "blue";
+
   document.getElementById("analysis").innerText =
     res.analysis + "\n\n" + res.disclaimer;
 }
@@ -32,7 +36,6 @@ function showResult(res) {
 function speak() {
   const text = document.getElementById("analysis").innerText;
   if (!text) return;
-
   const msg = new SpeechSynthesisUtterance(text);
   msg.lang = document.getElementById("lang").value === "Spanish" ? "es-ES" : "en-US";
   speechSynthesis.speak(msg);
@@ -56,7 +59,6 @@ function adminAsk() {
 // ---------------- LANG SWITCH ----------------
 function switchLang() {
   const lang = document.getElementById("lang").value;
-
   document.getElementById("roleLabel").innerText =
     lang === "Spanish" ? "Rol" : "Role";
 
