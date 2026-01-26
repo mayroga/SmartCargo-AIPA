@@ -1,40 +1,90 @@
-from typing import Dict
+import os
+import json
+import requests
 
-# Genera mensaje de asesor legal y operativo según cargo y rol
-def generate_advisor_message(cargo_data: Dict, validation: Dict) -> str:
-    role = cargo_data.get("role", "Shipper")
-    status = validation.get("semaforo", "🔴")
-    missing_docs = validation.get("missing_docs", [])
-    overweight = validation.get("overweight", False)
-    oversized = validation.get("oversized", False)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-    msg = f"Role: {role}\nStatus: {status}\n"
+# =====================================
+# Llamada a Gemini IA, fallback OpenAI
+# =====================================
+def call_ai_system(prompt: str):
+    headers = {"Authorization": f"Bearer {GEMINI_API_KEY}"}
+    url_gemini = "https://api.gemini.ai/v1/generate"
 
-    if missing_docs:
-        msg += f"⚠ Missing Documents: {', '.join(missing_docs)}\n"
-    else:
-        msg += "✔ All required documents provided.\n"
+    try:
+        # Gemini
+        response = requests.post(url_gemini, headers=headers, json={"prompt": prompt})
+        if response.status_code == 200:
+            return response.json().get("text", "")
+        else:
+            raise Exception("Gemini failed, fallback OpenAI")
+    except:
+        # OpenAI fallback
+        import openai
+        openai.api_key = OPENAI_API_KEY
+        try:
+            completion = openai.Completion.create(
+                engine="text-davinci-003",
+                prompt=prompt,
+                max_tokens=600
+            )
+            return completion.choices[0].text.strip()
+        except Exception as e:
+            return f"AI system error: {str(e)}"
 
-    msg += f"Weight Check: {'Overweight!' if overweight else 'OK'}\n"
-    msg += f"Dimensions Check: {'Oversized!' if oversized else 'OK'}\n"
+# =====================================
+# Genera mensaje de asesoramiento
+# =====================================
+def generate_advisor_message(cargo_data: dict, validation_status: dict) -> str:
+    """
+    Genera explicación completa, legal y operativa según el cargo, rol y reglas.
+    """
+    mawb = cargo_data.get("mawb")
+    hawb = cargo_data.get("hawb")
+    cargo_type = cargo_data.get("cargo_type")
+    role = cargo_data.get("role")
+    weight = cargo_data.get("weight_kg")
+    l = cargo_data.get("length_cm")
+    w = cargo_data.get("width_cm")
+    h = cargo_data.get("height_cm")
+    missing_docs = validation_status.get("missing_docs", [])
+    semaforo = validation_status.get("semaforo")
+    overweight = validation_status.get("overweight")
+    oversized = validation_status.get("oversized")
+    
+    prompt = f"""
+    Eres un especialista en logística aérea y cumplimiento de Avianca/IATA/TSA/CBP.
+    Cargo: MAWB {mawb}, HAWB {hawb}, Tipo: {cargo_type}, Rol: {role}.
+    Peso: {weight} kg, Dimensiones: {l}x{w}x{h} cm.
+    Semáforo: {semaforo}.
+    Documentos faltantes: {missing_docs}.
+    Sobrepeso: {overweight}, Sobredimensiones: {oversized}.
+    
+    Genera un mensaje de asesor legal y operativo que explique:
+    - Por qué el semáforo es 🟢, 🟡 o 🔴
+    - Qué documentos faltan y por qué son críticos
+    - Riesgos de sobrepeso o sobredimensiones
+    - Cumplimiento de TSA, CBP, IATA, reglas Avianca
+    - Cualquier recomendación para que la carga pueda subir al avión
+    - Lenguaje profesional, claro, en español
+    - Explicación completa, lista para enviar a cliente por WhatsApp o PDF
+    """
 
-    # Mensaje legal y operativo detallado
-    msg += "\nLegal & Operational Notes:\n"
-    msg += "- Checked against Avianca/IATA/DGR rules.\n"
-    msg += "- TSA and CBP security requirements considered.\n"
-    msg += "- Aircraft height and weight limitations enforced.\n"
-    msg += "- Packaging and labeling compliance verified.\n"
-    msg += "- AWB and documentation consistency confirmed.\n"
-    msg += "- Recommendation: verify technical acceptance for irregular bultos.\n"
+    ai_message = call_ai_system(prompt)
+    return ai_message
 
-    return msg
-
-# Función auxiliar para el dashboard
-def cargo_dashboard(cargo_data: Dict, validation: Dict) -> Dict:
+# =====================================
+# Genera semáforo completo y explicación
+# =====================================
+def cargo_dashboard(cargo_data: dict, validation_status: dict) -> dict:
+    """
+    Devuelve el semáforo, lista de documentos requeridos, faltantes, sobrepeso, sobredimensiones
+    """
     return {
-        "semaforo": validation.get("semaforo", "🔴"),
-        "documents_required": validation.get("documents_required", []),
-        "missing_docs": validation.get("missing_docs", []),
-        "overweight": validation.get("overweight", False),
-        "oversized": validation.get("oversized", False)
+        "semaforo": validation_status.get("semaforo"),
+        "documents_required": validation_status.get("required_docs", []),
+        "missing_docs": validation_status.get("missing_docs", []),
+        "overweight": validation_status.get("overweight", False),
+        "oversized": validation_status.get("oversized", False)
     }
