@@ -1,172 +1,70 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>SMARTCARGO-AIPA</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
-    <!-- Estilo base -->
-    <link rel="stylesheet" href="styles.css" />
-
-    <style>
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-            background: #0f172a;
-            color: #e5e7eb;
-            margin: 0;
-            padding: 0;
-        }
-
-        header {
-            background: #020617;
-            padding: 16px 24px;
-            border-bottom: 1px solid #1e293b;
-        }
-
-        header h1 {
-            margin: 0;
-            font-size: 20px;
-            letter-spacing: 1px;
-        }
-
-        main {
-            padding: 24px;
-            max-width: 1200px;
-            margin: auto;
-        }
-
-        .card {
-            background: #020617;
-            border: 1px solid #1e293b;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .card h2 {
-            margin-top: 0;
-            font-size: 18px;
-            border-bottom: 1px solid #1e293b;
-            padding-bottom: 8px;
-        }
-
-        label {
-            display: block;
-            margin-top: 12px;
-            font-size: 14px;
-        }
-
-        input, select, textarea {
-            width: 100%;
-            margin-top: 6px;
-            padding: 10px;
-            border-radius: 6px;
-            border: 1px solid #334155;
-            background: #020617;
-            color: #e5e7eb;
-        }
-
-        textarea {
-            resize: vertical;
-        }
-
-        button {
-            margin-top: 16px;
-            padding: 12px 18px;
-            border-radius: 6px;
-            border: none;
-            background: #2563eb;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #1d4ed8;
-        }
-
-        .result {
-            margin-top: 16px;
-            padding: 12px;
-            border-radius: 6px;
-            background: #020617;
-            border: 1px solid #334155;
-            font-size: 14px;
-            white-space: pre-wrap;
-        }
-
-        footer {
-            text-align: center;
-            padding: 16px;
-            font-size: 12px;
-            color: #94a3b8;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>SMARTCARGO-AIPA</title>
+  <script defer src="/static/scripts.js"></script>
+  <style>
+    body { font-family: Arial; background:#f4f6f8; padding:20px }
+    .box { background:#fff; padding:20px; border-radius:8px; max-width:800px; margin:auto }
+    .hidden { display:none }
+    button { padding:10px 16px; margin-top:10px }
+  </style>
 </head>
-
 <body>
 
-<header>
-    <h1>SMARTCARGO-AIPA</h1>
-</header>
+<div class="box">
+  <h2>SMARTCARGO-AIPA</h2>
+  <p>Preventive Documentary Validation System · Does not replace airline decisions</p>
 
-<main>
+  <button onclick="toggleLang()">Español</button>
 
-    <!-- INGRESO DE CARGA -->
-    <div class="card">
-        <h2>Registro de Carga</h2>
+  <!-- PAGE 1 -->
+  <div id="page1">
+    <h3 data-i18n="step1">Register / Validate Cargo</h3>
+    <input id="mawb" placeholder="MAWB"><br>
+    <input id="hawb" placeholder="HAWB"><br>
+    <select id="role">
+      <option>Shipper</option>
+      <option>Driver</option>
+      <option>Warehouse</option>
+      <option>Counter</option>
+    </select><br>
+    <button onclick="goStep2()">Continue</button>
+  </div>
 
-        <label>Tipo de carga</label>
-        <select id="cargoType">
-            <option value="">Seleccionar</option>
-            <option value="general">Carga General</option>
-            <option value="dangerous">Mercancía Peligrosa</option>
-            <option value="perishable">Perecedero</option>
-            <option value="human_remains">Restos Humanos</option>
-            <option value="live_animals">Animales Vivos</option>
-        </select>
+  <!-- PAGE 2 -->
+  <div id="page2" class="hidden">
+    <input id="origin" placeholder="Origin"><br>
+    <input id="destination" placeholder="Destination"><br>
+    <select id="cargo_type">
+      <option>General</option>
+      <option>Perishable</option>
+      <option>DG</option>
+      <option>Hazmat</option>
+    </select><br>
+    <input id="weight" placeholder="Weight kg"><br>
+    <input id="length" placeholder="Length cm"><br>
+    <input id="width" placeholder="Width cm"><br>
+    <input id="height" placeholder="Height cm"><br>
 
-        <label>Descripción de la mercancía</label>
-        <textarea id="description" rows="3"></textarea>
+    <label>DOT Declared?</label>
+    <select id="dot">
+      <option>No</option>
+      <option>Yes</option>
+    </select><br>
 
-        <label>Peso (kg)</label>
-        <input type="number" id="weight" step="0.01" />
+    <button onclick="validate()">Validate</button>
+  </div>
 
-        <label>Origen</label>
-        <input type="text" id="origin" placeholder="Ej: MIA" />
+  <!-- RESULT -->
+  <div id="result" class="hidden">
+    <h3 id="semaforo"></h3>
+    <pre id="analysis"></pre>
+    <button onclick="window.print()">Print / PDF</button>
+    <button onclick="sendWhatsApp()">WhatsApp</button>
+  </div>
+</div>
 
-        <label>Destino</label>
-        <input type="text" id="destination" placeholder="Ej: BOG" />
-
-        <button onclick="analyzeCargo()">Analizar carga</button>
-
-        <div id="analysisResult" class="result"></div>
-    </div>
-
-    <!-- DOCUMENTACIÓN -->
-    <div class="card">
-        <h2>Documentación requerida</h2>
-
-        <button onclick="generateDocs()">Generar checklist</button>
-
-        <div id="docsResult" class="result"></div>
-    </div>
-
-    <!-- ALERTAS -->
-    <div class="card">
-        <h2>Alertas operativas</h2>
-
-        <button onclick="runCompliance()">Validar cumplimiento</button>
-
-        <div id="complianceResult" class="result"></div>
-    </div>
-
-</main>
-
-<footer>
-    SMARTCARGO-AIPA © Sistema Inteligente de Gestión de Carga
-</footer>
-
-<script src="scripts.js"></script>
 </body>
 </html>
