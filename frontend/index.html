@@ -2,72 +2,80 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SMARTCARGO-AIPA by May Roga LLC</title>
+    <title>SMARTCARGO-AIPA</title>
     <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        label { display: block; margin-top: 10px; }
+        input, select, textarea { width: 300px; padding: 5px; }
+        .doc-preview { margin-top: 10px; border: 1px solid #ccc; padding: 5px; display: flex; align-items: center; gap: 10px; }
+        .doc-preview img { max-width: 80px; max-height: 80px; }
+        .semaforo { font-size: 24px; margin-top: 10px; font-weight: bold; }
+        .role-section { display: none; margin-top: 20px; border: 1px solid #ddd; padding: 15px; }
+        .show { display: block; }
+        button { margin-top: 10px; padding: 5px 10px; }
+    </style>
 </head>
 <body>
-    <header>
-        <h1 data-en="SMARTCARGO-AIPA by May Roga LLC" data-es="SMARTCARGO-AIPA por May Roga LLC">SMARTCARGO-AIPA by May Roga LLC</h1>
-        <p data-en="Preventive Documentary Validation System · Does not replace airline decisions"
-           data-es="Sistema Preventivo de Validación Documental · No sustituye decisiones de la aerolínea">
-           Preventive Documentary Validation System · Does not replace airline decisions
-        </p>
-        <button id="translateBtn" data-en="Translate / Traducir" data-es="Traducir / Translate">Translate / Traducir</button>
-    </header>
+    <h1>SMARTCARGO-AIPA · Preventive Documentary Validation</h1>
 
-    <section id="cargo-form">
-        <h2 data-en="Register / Validate Cargo" data-es="Registrar / Validar Carga">Register / Validate Cargo</h2>
-        <form id="formCargo">
-            <label data-en="MAWB:" data-es="MAWB:">MAWB:<input type="text" name="mawb" required></label>
-            <label data-en="HAWB:" data-es="HAWB:">HAWB:<input type="text" name="hawb" required></label>
-            <label data-en="Origin:" data-es="Origen:">Origin:<input type="text" name="origin" required></label>
-            <label data-en="Destination:" data-es="Destino:">Destination:<input type="text" name="destination" required></label>
-            <label data-en="Cargo Type:" data-es="Tipo de carga:">Cargo Type:
-                <select name="cargo_type" required>
-                    <option value="General" data-en="General" data-es="General">General</option>
-                    <option value="Dangerous Goods" data-en="Dangerous Goods" data-es="Mercancías Peligrosas">Dangerous Goods</option>
-                    <option value="Perishable" data-en="Perishable" data-es="Perecedero">Perishable</option>
-                </select>
-            </label>
-            <label data-en="Flight Date:" data-es="Fecha de vuelo:">Flight Date:<input type="date" name="flight_date" required></label>
-            <label data-en="Weight (kg):" data-es="Peso (kg):">Weight (kg):<input type="number" name="weight_kg" required></label>
+    <label>Idioma / Language:
+        <select id="langSelect">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+        </select>
+    </label>
 
-            <label data-en="Length (cm):" data-es="Largo (cm):">Length (cm):<input type="number" id="length_cm" name="length_cm" required></label>
-            <label data-en="Width (cm):" data-es="Ancho (cm):">Width (cm):<input type="number" id="width_cm" name="width_cm" required></label>
-            <label data-en="Height (cm):" data-es="Alto (cm):">Height (cm):<input type="number" id="height_cm" name="height_cm" required></label>
-            <label data-en="Volume (m³):" data-es="Volumen (m³):">Volume (m³):<input type="number" id="volume" name="volume" readonly></label>
+    <label>Seleccione rol / Select role:
+        <select id="roleSelect">
+            <option value="Shipper">Shipper</option>
+            <option value="Forwarder">Forwarder</option>
+            <option value="Counter">Counter</option>
+            <option value="Warehouse">Warehouse</option>
+        </select>
+    </label>
 
-            <label data-en="Upload Documents (JSON with description, max 2 per type):"
-                   data-es="Subir Documentos (JSON con descripción, máximo 2 por tipo):">
-                Upload Documents (JSON with description, max 2 per type):
-                <input type="file" id="documents" name="documents" multiple accept="image/*">
-            </label>
+    <!-- Formularios por rol -->
+    <div id="Shipper" class="role-section">
+        <h3>Shipper / Remitente</h3>
+        <label>MAWB: <input type="text" id="mawb_shipper"></label>
+        <label>HAWB: <input type="text" id="hawb_shipper"></label>
+        <label>Origen / Origin: <input type="text" id="origin_shipper"></label>
+        <label>Destino / Destination: <input type="text" id="destination_shipper"></label>
+        <label>Tipo de carga / Cargo Type: <input type="text" id="cargo_type_shipper"></label>
+        <label>Fecha de vuelo / Flight Date: <input type="date" id="flight_date_shipper"></label>
+        <label>Peso (kg) / Weight (kg): <input type="number" id="weight_shipper"></label>
+        <label>Largo (cm) / Length (cm): <input type="number" id="length_shipper"></label>
+        <label>Ancho (cm) / Width (cm): <input type="number" id="width_shipper"></label>
+        <label>Alto (cm) / Height (cm): <input type="number" id="height_shipper"></label>
+    </div>
 
-            <label data-en="Role:" data-es="Rol:">Role:
-                <select name="role" id="roleSelect" required>
-                    <option value="Shipper" data-en="Shipper" data-es="Remitente">Shipper</option>
-                    <option value="Forwarder" data-en="Forwarder" data-es="Forwarder">Forwarder</option>
-                    <option value="Chofer" data-en="Driver" data-es="Chofer">Chofer</option>
-                    <option value="Warehouse" data-en="Warehouse" data-es="Almacén">Warehouse</option>
-                    <option value="Operador" data-en="Operator" data-es="Operador">Operador</option>
-                    <option value="Destinatario" data-en="Recipient" data-es="Destinatario">Destinatario</option>
-                </select>
-            </label>
+    <div id="Forwarder" class="role-section">
+        <h3>Forwarder</h3>
+        <p>Formulario adaptado para Forwarder</p>
+        <!-- Puede agregar campos específicos -->
+    </div>
 
-            <button type="submit" data-en="Validate" data-es="Validar">Validate</button>
-            <button type="button" id="resetForm" data-en="Reset" data-es="Resetear">Reset</button>
-            <button type="button" id="printPDF" data-en="Print / PDF" data-es="Imprimir / PDF">Print / PDF</button>
-            <button type="button" id="shareWhatsApp" data-en="WhatsApp" data-es="WhatsApp">WhatsApp</button>
-        </form>
-    </section>
+    <div id="Counter" class="role-section">
+        <h3>Counter</h3>
+        <p>Formulario adaptado para Counter</p>
+    </div>
 
-    <section id="results">
-        <h2 data-en="Validation Results" data-es="Resultados de Validación">Validation Results</h2>
-        <div id="semaforo" data-en="Traffic Light:" data-es="Semáforo:">Semáforo: <span id="semaforoStatus">-</span></div>
-        <div id="documentsList" data-en="Documents:" data-es="Documentos:">Documents:</div>
-        <div id="explanation" data-en="Explanation:" data-es="Explicación:">Explanation:</div>
-        <div id="advisor" data-en="Advisor:" data-es="Asesor:">Advisor:</div>
-    </section>
+    <div id="Warehouse" class="role-section">
+        <h3>Warehouse / Almacén</h3>
+        <p>Formulario adaptado para Warehouse</p>
+        <input type="file" id="fileInput" multiple>
+        <div id="docPreviewContainer"></div>
+    </div>
+
+    <button id="validateBtn">Validate / Validar</button>
+
+    <div id="results">
+        <div class="semaforo" id="semaforo">Semáforo: -</div>
+        <div id="documents"></div>
+        <div id="explanation"></div>
+        <div id="advisor"></div>
+    </div>
 
     <script src="/static/scripts.js"></script>
 </body>
