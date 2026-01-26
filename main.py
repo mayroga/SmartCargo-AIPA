@@ -2,22 +2,31 @@ from fastapi import FastAPI, Form, Depends, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+from typing import List, Dict
+from backend.database import SessionLocal
+from backend.roles import verify_user, UserRole
 from backend.rules import validate_cargo
-from backend.utils import cargo_dashboard, generate_advisor_message
-from backend.roles import verify_user
+from backend.utils import generate_advisor_message
+import json
 
-app = FastAPI(
-    title="SMARTCARGO-AIPA by May Roga LLC · Preventive Documentary Validation System"
-)
+app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC · Preventive Documentary Validation System")
 
 # Montar carpeta static
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Base de datos
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 # -----------------------------
-# Autenticación mínima experto
+# Autenticación mínima para experto SMARTCARGO-AIPA
 # -----------------------------
 def expert_auth(username: str = Form(...), password: str = Form(...)):
-    if username != "maykel" or password != "********":
+    if username != "maykel" or password != "********":  # reemplazar con clave segura real
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
@@ -46,15 +55,16 @@ async def cargo_validate(
     length_cm: float = Form(...),
     width_cm: float = Form(...),
     height_cm: float = Form(...),
+    volume_m3: float = Form(...),
     role: str = Form(...),
-    documents: str = Form(None),  # JSON string con docs y descripciones
+    documents: str = Form(...),  # JSON string: [{"filename": "...", "description": "..."}]
+    db=Depends(get_db),
     auth=Depends(expert_auth)
 ):
-    import json
     try:
-        docs = json.loads(documents) if documents else []
-    except:
-        docs = []
+        docs_list = json.loads(documents)
+    except Exception:
+        docs_list = []
 
     cargo_data = {
         "mawb": mawb,
@@ -67,19 +77,26 @@ async def cargo_validate(
         "length_cm": length_cm,
         "width_cm": width_cm,
         "height_cm": height_cm,
+        "volume_m3": volume_m3,
         "role": role,
-        "documents": docs
+        "documents": docs_list
     }
 
-    validation = validate_cargo(cargo_data)
-    dashboard = cargo_dashboard(cargo_data, validation)
-    advisor_msg = generate_advisor_message(cargo_data, validation)
+    # Validación estricta y cálculo de semáforo
+    validation_results = validate_cargo(cargo_data)
 
-    return JSONResponse({
-        "semaforo": dashboard["semaforo"],
-        "documents_required": dashboard["documents_required"],
-        "missing_docs": dashboard["missing_docs"],
-        "overweight": dashboard["overweight"],
-        "oversized": dashboard["oversized"],
+    # Mensaje de asesor legal y operativo usando IA o lógica interna
+    advisor_msg = generate_advisor_message(cargo_data, validation_results)
+
+    # Preparar respuesta
+    response = {
+        "semaforo": validation_results["semaforo"],
+        "documents_required": validation_results["required_docs"],
+        "missing_docs": validation_results["missing_docs"],
+        "overweight": validation_results["overweight"],
+        "oversized": validation_results["oversized"],
+        "explanation": validation_results["explanation"],  # explicación legal detallada
         "advisor": advisor_msg
-    })
+    }
+
+    return JSONResponse(response)
