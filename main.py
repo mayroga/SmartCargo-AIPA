@@ -51,11 +51,14 @@ def run_gemini(prompt: str):
         return None
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
+
         response = client.models.generate_content(
-            model="gemini-pro",
+            model="gemini-1.5-flash",
             contents=prompt
         )
+
         return getattr(response, "text", None)
+
     except Exception as e:
         print("Gemini failed:", e)
         return None
@@ -67,12 +70,14 @@ def run_openai(prompt: str):
     try:
         from openai import OpenAI
         client = OpenAI(api_key=OPENAI_API_KEY)
+
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2
         )
         return completion.choices[0].message.content
+
     except Exception as e:
         print("OpenAI failed:", e)
         return None
@@ -90,22 +95,21 @@ def semaforo(text: str):
 def run_ocr(file_bytes: bytes):
     try:
         image = Image.open(io.BytesIO(file_bytes))
-        text = pytesseract.image_to_string(image)
-        return text
+        return pytesseract.image_to_string(image)
     except Exception as e:
         print("OCR failed:", e)
         return ""
 
 def apply_ocr_rules(ocr_text: str):
-    """Reglas hard OCR para seguridad y cumplimiento"""
     ocr_text_lower = ocr_text.lower()
-    # HAWB / AWB inconsistentes
+
     if "hawb" in ocr_text_lower and "awb" in ocr_text_lower:
         if "inconsistent" in ocr_text_lower or "diferente" in ocr_text_lower:
             return "RED", "AWB/HAWB inconsistente detectado por OCR"
-    # Dry Ice / Lithium hard rules
+
     if "dry ice" in ocr_text_lower or "lithium" in ocr_text_lower:
         return "RED", "Carga peligrosa (Dry Ice / Lithium) detectada → acción inmediata requerida"
+
     return None, None
 
 # ---------------- FRONT ----------------
@@ -123,8 +127,8 @@ async def validate(
     ocr_file: UploadFile = None,
     airline: str = Form("Avianca")
 ):
-    # ---------------- OCR OPCIONAL ----------------
     ocr_status, ocr_message = None, None
+
     if use_ocr and ocr_file:
         file_bytes = await ocr_file.read()
         ocr_text = run_ocr(file_bytes)
@@ -140,17 +144,16 @@ Analyze the cargo documentation below exactly as a real counter agent would.
 
 MANDATORY OUTPUT STRUCTURE:
 1. OVERALL STATUS (🟢 GREEN / 🟡 YELLOW / 🔴 RED)
-2. DETAILED FINDINGS (Counter-Level)
+2. DETAILED FINDINGS
 3. RISK LEVEL
 4. REQUIRED COUNTER ACTIONS
 5. FINAL DECISION
 
 STRICT RULES:
-- Do NOT be vague
 - DRY ICE or LITHIUM → RED automatic
-- Hidden labels / handwriting illegible / document inconsistencies → not GREEN
-- OCR inconsistencies must be reported if used
-- Responsibility final → Avianca, TSA, CBP, Government; May Roga LLC solo asesora
+- OCR findings must be enforced
+- Final authority → Airline / TSA / CBP / Government
+- May Roga LLC provides advisory only
 
 Cargo documentation:
 {dossier}
@@ -162,10 +165,7 @@ Cargo documentation:
         analysis = f"{analysis}\n\n🚨 OCR ALERT: {ocr_message}\nStatus escalated to RED automatically."
 
     if not analysis:
-        analysis = (
-            "System advisory notice: Unable to process the document at this time. "
-            "Please review documentation manually."
-        )
+        analysis = "System advisory notice: Unable to process the document."
 
     return JSONResponse({
         "status": ocr_status or semaforo(analysis),
