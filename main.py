@@ -33,7 +33,7 @@ LEGAL_TEXT = {
     )
 }
 
-# ---------------- GEMINI (AUTO MODEL) ----------------
+# ---------------- GEMINI (FIXED FULL TEXT) ----------------
 try:
     from google import genai
 except ImportError:
@@ -47,10 +47,10 @@ def run_gemini(prompt: str):
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
 
-        # Descubrir modelos disponibles
+        # Auto-discover compatible model
         models = client.models.list()
-
         selected_model = None
+
         for m in models:
             if "generateContent" in getattr(m, "supported_actions", []):
                 selected_model = m.name
@@ -65,7 +65,18 @@ def run_gemini(prompt: str):
             contents=prompt
         )
 
-        return getattr(response, "text", None)
+        # ✅ FIX: reconstruir texto COMPLETO
+        full_text = []
+
+        if hasattr(response, "candidates"):
+            for c in response.candidates:
+                if hasattr(c, "content") and hasattr(c.content, "parts"):
+                    for p in c.content.parts:
+                        if hasattr(p, "text"):
+                            full_text.append(p.text)
+
+        final_text = "\n".join(full_text).strip()
+        return final_text if final_text else None
 
     except Exception as e:
         print("Gemini failed:", e)
@@ -129,7 +140,7 @@ Your role:
 Instructions:
 1. Analyze the documentation below
 2. Classify STRICTLY as one of: GREEN, YELLOW, RED
-3. Explain the reasoning clearly and concisely
+3. Explain the reasoning clearly and completely
 4. Provide PREVENTIVE, NON-BINDING recommendations only
 5. Use plain language suitable for logistics professionals
 
