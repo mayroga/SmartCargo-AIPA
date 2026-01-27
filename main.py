@@ -3,6 +3,11 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import os
 
+# OCR
+import pytesseract
+from PIL import Image
+import io
+
 app = FastAPI(title="SmartCargo-AIPA")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -19,7 +24,8 @@ LEGAL_TEXT = {
         "SmartCargo-AIPA opera únicamente como plataforma de ASESORÍA PREVENTIVA.\n"
         "No sustituimos decisiones de aerolíneas, agentes de carga, TSA, CBP, DOT u "
         "autoridades gubernamentales.\n"
-        "La responsabilidad final sobre la carga y cumplimiento normativo es del usuario.\n\n"
+        "La responsabilidad final sobre la carga y cumplimiento normativo es del usuario.\n"
+        "Si se utiliza OCR para analizar documentos, el usuario asume toda la responsabilidad sobre resultados automatizados.\n\n"
         "💙 BENEFICIOS: Evita rechazos, delays, multas, ahorra tiempo, esfuerzo y dinero."
     ),
     "English": (
@@ -27,7 +33,8 @@ LEGAL_TEXT = {
         "SmartCargo-AIPA operates strictly as a PREVENTIVE ADVISORY platform.\n"
         "We do not replace decisions made by airlines, cargo agents, TSA, CBP, DOT or "
         "government authorities.\n"
-        "Final responsibility for cargo and regulatory compliance remains with the user.\n\n"
+        "Final responsibility for cargo and regulatory compliance remains with the user.\n"
+        "If OCR is used to analyze documents, the user assumes full responsibility for automated results.\n\n"
         "💙 BENEFITS: Avoid rejections, delays, fines, save time, effort and money."
     )
 }
@@ -79,6 +86,29 @@ def semaforo(text: str):
         return "YELLOW"
     return "GREEN"
 
+# ---------------- OCR CHECK ----------------
+def run_ocr(file_bytes: bytes):
+    """Extrae texto de imagen PDF/IMG usando Tesseract OCR"""
+    try:
+        image = Image.open(io.BytesIO(file_bytes))
+        text = pytesseract.image_to_string(image)
+        return text
+    except Exception as e:
+        print("OCR failed:", e)
+        return ""
+
+def apply_ocr_rules(ocr_text: str):
+    """Reglas hard OCR para seguridad y cumplimiento"""
+    ocr_text_lower = ocr_text.lower()
+    # HAWB / AWB inconsistentes
+    if "hawb" in ocr_text_lower and "awb" in ocr_text_lower:
+        if "inconsistent" in ocr_text_lower or "diferente" in ocr_text_lower:
+            return "RED", "AWB/HAWB inconsistente detectado por OCR"
+    # Dry Ice / Lithium hard rules
+    if "dry ice" in ocr_text_lower or "lithium" in ocr_text_lower:
+        return "RED", "Carga peligrosa (Dry Ice / Lithium) detectada → acción inmediata requerida"
+    return None, None
+
 # ---------------- FRONT ----------------
 @app.get("/", response_class=HTMLResponse)
 def home():
@@ -89,62 +119,48 @@ def home():
 def validate(
     role: str = Form(...),
     lang: str = Form(...),
-    dossier: str = Form(...)
+    dossier: str = Form(...),
+    use_ocr: bool = Form(False),
+    ocr_file: bytes = Form(None),
+    airline: str = Form("Avianca")  # Soporta reglas específicas por aerolínea
 ):
+    # ---------------- OCR OPCIONAL ----------------
+    ocr_status, ocr_message = None, None
+    if use_ocr and ocr_file:
+        ocr_text = run_ocr(ocr_file)
+        ocr_status, ocr_message = apply_ocr_rules(ocr_text)
+
     prompt = f"""
 You are SMARTCARGO-AIPA, acting as a SENIOR AIR CARGO COUNTER SUPERVISOR
-with deep operational knowledge of Avianca Cargo, IATA DGR, TSA and CBP rules.
+with deep operational knowledge of {airline} Cargo, IATA DGR, TSA and CBP rules.
 
 Your task is to PREVENT rejections, delays and fines BEFORE cargo acceptance.
 
 Analyze the cargo documentation below exactly as a real counter agent would.
 
 MANDATORY OUTPUT STRUCTURE:
-
-1. OVERALL STATUS
-   - Clearly state ONE of the following:
-     🟢 GREEN – ACCEPTABLE
-     🟡 YELLOW – CONDITIONAL / CORRECTABLE
-     🔴 RED – NOT ACCEPTABLE / REJECT AT COUNTER
-
+1. OVERALL STATUS (🟢 GREEN / 🟡 YELLOW / 🔴 RED)
 2. DETAILED FINDINGS (Counter-Level)
-   - List EACH issue separately.
-   - For every issue include:
-     • What is wrong
-     • Why it is a problem (operational / safety / regulatory)
-     • Which party is responsible (Shipper, Driver, Agent, Warehouse)
-
 3. RISK LEVEL
-   - Explain the real operational risk:
-     Delay / Fine / Rejection / Safety violation
-
-4. REQUIRED COUNTER ACTIONS (VERY IMPORTANT)
-   - Write EXACT actions a counter agent must take, using imperative language:
-     Examples:
-     • RE-LABEL OUTSIDE SHRINK WRAP
-     • REJECT UNTIL DOCUMENT CORRECTED
-     • HOLD CARGO – DO NOT ACCEPT
-     • REQUEST NEW HAWB
-     • REMOVE PLASTIC COVERING HAZMAT LABELS
-
+4. REQUIRED COUNTER ACTIONS
 5. FINAL DECISION
-   - One clear sentence:
-     “Cargo may proceed once corrections are completed”
-     OR
-     “Cargo must be rejected until fully compliant”
 
 STRICT RULES:
 - Do NOT be vague
-- Do NOT say “review” without saying HOW
-- If labels are hidden, handwriting illegible, documents inconsistent → this is NOT GREEN
-- Use professional aviation language
-- Assume this is a REAL shipment at MIA counter
+- DRY ICE or LITHIUM → RED automatic
+- Hidden labels / handwriting illegible / document inconsistencies → not GREEN
+- OCR inconsistencies must be reported if used
+- Responsibility final → Avianca, TSA, CBP, Government; May Roga LLC solo asesora
 
 Cargo documentation:
 {dossier}
 """
 
     analysis = run_gemini(prompt) or run_openai(prompt)
+
+    # Si OCR detecta algo crítico, sobrescribimos
+    if ocr_status == "RED":
+        analysis = f"{analysis}\n\n🚨 OCR ALERT: {ocr_message}\nStatus escalated to RED automatically."
 
     if not analysis:
         analysis = (
@@ -153,7 +169,7 @@ Cargo documentation:
         )
 
     return JSONResponse({
-        "status": semaforo(analysis),
+        "status": ocr_status or semaforo(analysis),
         "analysis": analysis,
         "disclaimer": LEGAL_TEXT.get(lang, LEGAL_TEXT["English"])
     })
