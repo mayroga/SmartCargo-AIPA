@@ -44,7 +44,7 @@ def run_gemini(prompt: str):
     if not GEMINI_API_KEY:
         return None
     try:
-        import google.generativeai as genai
+        import google.geneai as genai
         genai.configure(api_key=GEMINI_API_KEY)
 
         model = genai.GenerativeModel("gemini-pro")
