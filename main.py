@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, Form, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import os
@@ -7,6 +7,12 @@ import os
 import pytesseract
 from PIL import Image
 import io
+
+# Gemini (Google)
+try:
+    from google import genai
+except ImportError:
+    genai = None
 
 app = FastAPI(title="SmartCargo-AIPA")
 
@@ -41,19 +47,15 @@ LEGAL_TEXT = {
 
 # ---------------- GEMINI ----------------
 def run_gemini(prompt: str):
-    if not GEMINI_API_KEY:
+    if not GEMINI_API_KEY or not genai:
         return None
     try:
-        import google.geneai as genai
-        genai.configure(api_key=GEMINI_API_KEY)
-
-        model = genai.GenerativeModel("gemini-pro")
-        response = model.generate_content(prompt)
-
-        if response and response.text:
-            return response.text
-        return None
-
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        response = client.models.generate_content(
+            model="gemini-pro",
+            contents=prompt
+        )
+        return getattr(response, "text", None)
     except Exception as e:
         print("Gemini failed:", e)
         return None
@@ -65,14 +67,12 @@ def run_openai(prompt: str):
     try:
         from openai import OpenAI
         client = OpenAI(api_key=OPENAI_API_KEY)
-
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2
         )
         return completion.choices[0].message.content
-
     except Exception as e:
         print("OpenAI failed:", e)
         return None
@@ -86,9 +86,8 @@ def semaforo(text: str):
         return "YELLOW"
     return "GREEN"
 
-# ---------------- OCR CHECK ----------------
+# ---------------- OCR ----------------
 def run_ocr(file_bytes: bytes):
-    """Extrae texto de imagen PDF/IMG usando Tesseract OCR"""
     try:
         image = Image.open(io.BytesIO(file_bytes))
         text = pytesseract.image_to_string(image)
@@ -116,18 +115,19 @@ def home():
 
 # ---------------- VALIDATE ----------------
 @app.post("/validate")
-def validate(
+async def validate(
     role: str = Form(...),
     lang: str = Form(...),
     dossier: str = Form(...),
     use_ocr: bool = Form(False),
-    ocr_file: bytes = Form(None),
-    airline: str = Form("Avianca")  # Soporta reglas específicas por aerolínea
+    ocr_file: UploadFile = None,
+    airline: str = Form("Avianca")
 ):
     # ---------------- OCR OPCIONAL ----------------
     ocr_status, ocr_message = None, None
     if use_ocr and ocr_file:
-        ocr_text = run_ocr(ocr_file)
+        file_bytes = await ocr_file.read()
+        ocr_text = run_ocr(file_bytes)
         ocr_status, ocr_message = apply_ocr_rules(ocr_text)
 
     prompt = f"""
@@ -158,7 +158,6 @@ Cargo documentation:
 
     analysis = run_gemini(prompt) or run_openai(prompt)
 
-    # Si OCR detecta algo crítico, sobrescribimos
     if ocr_status == "RED":
         analysis = f"{analysis}\n\n🚨 OCR ALERT: {ocr_message}\nStatus escalated to RED automatically."
 
@@ -176,7 +175,7 @@ Cargo documentation:
 
 # ---------------- ADMIN ----------------
 @app.post("/admin")
-def admin(
+async def admin(
     username: str = Form(...),
     password: str = Form(...),
     question: str = Form(...)
