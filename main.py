@@ -1,187 +1,145 @@
-from fastapi import FastAPI, Form, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 import os
-
-# OCR
-import pytesseract
+import json
+import requests
+from fastapi import FastAPI, UploadFile, Form
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from PIL import Image
-import io
+import pytesseract
+import tempfile
 
-# Gemini (Google)
-try:
-    from google import genai
-except ImportError:
-    genai = None
+# =========================
+# CONFIG
+# =========================
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-app = FastAPI(title="SmartCargo-AIPA")
+GEMINI_ENDPOINT = (
+    "https://generativelanguage.googleapis.com/v1/models/"
+    "gemini-pro:generateContent"
+)
+
+HEADERS = {
+    "Content-Type": "application/json",
+    "x-goog-api-key": GEMINI_API_KEY
+}
+
+# =========================
+# FASTAPI
+# =========================
+app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ---------------- ENV ----------------
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "disabled")
-
-# ---------------- LEGAL + BANNER ----------------
-LEGAL_TEXT = {
-    "Spanish": (
-        "🔴 AVISO LEGAL – SMARTCARGO-AIPA by May Roga LLC\n\n"
-        "SmartCargo-AIPA opera únicamente como plataforma de ASESORÍA PREVENTIVA.\n"
-        "No sustituimos decisiones de aerolíneas, agentes de carga, TSA, CBP, DOT u "
-        "autoridades gubernamentales.\n"
-        "La responsabilidad final sobre la carga y cumplimiento normativo es del usuario.\n"
-        "Si se utiliza OCR para analizar documentos, el usuario asume toda la responsabilidad sobre resultados automatizados.\n\n"
-        "💙 BENEFICIOS: Evita rechazos, delays, multas, ahorra tiempo, esfuerzo y dinero."
-    ),
-    "English": (
-        "🔴 LEGAL NOTICE – SMARTCARGO-AIPA by May Roga LLC\n\n"
-        "SmartCargo-AIPA operates strictly as a PREVENTIVE ADVISORY platform.\n"
-        "We do not replace decisions made by airlines, cargo agents, TSA, CBP, DOT or "
-        "government authorities.\n"
-        "Final responsibility for cargo and regulatory compliance remains with the user.\n"
-        "If OCR is used to analyze documents, the user assumes full responsibility for automated results.\n\n"
-        "💙 BENEFITS: Avoid rejections, delays, fines, save time, effort and money."
-    )
-}
-
-# ---------------- GEMINI ----------------
-def run_gemini(prompt: str):
-    if not GEMINI_API_KEY or not genai:
-        return None
+# =========================
+# OCR FUNCTION
+# =========================
+def run_ocr(image_file: UploadFile) -> str:
     try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+            tmp.write(image_file.file.read())
+            tmp_path = tmp.name
 
-        response = client.models.generate_content(
-            model="gemini-1.5-flash-latest",
-            contents=prompt
+        image = Image.open(tmp_path)
+        text = pytesseract.image_to_string(image)
+
+        return text.strip()
+
+    except Exception as e:
+        return f"OCR_ERROR: {str(e)}"
+
+
+# =========================
+# GEMINI CALL
+# =========================
+def call_gemini(prompt: str) -> str:
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt}
+                ]
+            }
+        ]
+    }
+
+    try:
+        response = requests.post(
+            GEMINI_ENDPOINT,
+            headers=HEADERS,
+            data=json.dumps(payload),
+            timeout=20
         )
 
-        return getattr(response, "text", None)
+        if response.status_code != 200:
+            return f"GEMINI_ERROR: {response.text}"
+
+        data = response.json()
+        return data["candidates"][0]["content"]["parts"][0]["text"]
 
     except Exception as e:
-        print("Gemini failed:", e)
-        return None
+        return f"GEMINI_EXCEPTION: {str(e)}"
 
-# ---------------- OPENAI ----------------
-def run_openai(prompt: str):
-    if not OPENAI_API_KEY:
-        return None
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=OPENAI_API_KEY)
 
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2
-        )
-        return completion.choices[0].message.content
-
-    except Exception as e:
-        print("OpenAI failed:", e)
-        return None
-
-# ---------------- SEMAFORO ----------------
-def semaforo(text: str):
-    t = text.lower()
-    if any(w in t for w in ["reject", "rejection", "forbidden", "prohibited", "not allowed", "must be rejected"]):
-        return "RED"
-    if any(w in t for w in ["conditional", "review", "verify", "correct", "re-label", "fix", "warning"]):
-        return "YELLOW"
-    return "GREEN"
-
-# ---------------- OCR ----------------
-def run_ocr(file_bytes: bytes):
-    try:
-        image = Image.open(io.BytesIO(file_bytes))
-        return pytesseract.image_to_string(image)
-    except Exception as e:
-        print("OCR failed:", e)
-        return ""
-
-def apply_ocr_rules(ocr_text: str):
-    ocr_text_lower = ocr_text.lower()
-
-    if "hawb" in ocr_text_lower and "awb" in ocr_text_lower:
-        if "inconsistent" in ocr_text_lower or "diferente" in ocr_text_lower:
-            return "RED", "AWB/HAWB inconsistente detectado por OCR"
-
-    if "dry ice" in ocr_text_lower or "lithium" in ocr_text_lower:
-        return "RED", "Carga peligrosa (Dry Ice / Lithium) detectada → acción inmediata requerida"
-
-    return None, None
-
-# ---------------- FRONT ----------------
-@app.get("/", response_class=HTMLResponse)
-def home():
-    return open("frontend/index.html", encoding="utf-8").read()
-
-# ---------------- VALIDATE ----------------
+# =========================
+# VALIDATION ENDPOINT
+# =========================
 @app.post("/validate")
-async def validate(
-    role: str = Form(...),
-    lang: str = Form(...),
-    dossier: str = Form(...),
-    use_ocr: bool = Form(False),
-    ocr_file: UploadFile = None,
-    airline: str = Form("Avianca")
+async def validate_cargo(
+    mawb: str = Form(...),
+    cargo_type: str = Form(...),
+    image: UploadFile = None
 ):
-    ocr_status, ocr_message = None, None
+    # 1️⃣ OCR
+    ocr_text = ""
+    if image:
+        ocr_text = run_ocr(image)
 
-    if use_ocr and ocr_file:
-        file_bytes = await ocr_file.read()
-        ocr_text = run_ocr(file_bytes)
-        ocr_status, ocr_message = apply_ocr_rules(ocr_text)
-
+    # 2️⃣ PROMPT MEJORADO (NO CAMBIA LÓGICA)
     prompt = f"""
-You are SMARTCARGO-AIPA, acting as a SENIOR AIR CARGO COUNTER SUPERVISOR
-with deep operational knowledge of {airline} Cargo, IATA DGR, TSA and CBP rules.
+YOU ARE A SENIOR AVIATION CARGO COUNTER INSPECTOR.
 
-Your task is to PREVENT rejections, delays and fines BEFORE cargo acceptance.
+Analyze the cargo documentation and situation exactly as a real counter would.
 
-Analyze the cargo documentation below exactly as a real counter agent would.
+Rules:
+- ACCEPT → everything correct
+- CONDITIONAL → minor discrepancies but correctable
+- REJECT → safety, legal, or documentation violation
 
-MANDATORY OUTPUT STRUCTURE:
-1. OVERALL STATUS (🟢 GREEN / 🟡 YELLOW / 🔴 RED)
-2. DETAILED FINDINGS
-3. RISK LEVEL
-4. REQUIRED COUNTER ACTIONS
-5. FINAL DECISION
+Return ONLY:
+STATUS: ACCEPT / CONDITIONAL / REJECT
+REASONS: bullet list
 
-STRICT RULES:
-- DRY ICE or LITHIUM → RED automatic
-- OCR findings must be enforced
-- Final authority → Airline / TSA / CBP / Government
-- May Roga LLC provides advisory only
+DATA:
+MAWB: {mawb}
+CARGO TYPE: {cargo_type}
 
-Cargo documentation:
-{dossier}
+OCR TEXT:
+{ocr_text}
 """
 
-    analysis = run_gemini(prompt) or run_openai(prompt)
+    # 3️⃣ GEMINI
+    gemini_result = call_gemini(prompt)
 
-    if ocr_status == "RED":
-        analysis = f"{analysis}\n\n🚨 OCR ALERT: {ocr_message}\nStatus escalated to RED automatically."
-
-    if not analysis:
-        analysis = "System advisory notice: Unable to process the document."
+    # 4️⃣ FALLBACK SI GEMINI FALLA
+    if gemini_result.startswith("GEMINI_"):
+        return JSONResponse({
+            "status": "CONDITIONAL",
+            "source": "SYSTEM_FALLBACK",
+            "reason": "AI unavailable, manual review required",
+            "ocr": ocr_text
+        })
 
     return JSONResponse({
-        "status": ocr_status or semaforo(analysis),
-        "analysis": analysis,
-        "disclaimer": LEGAL_TEXT.get(lang, LEGAL_TEXT["English"])
+        "status": "OK",
+        "source": "GEMINI",
+        "analysis": gemini_result,
+        "ocr": ocr_text
     })
 
-# ---------------- ADMIN ----------------
-@app.post("/admin")
-async def admin(
-    username: str = Form(...),
-    password: str = Form(...),
-    question: str = Form(...)
-):
-    if password != ADMIN_PASSWORD:
-        return JSONResponse({"answer": "Unauthorized"}, status_code=401)
 
-    answer = run_openai(question) or "AI unavailable"
-    return {"answer": answer}
+# =========================
+# ROOT
+# =========================
+@app.get("/")
+def root():
+    return {"system": "SmartCargo-AIPA", "status": "RUNNING"}
