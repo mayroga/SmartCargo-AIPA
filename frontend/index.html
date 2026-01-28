@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>SMARTCARGO-AIPA</title>
@@ -31,15 +31,19 @@ Avoid rejections · Delays · Fines · Save time, effort and money
 
 <textarea id="dossier" placeholder="Paste FULL documentary file reviewed at counter"></textarea>
 
-<button id="validateBtn" onclick="validate()">Validate Cargo</button>
-<button onclick="clearAll()">🧹 Clear</button>
+<div class="buttons">
+  <button id="validateBtn" onclick="validate()">Validate Cargo</button>
+  <button onclick="clearAll()">🗑 Clear</button>
+</div>
 
 <div id="result" class="hidden">
   <h3 id="semaforo"></h3>
-  <div id="analysis"></div>
+  <pre id="analysis"></pre>
 
-  <button onclick="speak()">🔊 Listen</button>
-  <button onclick="window.print()">📑 PDF</button>
+  <div class="buttons">
+    <button onclick="speak()">🔊 Listen</button>
+    <button onclick="window.print()">📑 PDF</button>
+  </div>
 </div>
 
 <hr>
@@ -49,7 +53,7 @@ Avoid rejections · Delays · Fines · Save time, effort and money
 <input id="adminPass" type="password" placeholder="Password">
 <textarea id="adminQ" placeholder="Admin question"></textarea>
 <button onclick="adminAsk()">Ask</button>
-<div id="adminAnswer"></div>
+<pre id="adminAnswer"></pre>
 
 </div>
 </body>
