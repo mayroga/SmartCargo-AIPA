@@ -31,19 +31,16 @@ Avoid rejections · Delays · Fines · Save time, effort and money
 
 <textarea id="dossier" placeholder="Paste FULL documentary file reviewed at counter"></textarea>
 
-<div class="buttons">
-  <button id="validateBtn" onclick="validate()">Validate Cargo</button>
-  <button onclick="clearAll()">🗑 Clear</button>
-</div>
+<button id="validateBtn" onclick="validate()">Validate Cargo</button>
+<button onclick="clearAll()">🧹 Clear</button>
 
 <div id="result" class="hidden">
   <h3 id="semaforo"></h3>
-  <pre id="analysis"></pre>
+  <div id="analysis" class="analysis-box"></div>
 
-  <div class="buttons">
-    <button onclick="speak()">🔊 Listen</button>
-    <button onclick="window.print()">📑 PDF</button>
-  </div>
+  <button onclick="speak()">🔊 Listen</button>
+  <button onclick="sendWhatsApp()">📲 WhatsApp</button>
+  <button onclick="window.print()">📑 PDF</button>
 </div>
 
 <hr>
