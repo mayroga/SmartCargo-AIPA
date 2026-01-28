@@ -1,104 +1,54 @@
 body {
     font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
     background: #f8f9fa;
 }
 
-/* ---------------- HEADER ---------------- */
-header {
-    background: #004080;
-    color: #fff;
+.box {
+    max-width: 900px;
+    margin: auto;
     padding: 20px;
-    text-align: center;
 }
 
-/* ---------------- BLUE TICKER ---------------- */
-#ticker {
-    background: #007bff;
-    color: #ffffff;
+textarea {
+    min-height: 140px;
+    resize: vertical;
+}
+
+#analysis {
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: #ffffff;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    max-height: 400px;
+    overflow-y: auto;
+    line-height: 1.5em;
+}
+
+.blue {
+    color: #0056ff;
     font-weight: bold;
-    overflow: hidden;
-    white-space: nowrap;
 }
 
-#ticker span {
-    display: inline-block;
-    padding-left: 100%;
-    animation: tickerMove 20s linear infinite;
-    font-size: 1rem;
-}
-
-@keyframes tickerMove {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-100%); }
-}
-
-/* ---------------- SECTIONS ---------------- */
-section {
-    margin: 20px auto;
-    max-width: 800px;
-    background: #fff;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-}
-
-h1, h2 {
-    margin: 0 0 10px 0;
-}
-
-/* ---------------- FORM ---------------- */
-form label {
-    display: block;
-    margin-bottom: 10px;
-}
-
-input, select, textarea {
-    width: 100%;
-    padding: 8px;
-    margin-top: 4px;
-    box-sizing: border-box;
-}
-
-/* ---------------- BUTTONS ---------------- */
 button {
-    margin: 5px;
     padding: 10px 20px;
     background: #004080;
     color: #fff;
+    border-radius: 6px;
     border: none;
     cursor: pointer;
-    border-radius: 5px;
 }
 
 button:hover {
     background: #0066cc;
 }
 
-/* ---------------- SEMAFORO ---------------- */
 #semaforo {
-    font-weight: bold;
     font-size: 1.3em;
-    margin-bottom: 10px;
+    font-weight: bold;
 }
 
-/* ---------------- LEGAL SHIELD ---------------- */
-#legalShield {
-    background: #b30000;
-    color: #ffffff;
-    padding: 15px;
-    border-radius: 8px;
-    margin-top: 20px;
-    font-size: 0.95em;
-    line-height: 1.5em;
-}
-
-#legalShield strong {
-    font-size: 1.05em;
-}
-
-/* ---------------- UTIL ---------------- */
 .hidden {
     display: none;
 }
