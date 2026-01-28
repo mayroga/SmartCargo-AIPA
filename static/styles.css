@@ -1,54 +1,79 @@
 body {
-    font-family: Arial, sans-serif;
-    background: #f8f9fa;
+  font-family: Arial, sans-serif;
+  background: #f4f6f9;
 }
 
 .box {
-    max-width: 900px;
-    margin: auto;
-    padding: 20px;
+  max-width: 900px;
+  margin: auto;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.banner {
+  background: #004080;
+  color: white;
+  padding: 10px;
+  margin-bottom: 15px;
+  text-align: center;
 }
 
 textarea {
-    min-height: 140px;
-    resize: vertical;
+  width: 100%;
+  min-height: 150px;
+  resize: vertical;
 }
 
-#analysis {
-    white-space: pre-wrap;
-    word-break: break-word;
-    background: #ffffff;
-    padding: 15px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    max-height: 400px;
-    overflow-y: auto;
-    line-height: 1.5em;
+/* 🔥 CRÍTICO: texto nunca se corta */
+pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  background: #f1f1f1;
+  padding: 15px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
+/* 🔵 AZUL para sugerencias */
 .blue {
-    color: #0056ff;
-    font-weight: bold;
+  color: #0056ff;
+  font-weight: bold;
+}
+
+/* BOTONES */
+.buttons {
+  margin-top: 10px;
 }
 
 button {
-    padding: 10px 20px;
-    background: #004080;
-    color: #fff;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
+  background: #004080;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 button:hover {
-    background: #0066cc;
-}
-
-#semaforo {
-    font-size: 1.3em;
-    font-weight: bold;
+  background: #0066cc;
 }
 
 .hidden {
+  display: none;
+}
+
+/* 📑 PDF PRINT FIX */
+@media print {
+  body {
+    background: white;
+  }
+  .banner, button, select, textarea, hr {
     display: none;
+  }
+  pre {
+    font-size: 12px;
+  }
 }
