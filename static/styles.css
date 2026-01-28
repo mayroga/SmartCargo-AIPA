@@ -1,58 +1,28 @@
 body {
   font-family: Arial, sans-serif;
-  background: #f4f6f9;
+  background: #f4f6f8;
 }
 
 .box {
   max-width: 900px;
-  margin: auto;
-  background: white;
+  margin: 30px auto;
+  background: #fff;
   padding: 20px;
   border-radius: 10px;
-}
-
-.banner {
-  background: #004080;
-  color: white;
-  padding: 10px;
-  margin-bottom: 15px;
-  text-align: center;
 }
 
 textarea {
   width: 100%;
   min-height: 150px;
-  resize: vertical;
-}
-
-/* 🔥 CRÍTICO: texto nunca se corta */
-pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  background: #f1f1f1;
-  padding: 15px;
-  border-radius: 8px;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-/* 🔵 AZUL para sugerencias */
-.blue {
-  color: #0056ff;
-  font-weight: bold;
-}
-
-/* BOTONES */
-.buttons {
   margin-top: 10px;
 }
 
 button {
+  margin: 5px;
+  padding: 10px 15px;
   background: #004080;
   color: white;
   border: none;
-  padding: 10px 18px;
   border-radius: 6px;
   cursor: pointer;
 }
@@ -65,15 +35,18 @@ button:hover {
   display: none;
 }
 
-/* 📑 PDF PRINT FIX */
-@media print {
-  body {
-    background: white;
-  }
-  .banner, button, select, textarea, hr {
-    display: none;
-  }
-  pre {
-    font-size: 12px;
-  }
+.analysis-box {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-y: auto;
+  max-height: 400px;
+  border: 1px solid #ddd;
+  padding: 15px;
+  background: #fafafa;
+}
+
+/* 🔵 Highlight */
+.blue {
+  color: #007bff;
+  font-weight: bold;
 }
