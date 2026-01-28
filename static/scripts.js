@@ -19,36 +19,53 @@ function showResult(res) {
 
   semaforo.style.color =
     res.status === "GREEN" ? "green" :
-    res.status === "YELLOW" ? "orange" : "red";
+    res.status === "YELLOW" ? "orange" :
+    "red";
 
-  analysis.innerHTML = highlightBlue(
-    res.analysis + "\n\n" + res.disclaimer
-  );
+  const combined = res.analysis + "\n\n" + res.disclaimer;
+  analysis.innerHTML = highlightSuggestions(combined);
 }
 
 /* 🔵 Highlight VERIFY / CHECK / REVIEW */
-function highlightBlue(text) {
-  const words = /(verify|verification|check|review|revisar|verificar|comprobar)/gi;
-  return text.replace(words, '<span class="blue">$1</span>');
+function highlightSuggestions(text) {
+  return text
+    .replace(/(verify|verification|check|review|corregir|revisar|verificar)/gi,
+      '<span class="blue">$1</span>')
+    .replace(/\n/g, "<br>");
 }
 
-/* 🗑 CLEAR */
+/* 🔊 VOICE */
+function speak() {
+  const msg = new SpeechSynthesisUtterance(analysis.innerText);
+  msg.lang = lang.value === "Spanish" ? "es-ES" : "en-US";
+  speechSynthesis.speak(msg);
+}
+
+/* 📲 WHATSAPP */
+function sendWhatsApp() {
+  const text = encodeURIComponent(analysis.innerText);
+  window.open(`https://wa.me/?text=${text}`, "_blank");
+}
+
+/* 🧹 CLEAR */
 function clearAll() {
   dossier.value = "";
   result.classList.add("hidden");
   analysis.innerHTML = "";
 }
 
-/* 🔊 VOICE */
-function speak() {
-  const text = analysis.innerText;
-  if (!text) return;
-  const msg = new SpeechSynthesisUtterance(text);
-  msg.lang = lang.value === "Spanish" ? "es-ES" : "en-US";
-  speechSynthesis.speak(msg);
+/* 🌐 LANG */
+function switchLang() {
+  roleLabel.innerText = lang.value === "Spanish" ? "Rol" : "Role";
+  dossier.placeholder = lang.value === "Spanish"
+    ? "Pegue aquí toda la documentación revisada en counter"
+    : "Paste FULL documentation reviewed at counter";
+  validateBtn.innerText = lang.value === "Spanish"
+    ? "Validar Carga"
+    : "Validate Cargo";
 }
 
-/* ADMIN */
+/* 🔐 ADMIN */
 function adminAsk() {
   const data = new FormData();
   data.append("username", adminUser.value);
@@ -58,15 +75,4 @@ function adminAsk() {
   fetch("/admin", { method: "POST", body: data })
     .then(r => r.json())
     .then(r => adminAnswer.innerText = r.answer || "Unauthorized");
-}
-
-/* LANG */
-function switchLang() {
-  roleLabel.innerText = lang.value === "Spanish" ? "Rol" : "Role";
-  dossier.placeholder =
-    lang.value === "Spanish"
-      ? "Pegue aquí toda la documentación revisada en counter"
-      : "Paste here the FULL documentation reviewed at counter";
-  validateBtn.innerText =
-    lang.value === "Spanish" ? "Validar Carga" : "Validate Cargo";
 }
