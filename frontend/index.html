@@ -16,13 +16,12 @@
 Avoid rejections · Delays · Fines · Save time, effort and money
 </div>
 
-<!-- Language Selector -->
 <select id="lang" onchange="switchLang()">
   <option value="English">English</option>
   <option value="Spanish">Spanish</option>
 </select>
 
-<label id="roleLabel" for="role">Role</label>
+<label id="roleLabel">Role</label>
 <select id="role">
   <option>Shipper</option>
   <option>Driver</option>
@@ -33,14 +32,14 @@ Avoid rejections · Delays · Fines · Save time, effort and money
 <textarea id="dossier" placeholder="Paste FULL documentary file reviewed at counter"></textarea>
 
 <button id="validateBtn" onclick="validate()">Validate Cargo</button>
-<button id="continueBtn">Continue</button>
+<button onclick="clearAll()">🧹 Clear</button>
 
 <div id="result" class="hidden">
-<h3 id="semaforo"></h3>
-<pre id="analysis"></pre>
+  <h3 id="semaforo"></h3>
+  <div id="analysis"></div>
 
-<button onclick="speak()">🔊 Listen</button>
-<button onclick="window.print()">📑 PDF</button>
+  <button onclick="speak()">🔊 Listen</button>
+  <button onclick="window.print()">📑 PDF</button>
 </div>
 
 <hr>
@@ -50,7 +49,7 @@ Avoid rejections · Delays · Fines · Save time, effort and money
 <input id="adminPass" type="password" placeholder="Password">
 <textarea id="adminQ" placeholder="Admin question"></textarea>
 <button onclick="adminAsk()">Ask</button>
-<pre id="adminAnswer"></pre>
+<div id="adminAnswer"></div>
 
 </div>
 </body>
