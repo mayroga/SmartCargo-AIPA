@@ -9,23 +9,6 @@ function validate() {
     .then(showResult);
 }
 
-function highlight(text) {
-  const keywords = [
-    "review","verify","check","recommend","recommendation",
-    "should","must","ensure","required","warning",
-    "verificar","revisar","comprobar","recomend",
-    "debe","asegurar","advertencia"
-  ];
-
-  let output = text;
-  keywords.forEach(k => {
-    const re = new RegExp(`(${k})`, "gi");
-    output = output.replace(re, `<span class="blue">$1</span>`);
-  });
-
-  return output;
-}
-
 function showResult(res) {
   result.classList.remove("hidden");
 
@@ -36,29 +19,36 @@ function showResult(res) {
 
   semaforo.style.color =
     res.status === "GREEN" ? "green" :
-    res.status === "YELLOW" ? "orange" :
-    "red";
+    res.status === "YELLOW" ? "orange" : "red";
 
-  analysis.innerHTML = highlight(
+  analysis.innerHTML = highlightBlue(
     res.analysis + "\n\n" + res.disclaimer
   );
 }
 
-function clearAll() {
-  dossier.value = "";
-  analysis.innerHTML = "";
-  result.classList.add("hidden");
+/* 🔵 Highlight VERIFY / CHECK / REVIEW */
+function highlightBlue(text) {
+  const words = /(verify|verification|check|review|revisar|verificar|comprobar)/gi;
+  return text.replace(words, '<span class="blue">$1</span>');
 }
 
+/* 🗑 CLEAR */
+function clearAll() {
+  dossier.value = "";
+  result.classList.add("hidden");
+  analysis.innerHTML = "";
+}
+
+/* 🔊 VOICE */
 function speak() {
   const text = analysis.innerText;
   if (!text) return;
-
   const msg = new SpeechSynthesisUtterance(text);
   msg.lang = lang.value === "Spanish" ? "es-ES" : "en-US";
   speechSynthesis.speak(msg);
 }
 
+/* ADMIN */
 function adminAsk() {
   const data = new FormData();
   data.append("username", adminUser.value);
@@ -67,19 +57,16 @@ function adminAsk() {
 
   fetch("/admin", { method: "POST", body: data })
     .then(r => r.json())
-    .then(r => {
-      adminAnswer.innerText = r.answer || "Unauthorized";
-    });
+    .then(r => adminAnswer.innerText = r.answer || "Unauthorized");
 }
 
+/* LANG */
 function switchLang() {
   roleLabel.innerText = lang.value === "Spanish" ? "Rol" : "Role";
-
   dossier.placeholder =
     lang.value === "Spanish"
       ? "Pegue aquí toda la documentación revisada en counter"
       : "Paste here the FULL documentation reviewed at counter";
-
   validateBtn.innerText =
     lang.value === "Spanish" ? "Validar Carga" : "Validate Cargo";
 }
