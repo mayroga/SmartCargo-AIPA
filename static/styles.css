@@ -43,10 +43,55 @@ button:hover {
   border: 1px solid #ddd;
   padding: 15px;
   background: #fafafa;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-/* 🔵 Highlight */
+/* 🔵 Highlight VERIFY / CHECK / REVIEW */
 .blue {
   color: #007bff;
   font-weight: bold;
+}
+
+/* =======================
+   PDF / PRINT SAFE MODE
+   ======================= */
+@media print {
+
+  body {
+    background: white;
+  }
+
+  .box {
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  button,
+  select,
+  textarea,
+  hr,
+  .banner {
+    display: none !important;
+  }
+
+  .analysis-box {
+    max-height: none !important;
+    overflow: visible !important;
+    border: none;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    page-break-inside: auto;
+  }
+
+  h2, h3 {
+    page-break-after: avoid;
+  }
+
+  #result {
+    page-break-before: always;
+  }
 }
