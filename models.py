@@ -1,48 +1,44 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
-from sqlalchemy.orm import declarative_base, relationship
-from datetime import datetime
+from dataclasses import dataclass, field
+from typing import List, Dict
 
-Base = declarative_base()
+# Cada pregunta tendrá texto, opciones, valor seleccionado y alerta asociada
+@dataclass
+class Question:
+    id: int
+    text: str
+    options: List[str]
+    selected: str = ""
+    alert: str = ""  # "ROJA", "AMARILLA", "VERDE"
 
-class Cargo(Base):
-    __tablename__ = "cargos"
+@dataclass
+class Level:
+    name: str
+    questions: List[Question]
 
-    id = Column(Integer, primary_key=True, index=True)
-    mawb = Column(String, nullable=False)
-    hawb = Column(String, nullable=True)
-    origin = Column(String, nullable=False)
-    destination = Column(String, nullable=False)
-    cargo_type = Column(String, nullable=False)
-    flight_date = Column(String, nullable=False)
+@dataclass
+class CargoReport:
+    report_id: str
+    role: str
+    levels: List[Level] = field(default_factory=list)
 
-    weight_kg = Column(Integer)
-    volume_m3 = Column(Integer)
-    length_cm = Column(Integer)
-    width_cm = Column(Integer)
-    height_cm = Column(Integer)
+    def calculate_semáforo(self) -> str:
+        """Calcula el semáforo global del reporte"""
+        rojo = any(q.alert == "ROJA" for lvl in self.levels for q in lvl.questions)
+        amarillo = any(q.alert == "AMARILLA" for lvl in self.levels for q in lvl.questions)
+        if rojo:
+            return "🔴 Riesgos críticos → acción inmediata"
+        elif amarillo:
+            return "🟡 Riesgos controlables → revisar / corregir"
+        else:
+            return "🟢 Cumplimientos → OK"
 
-    role = Column(String, nullable=False)
-
-    created_at = Column(DateTime, default=datetime.utcnow)
-    is_active = Column(Boolean, default=True)
-
-    documents = relationship(
-        "Document",
-        back_populates="cargo",
-        cascade="all, delete-orphan"
-    )
-
-
-class Document(Base):
-    __tablename__ = "documents"
-
-    id = Column(Integer, primary_key=True, index=True)
-    cargo_id = Column(Integer, ForeignKey("cargos.id"))
-    doc_type = Column(String, nullable=False)
-    filename = Column(String, nullable=False)
-    description = Column(String, nullable=True)
-
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
-    uploaded_by = Column(String, default="user")
-
-    cargo = relationship("Cargo", back_populates="documents")
+    def generate_recommendations(self) -> List[str]:
+        """Genera recomendaciones basadas en alertas"""
+        recs = []
+        for lvl in self.levels:
+            for q in lvl.questions:
+                if q.alert == "ROJA":
+                    recs.append(f"{q.text}: CORREGIR INMEDIATAMENTE")
+                elif q.alert == "AMARILLA":
+                    recs.append(f"{q.text}: REVISAR / POSIBLE HOLD")
+        return recs
