@@ -1,75 +1,105 @@
-from flask import Flask, render_template, request, jsonify
-from models import CargoReport, Level, Question
-import datetime
-import uuid
+# main.py
+import os
+from fastapi import FastAPI, Form
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from backend.ai_helper import query_ai
 
-app = Flask(__name__)
+# ---------------- APP CONFIG ----------------
+app = FastAPI(title="SmartCargo-AIPA")
 
-# ====================== PREGUNTAS ======================
-questions_data = [
-    # Nivel 1 – Identificación y transporte
-    {"level": "Nivel 1", "id":1, "text":"Tipo de carga", "options":["Farmacéutica","DG","Perecederos","Human Remains","General Cargo","Otro"], "alerts":["", "", "", "", "", ""]},
-    {"level": "Nivel 1", "id":2, "text":"Quién entrega", "options":["Chofer autorizado","Freight Forwarder","Empresa","Propietario / Dueño personalmente"], "alerts":["", "", "", ""]},
-    {"level": "Nivel 1", "id":3, "text":"Medio de transporte terrestre", "options":["Camión refrigerado","Camión común","Otro"], "alerts":["", "", ""]},
-    {"level": "Nivel 1", "id":4, "text":"Estado de la carga al recibir", "options":["Mezclada con otras cargas","Separada por tipo de mercancía","Pallets / bultos organizados correctamente"], "alerts":["", "", ""]},
-    {"level": "Nivel 1", "id":5, "text":"Altura máxima del pallet / bulto", "options":["Dentro de límites","Excede límites – ALERTA ROJA"], "alerts":["","ROJA"]},
-    {"level": "Nivel 1", "id":6, "text":"Largo máximo del pallet / bulto", "options":["Dentro de límites","Excede límites – ALERTA ROJA"], "alerts":["","ROJA"]},
-    {"level": "Nivel 1", "id":7, "text":"Tipos de sello del camión", "options":["SSCF","Seguridad estándar","Otro","Faltante – ALERTA ROJA"], "alerts":["","","","ROJA"]},
-    {"level": "Nivel 1", "id":8, "text":"Limpieza del camión", "options":["Adecuada","No adecuada – ALERTA ROJA"], "alerts":["","ROJA"]},
-    # Nivel 2 – Documentación base
-    {"level": "Nivel 2", "id":9, "text":"AWB original presente", "options":["Dentro del sobre","Sueltos","No disponible – ALERTA ROJA"], "alerts":["","","ROJA"]},
-    {"level": "Nivel 2", "id":10, "text":"Copias de AWB y documentos", "options":["Fuera del sobre","Legibles","Ordenadas por tipo"], "alerts":["","",""]},
-    {"level": "Nivel 2", "id":11, "text":"Letra de documentos", "options":["Legible","Tamaño adecuado","Sin borrones / tachaduras"], "alerts":["","",""]},
-    {"level": "Nivel 2", "id":12, "text":"Nombre del shipper coincide con factura/documentos", "options":["Sí","Posible HOLD – ALERTA AMARILLA","No – ALERTA ROJA"], "alerts":["","AMARILLA","ROJA"]},
-    {"level": "Nivel 2", "id":13, "text":"AWB coincide con carga física", "options":["Sí","No – ALERTA ROJA"], "alerts":["","ROJA"]},
-    {"level": "Nivel 2", "id":14, "text":"Facturas, packing list, permisos separados y organizados", "options":["Sí","No – ALERTA AMARILLA"], "alerts":["","AMARILLA"]},
-    {"level": "Nivel 2", "id":15, "text":"Documentos consolidados / master vs house AWB en orden", "options":["Sí","No – ALERTA ROJA"], "alerts":["","ROJA"]},
-    {"level": "Nivel 2", "id":16, "text":"Sello de origen / fitosanitario colocado correctamente", "options":["Sí","No – ALERTA ROJA"], "alerts":["","ROJA"]},
-    # Nivel 3 – Pallets y embalaje
-    {"level": "Nivel 3", "id":17, "text":"Tipo de pallet", "options":["Madera estándar","Madera tratada / fitosanitaria","Plástico","Otro"], "alerts":["","","",""]},
-    {"level": "Nivel 3", "id":18, "text":"Envoltura de pallet", "options":["Film transparente","Film opaco / cubierto","No envuelto – ALERTA AMARILLA"], "alerts":["","","AMARILLA"]},
-    {"level": "Nivel 3", "id":19, "text":"Pallets cumplen altura máxima", "options":["Sí","No – ALERTA ROJA"], "alerts":["","ROJA"]},
-    {"level": "Nivel 3", "id":20, "text":"Etiquetas visibles", "options":["Hacia fuera","Hacia dentro","No visibles – ALERTA AMARILLA"], "alerts":["","","AMARILLA"]},
-    {"level": "Nivel 3", "id":21, "text":"Mezcla de mercancías", "options":["Separada por tipo / restricciones","Mezclada – ALERTA ROJA"], "alerts":["","ROJA"]},
-    # Nivel 4 – Carga específica (solo ejemplos, se pueden completar todos los niveles hasta 49)
-]
+# Carpeta de archivos estáticos
+if not os.path.exists("static"):
+    os.makedirs("static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-def build_levels() -> list:
-    levels_dict = {}
-    for q in questions_data:
-        question = Question(id=q["id"], text=q["text"], options=q["options"])
-        if q["level"] not in levels_dict:
-            levels_dict[q["level"]] = []
-        levels_dict[q["level"]].append(question)
-    return [Level(name=lvl, questions=questions) for lvl, questions in levels_dict.items()]
+# ---------------- ENVIRONMENT VARIABLES ----------------
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "SmartCargo2026")
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+# ---------------- LEGAL & COMPLIANCE TEXT ----------------
+LEGAL_TEXT = {
+    "English": (
+        "🔴 LEGAL NOTICE – SMARTCARGO-AIPA by May Roga LLC\n\n"
+        "SmartCargo-AIPA operates strictly as a PREVENTIVE ADVISORY platform.\n"
+        "We do not replace decisions made by airlines, cargo agents, TSA, CBP, DOT or "
+        "government authorities.\n"
+        "Final responsibility for cargo and regulatory compliance remains with the user.\n\n"
+        "💙 BENEFITS: Avoid rejections, delays, fines and financial loss."
+    ),
+    "Spanish": (
+        "🔴 AVISO LEGAL – SMARTCARGO-AIPA by May Roga LLC\n\n"
+        "SmartCargo-AIPA opera únicamente como plataforma de ASESORÍA PREVENTIVA.\n"
+        "No sustituimos decisiones de aerolíneas, agentes de carga, TSA, CBP, DOT u "
+        "autoridades gubernamentales.\n"
+        "La responsabilidad final sobre la carga y cumplimiento normativo es del usuario.\n\n"
+        "💙 BENEFICIOS: Evita rechazos, demoras, multas y pérdidas económicas."
+    )
+}
 
-@app.route('/validate', methods=['POST'])
-def validate():
-    data = request.json
-    report_id = f"RPT-{uuid.uuid4().hex[:8]}"
-    role = data.get("role","Unknown")
-    levels = build_levels()
-    
-    # Asignar respuestas y alertas automáticamente
-    answers = data.get("answers", {})
-    for lvl in levels:
-        for q in lvl.questions:
-            sel = answers.get(str(q.id), "")
-            q.selected = sel
-            # Asignar alerta según opción
-            if sel in q.options:
-                idx = q.options.index(sel)
-                # Si hay alertas definidas, se asigna
-                q.alert = q.get("alerts")[idx] if hasattr(q,"alerts") else ""
-    
-    report = CargoReport(report_id=report_id, role=role, levels=levels)
-    semaforo = report.calculate_semáforo()
-    recs = report.generate_recommendations()
-    return jsonify({"report_id": report_id, "semaforo": semaforo, "recs": recs})
+# ---------------- SEMÁFORO ----------------
+def semaforo(text: str):
+    t = text.upper()
+    if any(w in t for w in ["RED", "ROJO", "RECHAZO", "REJECT", "FORBIDDEN", "DANGER"]):
+        return "RED"
+    if any(w in t for w in ["YELLOW", "AMARILLO", "REVISAR", "VERIFICAR", "CHECK", "REVIEW", "VALIDATE"]):
+        return "YELLOW"
+    return "GREEN"
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# ---------------- ENDPOINTS ----------------
+@app.get("/", response_class=HTMLResponse)
+def home():
+    try:
+        return open("frontend/index.html", encoding="utf-8").read()
+    except FileNotFoundError:
+        return "<h1>SMARTCARGO-AIPA Frontend Not Found</h1>"
+
+@app.post("/validate")
+def validate(
+    role: str = Form(...),
+    lang: str = Form("English"),
+    dossier: str = Form(...)
+):
+    """
+    Valida la carga con todas las 49 preguntas, genera semáforo y recomendaciones.
+    """
+    prompt = f"""
+Act as Senior Advisor of SMARTCARGO-AIPA by May Roga LLC.
+You are an expert in IATA, CBP, DOT, FAA, and airline cargo compliance (Freighter, Belly/PAX, COMAT).
+
+RULES:
+- Do NOT mention you are AI.
+- Always respond in Markdown tables for clarity.
+- Analyze the following dossier/documentation: {dossier}
+- Evaluate all 49 SMARTCARGO-AIPA questions.
+- Assign a semáforo status (GREEN, YELLOW, RED) for each question.
+- Provide up to 3 preventive recommendations.
+- End with 2 key questions to ensure cargo compliance.
+
+Response language: {lang}
+"""
+
+    # Consulta AI (OpenAI o Gemini)
+    analysis = query_ai(prompt)
+    if not analysis:
+        analysis = "Notice: Advisory system temporarily unavailable. Please perform a manual review."
+
+    return JSONResponse({
+        "status": semaforo(analysis),
+        "analysis": analysis,
+        "disclaimer": LEGAL_TEXT.get(lang, LEGAL_TEXT["English"])
+    })
+
+@app.post("/admin")
+def admin(
+    username: str = Form(...),
+    password: str = Form(...),
+    question: str = Form(...)
+):
+    """
+    Endpoint para el administrador. Solo acceso con password.
+    """
+    if password != ADMIN_PASSWORD:
+        return JSONResponse({"answer": "Access Denied"}, status_code=401)
+
+    answer = query_ai(question) or "Service unavailable"
+    return {"answer": answer}
