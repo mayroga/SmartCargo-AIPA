@@ -9,14 +9,12 @@
 
 <body>
 <div class="box">
-
 <h2>SMARTCARGO-AIPA</h2>
 
 <div class="banner">
 Avoid rejections · Delays · Fines · Save time, effort and money
 </div>
 
-<!-- 🔐 REPORTE -->
 <p id="reportId" style="font-size:13px;color:#555;"></p>
 
 <select id="lang" onchange="switchLang()">
@@ -32,42 +30,256 @@ Avoid rejections · Delays · Fines · Save time, effort and money
   <option>Counter</option>
 </select>
 
-<textarea
-  id="dossier"
-  placeholder="Paste FULL documentary file reviewed at counter">
-</textarea>
+<form id="cargoForm">
+<!-- ================= NIVEL 1 ================= -->
+<h3>Nivel 1 – Identificación y transporte</h3>
+<label>1. Tipo de carga:</label><br>
+<input type="checkbox" name="cargo_type" value="Pharma"> Farmacéutica<br>
+<input type="checkbox" name="cargo_type" value="DG"> DG (Dangerous Goods)<br>
+<input type="checkbox" name="cargo_type" value="Perishables"> Perecederos<br>
+<input type="checkbox" name="cargo_type" value="Human Remains"> Human Remains<br>
+<input type="checkbox" name="cargo_type" value="General"> General Cargo / Consolidados / Unificados<br>
+<input type="checkbox" name="cargo_type" value="Other"> Otro<br><br>
+
+<label>2. Quién entrega:</label><br>
+<input type="checkbox" name="delivery_by" value="Driver"> Chofer autorizado<br>
+<input type="checkbox" name="delivery_by" value="Forwarder"> Freight Forwarder<br>
+<input type="checkbox" name="delivery_by" value="Company"> Empresa<br>
+<input type="checkbox" name="delivery_by" value="Owner"> Propietario / Dueño personalmente<br><br>
+
+<label>3. Medio de transporte terrestre:</label><br>
+<input type="checkbox" name="truck_type" value="Refrigerated"> Camión refrigerado<br>
+<input type="checkbox" name="truck_type" value="Common"> Camión común<br>
+<input type="checkbox" name="truck_type" value="Other"> Otro<br><br>
+
+<label>4. Estado de la carga al recibir:</label><br>
+<input type="checkbox" name="cargo_state" value="Mixed"> Mezclada con otras cargas<br>
+<input type="checkbox" name="cargo_state" value="Separated"> Separada por tipo de mercancía<br>
+<input type="checkbox" name="cargo_state" value="Organized"> Pallets / bultos organizados correctamente<br><br>
+
+<label>5. Altura máxima del pallet / bulto:</label><br>
+<input type="checkbox" name="height_limit" value="Within"> Dentro de límites<br>
+<input type="checkbox" name="height_limit" value="Exceeded"> Excede límites – ALERTA ROJA<br><br>
+
+<label>6. Largo máximo del pallet / bulto:</label><br>
+<input type="checkbox" name="length_limit" value="Within"> Dentro de límites<br>
+<input type="checkbox" name="length_limit" value="Exceeded"> Excede límites – ALERTA ROJA<br><br>
+
+<label>7. Tipos de sello del camión:</label><br>
+<input type="checkbox" name="truck_seal" value="SSCF"> SSCF<br>
+<input type="checkbox" name="truck_seal" value="Standard"> Seguridad estándar<br>
+<input type="checkbox" name="truck_seal" value="Other"> Otro<br>
+<input type="checkbox" name="truck_seal" value="Missing"> Faltante – ALERTA ROJA<br><br>
+
+<label>8. Limpieza del camión (Pharma, alimentos, perecederos):</label><br>
+<input type="checkbox" name="truck_clean" value="Adequate"> Adecuada<br>
+<input type="checkbox" name="truck_clean" value="Not"> No adecuada – ALERTA ROJA<br><br>
+
+<!-- ================= NIVEL 2 ================= -->
+<h3>Nivel 2 – Documentación base</h3>
+<label>9. ¿AWB original presente?</label><br>
+<input type="checkbox" name="awb_original" value="InsideEnvelope"> Dentro del sobre<br>
+<input type="checkbox" name="awb_original" value="Loose"> Sueltos<br>
+<input type="checkbox" name="awb_original" value="Missing"> No disponible – ALERTA ROJA<br><br>
+
+<label>10. ¿Copias de AWB y documentos?</label><br>
+<input type="checkbox" name="copies" value="Outside"> Fuera del sobre<br>
+<input type="checkbox" name="copies" value="Legible"> Legibles<br>
+<input type="checkbox" name="copies" value="Ordered"> Ordenadas por tipo<br><br>
+
+<label>11. Letra de documentos:</label><br>
+<input type="checkbox" name="docs_font" value="Legible"> Legible<br>
+<input type="checkbox" name="docs_font" value="Size"> Tamaño adecuado<br>
+<input type="checkbox" name="docs_font" value="NoSmudges"> Sin borrones / tachaduras<br><br>
+
+<label>12. Nombre del shipper coincide con factura/documentos:</label><br>
+<input type="checkbox" name="shipper_match" value="Yes"> Sí<br>
+<input type="checkbox" name="shipper_match" value="Hold"> Posible HOLD – ALERTA AMARILLA<br>
+<input type="checkbox" name="shipper_match" value="No"> No – ALERTA ROJA<br><br>
+
+<label>13. AWB coincide con carga física:</label><br>
+<input type="checkbox" name="awb_match" value="Yes"> Sí<br>
+<input type="checkbox" name="awb_match" value="No"> No – ALERTA ROJA<br><br>
+
+<label>14. Facturas, packing list, permisos separados y organizados:</label><br>
+<input type="checkbox" name="docs_separated" value="Yes"> Sí<br>
+<input type="checkbox" name="docs_separated" value="No"> No – ALERTA AMARILLA<br><br>
+
+<label>15. Documentos consolidados / master vs house AWB:</label><br>
+<input type="checkbox" name="docs_consolidated" value="Yes"> Sí<br>
+<input type="checkbox" name="docs_consolidated" value="No"> No – ALERTA ROJA<br><br>
+
+<label>16. Sello de origen / fitosanitario colocado correctamente:</label><br>
+<input type="checkbox" name="origin_seal" value="Yes"> Sí<br>
+<input type="checkbox" name="origin_seal" value="No"> No – ALERTA ROJA<br><br>
+
+<!-- ================= NIVEL 3 ================= -->
+<h3>Nivel 3 – Pallets y embalaje</h3>
+<label>17. Tipo de pallet:</label><br>
+<input type="checkbox" name="pallet_type" value="Wood"> Madera estándar<br>
+<input type="checkbox" name="pallet_type" value="Treated"> Madera tratada / fitosanitaria<br>
+<input type="checkbox" name="pallet_type" value="Plastic"> Plástico<br>
+<input type="checkbox" name="pallet_type" value="Other"> Otro<br><br>
+
+<label>18. Envoltura de pallet:</label><br>
+<input type="checkbox" name="wrap" value="Transparent"> Film transparente<br>
+<input type="checkbox" name="wrap" value="Opaque"> Film opaco / cubierto<br>
+<input type="checkbox" name="wrap" value="None"> No envuelto – ALERTA AMARILLA<br><br>
+
+<label>19. Pallets cumplen altura máxima:</label><br>
+<input type="checkbox" name="pallet_height" value="Yes"> Sí<br>
+<input type="checkbox" name="pallet_height" value="No"> No – ALERTA ROJA<br><br>
+
+<label>20. Etiquetas visibles:</label><br>
+<input type="checkbox" name="labels" value="Outside"> Hacia fuera<br>
+<input type="checkbox" name="labels" value="Inside"> Hacia dentro<br>
+<input type="checkbox" name="labels" value="NotVisible"> No visibles – ALERTA AMARILLA<br><br>
+
+<label>21. Mezcla de mercancías:</label><br>
+<input type="checkbox" name="cargo_mix" value="Separated"> Separada por tipo / restricciones<br>
+<input type="checkbox" name="cargo_mix" value="Mixed"> Mezclada – ALERTA ROJA<br><br>
+
+<!-- ================= NIVEL 4 – Carga específica (Farmacéutica, DG, Perecederos, Human Remains, General Cargo) ================= -->
+<h3>Nivel 4 – Carga específica</h3>
+<!-- Farmacéutica -->
+<label>22. Clasificación Pharma:</label><br>
+<input type="checkbox" name="pharma_class" value="TimeTemp"> Time & Temperature Sensitive<br>
+<input type="checkbox" name="pharma_class" value="Ambient"> Ambient<br>
+<input type="checkbox" name="pharma_class" value="CRT"> CRT / RCL / Frozen<br><br>
+
+<label>23. Rango de temperatura declarado:</label><br>
+<input type="checkbox" name="pharma_temp" value="2-8"> +2 a +8 °C<br>
+<input type="checkbox" name="pharma_temp" value="15-25"> +15 a +25 °C<br>
+<input type="checkbox" name="pharma_temp" value="Other"> Otro<br><br>
+
+<label>24. Dry ice:</label><br>
+<input type="checkbox" name="dry_ice" value="CorrectLabel"> Etiquetado correctamente<br>
+<input type="checkbox" name="dry_ice" value="CorrectAmount"> Cantidad correcta<br>
+<input type="checkbox" name="dry_ice" value="Other"> Otro – ALERTA ROJA<br><br>
+
+<label>25. Trae SLI firmado:</label><br>
+<input type="checkbox" name="sli_signed" value="Yes"> Sí<br>
+<input type="checkbox" name="sli_signed" value="No"> No – ALERTA ROJA<br><br>
+
+<label>26. Packaging validado:</label><br>
+<input type="checkbox" name="packaging" value="GelPacks"> Gel packs<br>
+<input type="checkbox" name="packaging" value="DryIce"> Dry ice<br>
+<input type="checkbox" name="packaging" value="SealedBox"> Caja sellada<br><br>
+
+<label>27. Documentos adicionales:</label><br>
+<input type="checkbox" name="pharma_docs" value="MSDS"> MSDS<br>
+<input type="checkbox" name="pharma_docs" value="TempCert"> Certificado de temperatura<br>
+<input type="checkbox" name="pharma_docs" value="CorrectLabels"> Etiquetado correcto<br><br>
+
+<label>28. Temperatura registrada durante transporte terrestre:</label><br>
+<input type="checkbox" name="temp_recorded" value="Yes"> Sí<br>
+<input type="checkbox" name="temp_recorded" value="No"> No – ALERTA AMARILLA<br><br>
+
+<label>29. Fechas de caducidad legibles:</label><br>
+<input type="checkbox" name="expiry_dates" value="Yes"> Sí<br>
+<input type="checkbox" name="expiry_dates" value="No"> No – ALERTA ROJA<br><br>
+
+<!-- DG -->
+<label>30. Declarado en AWB (DG):</label><br>
+<input type="checkbox" name="dg_awb" value="Yes"> Sí<br>
+<input type="checkbox" name="dg_awb" value="No"> No – ALERTA ROJA<br><br>
+
+<label>31. Clase DG:</label><br>
+<input type="checkbox" name="dg_class" value="3"> 3<br>
+<input type="checkbox" name="dg_class" value="6.2"> 6.2<br>
+<input type="checkbox" name="dg_class" value="9"> 9<br>
+<input type="checkbox" name="dg_class" value="Other"> Otra<br><br>
+
+<label>32. DGD firmado por persona certificada:</label><br>
+<input type="checkbox" name="dgd_signed" value="Yes"> Sí<br>
+<input type="checkbox" name="dgd_signed" value="No"> No – ALERTA ROJA<br><br>
+
+<label>33. Embalaje UN aprobado:</label><br>
+<input type="checkbox" name="dg_packaging" value="Yes"> Sí<br>
+<input type="checkbox" name="dg_packaging" value="No"> No – ALERTA ROJA<br><br>
+
+<label>34. Labels visibles y correctos:</label><br>
+<input type="checkbox" name="dg_labels" value="Yes"> Sí<br>
+<input type="checkbox" name="dg_labels" value="No"> No – ALERTA AMARILLA<br><br>
+
+<label>35. DG mezclado con otra mercancía:</label><br>
+<input type="checkbox" name="dg_mix" value="No"> No – OK<br>
+<input type="checkbox" name="dg_mix" value="Yes"> Sí – ALERTA ROJA<br><br>
+
+<label>36. Fragile / Handle With Care visibles y correctos:</label><br>
+<input type="checkbox" name="dg_fragile" value="Yes"> Sí<br>
+<input type="checkbox" name="dg_fragile" value="No"> No – ALERTA AMARILLA<br><br>
+
+<!-- Perecederos -->
+<label>37. Tipo de perecedero:</label><br>
+<input type="checkbox" name="perishable_type" value="Fruits"> Frutas<br>
+<input type="checkbox" name="perishable_type" value="Flowers"> Flores<br>
+<input type="checkbox" name="perishable_type" value="Meat"> Carne / pescado<br><br>
+
+<label>38. Temperatura declarada y cumplida:</label><br>
+<input type="checkbox" name="perishable_temp" value="Yes"> Sí<br>
+<input type="checkbox" name="perishable_temp" value="No"> No – ALERTA ROJA<br><br>
+
+<label>39. Empaque permite ventilación:</label><br>
+<input type="checkbox" name="perishable_pack" value="Yes"> Sí<br>
+<input type="checkbox" name="perishable_pack" value="No"> No – ALERTA AMARILLA<br><br>
+
+<label>40. Tiempo de tránsito compatible:</label><br>
+<input type="checkbox" name="perishable_transit" value="Yes"> Sí<br>
+<input type="checkbox" name="perishable_transit" value="No"> No – ALERTA AMARILLA<br><br>
+
+<!-- Human Remains -->
+<label>41. Documentos obligatorios:</label><br>
+<input type="checkbox" name="hr_docs" value="DeathCert"> Certificado de defunción<br>
+<input type="checkbox" name="hr_docs" value="SanitaryPermit"> Permiso sanitario<br>
+<input type="checkbox" name="hr_docs" value="ExportAuth"> Autorización exportación<br><br>
+
+<label>42. Ataúd cumple requisitos:</label><br>
+<input type="checkbox" name="hr_coffin" value="Sealed"> Sellado<br>
+<input type="checkbox" name="hr_coffin" value="Zink"> Zink liner<br>
+<input type="checkbox" name="hr_coffin" value="ID"> Identificación externa<br><br>
+
+<label>43. AWB correctamente declarada:</label><br>
+<input type="checkbox" name="hr_awb" value="Yes"> Sí<br>
+<input type="checkbox" name="hr_awb" value="No"> No – ALERTA ROJA<br><br>
+
+<!-- General Cargo / Consolidados / Belly / Pasajeros -->
+<label>44. Packing list separado del sobre original:</label><br>
+<input type="checkbox" name="gen_packing" value="Yes"> Sí<br>
+<input type="checkbox" name="gen_packing" value="No"> No – ALERTA AMARILLA<br><br>
+
+<label>45. Facturas y permisos separados, legibles y ordenados:</label><br>
+<input type="checkbox" name="gen_docs" value="Yes"> Sí<br>
+<input type="checkbox" name="gen_docs" value="No"> No – ALERTA AMARILLA<br><br>
+
+<label>46. Peso y dimensiones coinciden con documentos:</label><br>
+<input type="checkbox" name="gen_weight" value="Yes"> Sí<br>
+<input type="checkbox" name="gen_weight" value="No"> No – ALERTA ROJA<br><br>
+
+<label>47. Documentos especiales consolidados / unificados:</label><br>
+<input type="checkbox" name="gen_special_docs" value="HouseAWB"> House AWB<br>
+<input type="checkbox" name="gen_special_docs" value="MasterAWB"> Master AWB<br>
+<input type="checkbox" name="gen_special_docs" value="Other"> Otro<br><br>
+
+<label>48. Carga autorizada para belly cargo de pasajeros:</label><br>
+<input type="checkbox" name="gen_belly_auth" value="Yes"> Sí<br>
+<input type="checkbox" name="gen_belly_auth" value="No"> No – ALERTA ROJA<br><br>
+
+<label>49. Carga de pasajeros mezclada con DG o perecederos:</label><br>
+<input type="checkbox" name="gen_mix" value="No"> No – OK<br>
+<input type="checkbox" name="gen_mix" value="Yes"> Sí – ALERTA ROJA<br><br>
+
+</form>
 
 <button id="validateBtn" onclick="validate()">Validate Cargo</button>
 <button onclick="clearAll()">🧹 Clear</button>
 
 <div id="result" class="hidden">
-
-  <h3 id="semaforo"></h3>
-
-  <!-- RESULTADO -->
-  <div id="analysis" class="analysis-box"></div>
-
-  <!-- BLINDAJE LEGAL -->
-  <div class="analysis-box" style="margin-top:22px;">
-    <strong>LEGAL & COMPLIANCE NOTICE</strong><br><br>
-
-    This report was generated by
-    <strong>SMARTCARGO-AIPA by May Roga LLC</strong> as a
-    <strong>preventive, non-binding advisory analysis</strong>.<br><br>
-
-    This system does not replace or override decisions made by
-    airlines, cargo agents, or government authorities including
-    TSA, CBP, DOT, ICAO, or IATA.<br><br>
-
-    Final responsibility for cargo acceptance, documentation
-    accuracy, and regulatory compliance remains with the user.<br><br>
-
-    Purpose: reduce rejections, delays, penalties, and financial loss.
-  </div>
-
-  <button onclick="speak()">🔊 Listen</button>
-  <button onclick="sendWhatsApp()">📲 WhatsApp</button>
-  <button onclick="window.print()">📑 PDF</button>
+<h3 id="semaforo"></h3>
+<div id="analysis" class="analysis-box"></div>
+<button onclick="speak()">🔊 Listen</button>
+<button onclick="sendWhatsApp()">📲 WhatsApp</button>
+<button onclick="window.print()">📑 PDF</button>
 </div>
 
 <hr>
@@ -79,23 +291,14 @@ Avoid rejections · Delays · Fines · Save time, effort and money
 <button onclick="adminAsk()">Ask</button>
 <pre id="adminAnswer"></pre>
 
-</div>
-
-<!-- 🔢 GENERADOR DE NÚMERO ÚNICO DE REPORTE -->
 <script>
 (function generateReportId() {
   const now = new Date();
-  const id =
-    "SCR-AIPA-" +
-    now.getFullYear() +
-    (now.getMonth()+1).toString().padStart(2,"0") +
-    now.getDate().toString().padStart(2,"0") + "-" +
-    Math.random().toString(36).substring(2,8).toUpperCase();
-
-  document.getElementById("reportId").innerText =
-    "Report ID: " + id + " · Generated: " + now.toLocaleString();
+  const id = 'RPT-' + now.getTime();
+  document.getElementById('reportId').innerText = 'Report ID: ' + id;
 })();
 </script>
 
+</div>
 </body>
 </html>
