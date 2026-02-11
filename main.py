@@ -1,149 +1,75 @@
-from fastapi import FastAPI, Form
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-import os
+from flask import Flask, render_template, request, jsonify
+from models import CargoReport, Level, Question
+import datetime
+import uuid
 
-# ---------------- APP CONFIG ----------------
-app = FastAPI(title="SmartCargo-AIPA")
+app = Flask(__name__)
 
-# Crear carpeta 'static' si no existe
-if not os.path.exists("static"):
-    os.makedirs("static")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# ====================== PREGUNTAS ======================
+questions_data = [
+    # Nivel 1 – Identificación y transporte
+    {"level": "Nivel 1", "id":1, "text":"Tipo de carga", "options":["Farmacéutica","DG","Perecederos","Human Remains","General Cargo","Otro"], "alerts":["", "", "", "", "", ""]},
+    {"level": "Nivel 1", "id":2, "text":"Quién entrega", "options":["Chofer autorizado","Freight Forwarder","Empresa","Propietario / Dueño personalmente"], "alerts":["", "", "", ""]},
+    {"level": "Nivel 1", "id":3, "text":"Medio de transporte terrestre", "options":["Camión refrigerado","Camión común","Otro"], "alerts":["", "", ""]},
+    {"level": "Nivel 1", "id":4, "text":"Estado de la carga al recibir", "options":["Mezclada con otras cargas","Separada por tipo de mercancía","Pallets / bultos organizados correctamente"], "alerts":["", "", ""]},
+    {"level": "Nivel 1", "id":5, "text":"Altura máxima del pallet / bulto", "options":["Dentro de límites","Excede límites – ALERTA ROJA"], "alerts":["","ROJA"]},
+    {"level": "Nivel 1", "id":6, "text":"Largo máximo del pallet / bulto", "options":["Dentro de límites","Excede límites – ALERTA ROJA"], "alerts":["","ROJA"]},
+    {"level": "Nivel 1", "id":7, "text":"Tipos de sello del camión", "options":["SSCF","Seguridad estándar","Otro","Faltante – ALERTA ROJA"], "alerts":["","","","ROJA"]},
+    {"level": "Nivel 1", "id":8, "text":"Limpieza del camión", "options":["Adecuada","No adecuada – ALERTA ROJA"], "alerts":["","ROJA"]},
+    # Nivel 2 – Documentación base
+    {"level": "Nivel 2", "id":9, "text":"AWB original presente", "options":["Dentro del sobre","Sueltos","No disponible – ALERTA ROJA"], "alerts":["","","ROJA"]},
+    {"level": "Nivel 2", "id":10, "text":"Copias de AWB y documentos", "options":["Fuera del sobre","Legibles","Ordenadas por tipo"], "alerts":["","",""]},
+    {"level": "Nivel 2", "id":11, "text":"Letra de documentos", "options":["Legible","Tamaño adecuado","Sin borrones / tachaduras"], "alerts":["","",""]},
+    {"level": "Nivel 2", "id":12, "text":"Nombre del shipper coincide con factura/documentos", "options":["Sí","Posible HOLD – ALERTA AMARILLA","No – ALERTA ROJA"], "alerts":["","AMARILLA","ROJA"]},
+    {"level": "Nivel 2", "id":13, "text":"AWB coincide con carga física", "options":["Sí","No – ALERTA ROJA"], "alerts":["","ROJA"]},
+    {"level": "Nivel 2", "id":14, "text":"Facturas, packing list, permisos separados y organizados", "options":["Sí","No – ALERTA AMARILLA"], "alerts":["","AMARILLA"]},
+    {"level": "Nivel 2", "id":15, "text":"Documentos consolidados / master vs house AWB en orden", "options":["Sí","No – ALERTA ROJA"], "alerts":["","ROJA"]},
+    {"level": "Nivel 2", "id":16, "text":"Sello de origen / fitosanitario colocado correctamente", "options":["Sí","No – ALERTA ROJA"], "alerts":["","ROJA"]},
+    # Nivel 3 – Pallets y embalaje
+    {"level": "Nivel 3", "id":17, "text":"Tipo de pallet", "options":["Madera estándar","Madera tratada / fitosanitaria","Plástico","Otro"], "alerts":["","","",""]},
+    {"level": "Nivel 3", "id":18, "text":"Envoltura de pallet", "options":["Film transparente","Film opaco / cubierto","No envuelto – ALERTA AMARILLA"], "alerts":["","","AMARILLA"]},
+    {"level": "Nivel 3", "id":19, "text":"Pallets cumplen altura máxima", "options":["Sí","No – ALERTA ROJA"], "alerts":["","ROJA"]},
+    {"level": "Nivel 3", "id":20, "text":"Etiquetas visibles", "options":["Hacia fuera","Hacia dentro","No visibles – ALERTA AMARILLA"], "alerts":["","","AMARILLA"]},
+    {"level": "Nivel 3", "id":21, "text":"Mezcla de mercancías", "options":["Separada por tipo / restricciones","Mezclada – ALERTA ROJA"], "alerts":["","ROJA"]},
+    # Nivel 4 – Carga específica (solo ejemplos, se pueden completar todos los niveles hasta 49)
+]
 
-# ---------------- ENVIRONMENT VARIABLES ----------------
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "SmartCargo2026")
+def build_levels() -> list:
+    levels_dict = {}
+    for q in questions_data:
+        question = Question(id=q["id"], text=q["text"], options=q["options"])
+        if q["level"] not in levels_dict:
+            levels_dict[q["level"]] = []
+        levels_dict[q["level"]].append(question)
+    return [Level(name=lvl, questions=questions) for lvl, questions in levels_dict.items()]
 
-# ---------------- LEGAL & COMPLIANCE TEXT ----------------
-LEGAL_TEXT = {
-    "English": (
-        "🔴 LEGAL NOTICE – SMARTCARGO-AIPA by May Roga LLC\n\n"
-        "SmartCargo-AIPA operates strictly as a PREVENTIVE ADVISORY platform.\n"
-        "We do not replace decisions made by airlines, cargo agents, TSA, CBP, DOT or "
-        "government authorities.\n"
-        "Final responsibility for cargo and regulatory compliance remains with the user.\n\n"
-        "💙 BENEFITS: Avoid rejections, delays, fines and financial loss."
-    ),
-    "Spanish": (
-        "🔴 AVISO LEGAL – SMARTCARGO-AIPA by May Roga LLC\n\n"
-        "SmartCargo-AIPA opera únicamente como plataforma de ASESORÍA PREVENTIVA.\n"
-        "No sustituimos decisiones de aerolíneas, agentes de carga, TSA, CBP, DOT u "
-        "autoridades gubernamentales.\n"
-        "La responsabilidad final sobre la carga y cumplimiento normativo es del usuario.\n\n"
-        "💙 BENEFICIOS: Evita rechazos, demoras, multas y pérdidas económicas."
-    )
-}
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-# ---------------- GEMINI ENGINE (PRIMARY) ----------------
-try:
-    from google import genai
-except ImportError:
-    genai = None
+@app.route('/validate', methods=['POST'])
+def validate():
+    data = request.json
+    report_id = f"RPT-{uuid.uuid4().hex[:8]}"
+    role = data.get("role","Unknown")
+    levels = build_levels()
+    
+    # Asignar respuestas y alertas automáticamente
+    answers = data.get("answers", {})
+    for lvl in levels:
+        for q in lvl.questions:
+            sel = answers.get(str(q.id), "")
+            q.selected = sel
+            # Asignar alerta según opción
+            if sel in q.options:
+                idx = q.options.index(sel)
+                # Si hay alertas definidas, se asigna
+                q.alert = q.get("alerts")[idx] if hasattr(q,"alerts") else ""
+    
+    report = CargoReport(report_id=report_id, role=role, levels=levels)
+    semaforo = report.calculate_semáforo()
+    recs = report.generate_recommendations()
+    return jsonify({"report_id": report_id, "semaforo": semaforo, "recs": recs})
 
-def run_gemini(prompt: str):
-    if not GEMINI_API_KEY or not genai:
-        return None
-    try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        models = client.models.list()
-        selected_model = next((m.name for m in models if "generateContent" in getattr(m, "supported_actions", [])), None)
-        if not selected_model:
-            return None
-
-        response = client.models.generate_content(model=selected_model, contents=prompt)
-        full_text = []
-        if hasattr(response, "candidates"):
-            for c in response.candidates:
-                if hasattr(c, "content") and hasattr(c.content, "parts"):
-                    for p in c.content.parts:
-                        if hasattr(p, "text"):
-                            full_text.append(p.text)
-        return "\n".join(full_text).strip() or None
-    except Exception as e:
-        print(f"Gemini error: {e}")
-        return None
-
-# ---------------- OPENAI ENGINE (BACKUP) ----------------
-def run_openai(prompt: str):
-    if not OPENAI_API_KEY:
-        return None
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=OPENAI_API_KEY)
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        print(f"OpenAI error: {e}")
-        return None
-
-# ---------------- CLASSIFICATION LOGIC ----------------
-def semaforo(text: str):
-    t = text.upper()
-    if any(w in t for w in ["RED", "ROJO", "RECHAZO", "REJECT", "FORBIDDEN", "DANGER"]):
-        return "RED"
-    if any(w in t for w in ["YELLOW", "AMARILLO", "REVISAR", "VERIFICAR", "CHECK", "REVIEW", "VALIDATE"]):
-        return "YELLOW"
-    return "GREEN"
-
-# ---------------- ENDPOINTS ----------------
-@app.get("/", response_class=HTMLResponse)
-def home():
-    try:
-        return open("frontend/index.html", encoding="utf-8").read()
-    except FileNotFoundError:
-        return "<h1>SmartCargo-AIPA Frontend Not Found</h1>"
-
-@app.post("/validate")
-def validate(
-    role: str = Form(...),
-    lang: str = Form("English"),
-    dossier: str = Form(...)
-):
-    # Prompt maestro con reglas y estructura
-    prompt = f"""
-    Act as the Senior Advisor of SmartCargo-AIPA by May Roga. 
-    You are a high-level specialist in IATA, DOT, CBP, and airline compliance (Belly/PAX, Freighter, COMAT).
-
-    GOLDEN RULES:
-    - Do NOT mention you are an AI or language model.
-    - Do NOT use "audit"; use "Advisory", "Review" or "Rectification".
-    - Respond in professional, technical, and direct language.
-    - ALWAYS use Markdown TABLES for clarity.
-
-    ANALYSIS INSTRUCTIONS:
-    1. Review this cargo/documentation: {dossier}
-    2. Strictly classify as: GREEN, YELLOW, or RED.
-    3. Generate a TABLE with columns: [Reviewed Point | Finding | Suggested Action].
-    4. Provide up to 3 additional preventive recommendations.
-    5. End with 2 key questions to close the resolution.
-
-    Response language: {lang}
-    """
-
-    analysis = run_gemini(prompt) or run_openai(prompt)
-    if not analysis:
-        analysis = "Notice: Advisory system temporarily unavailable. Please perform a manual review."
-
-    return JSONResponse({
-        "status": semaforo(analysis),
-        "analysis": analysis,
-        "disclaimer": LEGAL_TEXT.get(lang, LEGAL_TEXT["English"])
-    })
-
-@app.post("/admin")
-def admin(
-    username: str = Form(...),
-    password: str = Form(...),
-    question: str = Form(...)
-):
-    if password != ADMIN_PASSWORD:
-        return JSONResponse({"answer": "Access Denied"}, status_code=401)
-
-    answer = run_openai(question) or run_gemini(question) or "Service unavailable"
-    return {"answer": answer}
+if __name__ == '__main__':
+    app.run(debug=True)
