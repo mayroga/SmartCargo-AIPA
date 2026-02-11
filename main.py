@@ -121,47 +121,44 @@ def home():
     return open("frontend/index.html", encoding="utf-8").read()
 
 
-# ---------------- VALIDATE ----------------
+# ---------------- VALIDATE (VERSIÓN SMARTCARGO) ----------------
 @app.post("/validate")
 def validate(
     role: str = Form(...),
     lang: str = Form(...),
     dossier: str = Form(...)
 ):
+    # Prompt robusto con identidad SmartCargo y reglas de Avianca
     prompt = f"""
-You are SMARTCARGO-AIPA, a professional preventive cargo compliance advisor.
+    Actúa como el Asesor Senior de SmartCargo-AIPA. 
+    Eres especialista en cumplimiento de IATA, DOT, CBP y normativas de Avianca (Belly/PAX, GSA, COMAT, etc.).
+    
+    REGLAS ESTRICTAS:
+    - NO menciones que eres una IA, inteligencia artificial o modelo de lenguaje.
+    - NO uses la palabra "auditoría"; usa "Asesoría", "Revisión" o "Rectificación".
+    - Responde de forma concisa pero con mucho peso profesional.
+    - Es obligatorio usar TABLAS de Markdown para que la información sea clara.
+    
+    INSTRUCCIONES:
+    1. Analiza esta documentación: {dossier}
+    2. Clasifica en: GREEN (Cumple), YELLOW (Requiere atención), RED (Riesgo alto/Rechazo).
+    3. Presenta una TABLA con: Punto Revisado, Hallazgo y Acción Sugerida.
+    4. Haz exactamente 2 preguntas directas al usuario para resolver el problema rápidamente.
+    
+    Idioma de respuesta: {lang}
+    """
 
-Your role:
-- Analyze cargo documentation for air transport
-- Use ICAO / IATA / TSA / CBP compliance logic
-- NEVER make operational decisions
-- NEVER replace airline or authority judgment
-
-Instructions:
-1. Analyze the documentation below
-2. Classify STRICTLY as one of: GREEN, YELLOW, RED
-3. Explain the reasoning clearly and completely
-4. Provide PREVENTIVE, NON-BINDING recommendations only
-5. Use plain language suitable for logistics professionals
-
-Cargo documentation:
-{dossier}
-"""
-
+    # Intento con Gemini (Principal) y luego OpenAI (Respaldo)
     analysis = run_gemini(prompt) or run_openai(prompt)
 
     if not analysis:
-        analysis = (
-            "System advisory notice: The document could not be processed at this time. "
-            "Please perform a manual compliance review."
-        )
+        analysis = "Error de conexión. Por favor, realice una revisión manual o intente de nuevo."
 
     return JSONResponse({
         "status": semaforo(analysis),
         "analysis": analysis,
         "disclaimer": LEGAL_TEXT.get(lang, LEGAL_TEXT["English"])
     })
-
 
 # ---------------- ADMIN ----------------
 @app.post("/admin")
