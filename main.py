@@ -3,17 +3,20 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import os
 
-# ---------------- APP ----------------
+# ---------------- APP CONFIG ----------------
 app = FastAPI(title="SmartCargo-AIPA")
 
+# Asegúrate de que la carpeta 'static' exista para tus CSS/JS
+if not os.path.exists("static"):
+    os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ---------------- ENV ----------------
+# ---------------- ENVIRONMENT VARIABLES ----------------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "disabled")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "SmartCargo2026") # Cambiar por seguridad
 
-# ---------------- LEGAL ----------------
+# ---------------- LEGAL & COMPLIANCE TEXT ----------------
 LEGAL_TEXT = {
     "Spanish": (
         "🔴 AVISO LEGAL – SMARTCARGO-AIPA by May Roga LLC\n\n"
@@ -33,126 +36,106 @@ LEGAL_TEXT = {
     )
 }
 
-# ---------------- GEMINI (FIXED FULL TEXT) ----------------
+# ---------------- GEMINI ENGINE (PRIMARY) ----------------
 try:
     from google import genai
 except ImportError:
     genai = None
 
-
 def run_gemini(prompt: str):
     if not GEMINI_API_KEY or not genai:
         return None
-
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
-
-        # Auto-discover compatible model
         models = client.models.list()
-        selected_model = None
-
-        for m in models:
-            if "generateContent" in getattr(m, "supported_actions", []):
-                selected_model = m.name
-                break
-
+        selected_model = next((m.name for m in models if "generateContent" in getattr(m, "supported_actions", [])), None)
+        
         if not selected_model:
-            print("Gemini: No compatible model found")
             return None
 
-        response = client.models.generate_content(
-            model=selected_model,
-            contents=prompt
-        )
-
-        # ✅ FIX: reconstruir texto COMPLETO
+        response = client.models.generate_content(model=selected_model, contents=prompt)
         full_text = []
-
         if hasattr(response, "candidates"):
             for c in response.candidates:
                 if hasattr(c, "content") and hasattr(c.content, "parts"):
                     for p in c.content.parts:
                         if hasattr(p, "text"):
                             full_text.append(p.text)
-
+        
         final_text = "\n".join(full_text).strip()
         return final_text if final_text else None
-
     except Exception as e:
-        print("Gemini failed:", e)
+        print(f"Gemini error: {e}")
         return None
 
-
-# ---------------- OPENAI ----------------
+# ---------------- OPENAI ENGINE (BACKUP) ----------------
 def run_openai(prompt: str):
     if not OPENAI_API_KEY:
         return None
-
     try:
         from openai import OpenAI
         client = OpenAI(api_key=OPENAI_API_KEY)
-
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2
         )
-
         return completion.choices[0].message.content
-
     except Exception as e:
-        print("OpenAI failed:", e)
+        print(f"OpenAI error: {e}")
         return None
 
-
-# ---------------- SEMAFORO ----------------
+# ---------------- CLASSIFICATION LOGIC (SEMAFORO) ----------------
 def semaforo(text: str):
-    t = text.lower()
-    if any(w in t for w in ["reject", "rejected", "forbidden", "prohibited", "not allowed"]):
+    t = text.upper()
+    if any(w in t for w in ["RED", "ROJO", "RECHAZO", "REJECT", "PROHIBIDO", "FORBIDDEN", "DANGER"]):
         return "RED"
-    if any(w in t for w in ["review", "verify", "conditional", "warning", "check"]):
+    if any(w in t for w in ["YELLOW", "AMARILLO", "REVISAR", "VERIFICAR", "CHECK", "REVIEW", "VALIDAR"]):
         return "YELLOW"
     return "GREEN"
 
+# ---------------- ENDPOINTS ----------------
 
-# ---------------- FRONT ----------------
 @app.get("/", response_class=HTMLResponse)
 def home():
-    return open("frontend/index.html", encoding="utf-8").read()
+    # Asegúrate de tener frontend/index.html creado
+    try:
+        return open("frontend/index.html", encoding="utf-8").read()
+    except FileNotFoundError:
+        return "<h1>SmartCargo-AIPA Frontend Not Found</h1>"
 
-
-# ---------------- VALIDATE (VERSIÓN SMARTCARGO) ----------------
 @app.post("/validate")
 def validate(
     role: str = Form(...),
     lang: str = Form(...),
     dossier: str = Form(...)
 ):
-    # Prompt robusto con identidad SmartCargo y reglas de Avianca
+    # Prompt Maestro con Reglas de Identidad y Estructura
     prompt = f"""
-    Actúa como el Asesor Senior de SmartCargo-AIPA. 
-    Eres especialista en cumplimiento de IATA, DOT, CBP y normativas de Avianca (Belly/PAX, GSA, COMAT, etc.).
+    Actúa como el Asesor Senior de SmartCargo-AIPA by May Roga. 
+    Eres especialista de alto nivel en cumplimiento de IATA, DOT, CBP y normativas de Avianca (Belly/PAX, Freighter, COMAT).
     
-    REGLAS ESTRICTAS:
+    REGLAS DE ORO:
     - NO menciones que eres una IA, inteligencia artificial o modelo de lenguaje.
     - NO uses la palabra "auditoría"; usa "Asesoría", "Revisión" o "Rectificación".
-    - Responde de forma concisa pero con mucho peso profesional.
-    - Es obligatorio usar TABLAS de Markdown para que la información sea clara.
+    - Responde con lenguaje técnico, profesional y directo. Menos palabras, más peso.
+    - Es OBLIGATORIO usar TABLAS de Markdown para la claridad.
     
-    INSTRUCCIONES:
-    1. Analiza esta documentación: {dossier}
-    2. Clasifica en: GREEN (Cumple), YELLOW (Requiere atención), RED (Riesgo alto/Rechazo).
-    3. Presenta una TABLA con: Punto Revisado, Hallazgo y Acción Sugerida.
-    4. Haz exactamente 2 preguntas directas al usuario para resolver el problema rápidamente.
+    INSTRUCCIONES DE ANÁLISIS:
+    1. Revisa esta carga/documentación: {dossier}
+    2. Clasifica estrictamente en: GREEN, YELLOW o RED.
+    3. Genera una TABLA con columnas: [Punto Revisado | Hallazgo Encontrado | Acción Sugerida].
+    4. Provee máximo 3 recomendaciones preventivas adicionales.
+    5. Finaliza con 2 preguntas clave para cerrar la resolución del problema.
     
     Idioma de respuesta: {lang}
     """
 
-    # Intento con Gemini (Principal) y luego OpenAI (Respaldo)
+    # Ejecución con sistema de respaldo (Fallback)
     analysis = run_gemini(prompt) or run_openai(prompt)
 
     if not analysis:
-        analysis = "Error de conexión. Por favor, realice una revisión manual o intente de nuevo."
+        analysis = "Aviso: El sistema de asesoría no está disponible momentáneamente. Realice revisión manual."
 
     return JSONResponse({
         "status": semaforo(analysis),
@@ -160,7 +143,6 @@ def validate(
         "disclaimer": LEGAL_TEXT.get(lang, LEGAL_TEXT["English"])
     })
 
-# ---------------- ADMIN ----------------
 @app.post("/admin")
 def admin(
     username: str = Form(...),
@@ -168,8 +150,11 @@ def admin(
     question: str = Form(...)
 ):
     if password != ADMIN_PASSWORD:
-        return JSONResponse({"answer": "Unauthorized"}, status_code=401)
+        return JSONResponse({"answer": "Acceso Denegado"}, status_code=401)
 
-    answer = run_openai(question) or "AI service unavailable"
-
+    # El administrador puede hacer consultas técnicas abiertas
+    answer = run_openai(question) or run_gemini(question) or "Servicio no disponible"
     return {"answer": answer}
+
+# ---------------- RUN COMMAND ----------------
+# Para ejecutar: uvicorn main:app --reload
