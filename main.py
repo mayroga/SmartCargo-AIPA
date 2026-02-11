@@ -6,7 +6,7 @@ import os
 # ---------------- APP CONFIG ----------------
 app = FastAPI(title="SmartCargo-AIPA")
 
-# Asegúrate de que la carpeta 'static' exista para tus CSS/JS
+# Crear carpeta 'static' si no existe
 if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -14,18 +14,10 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # ---------------- ENVIRONMENT VARIABLES ----------------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "SmartCargo2026") # Cambiar por seguridad
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "SmartCargo2026")
 
 # ---------------- LEGAL & COMPLIANCE TEXT ----------------
 LEGAL_TEXT = {
-    "Spanish": (
-        "🔴 AVISO LEGAL – SMARTCARGO-AIPA by May Roga LLC\n\n"
-        "SmartCargo-AIPA opera únicamente como plataforma de ASESORÍA PREVENTIVA.\n"
-        "No sustituimos decisiones de aerolíneas, agentes de carga, TSA, CBP, DOT u "
-        "autoridades gubernamentales.\n"
-        "La responsabilidad final sobre la carga y cumplimiento normativo es del usuario.\n\n"
-        "💙 BENEFICIOS: Evita rechazos, demoras, multas y pérdidas económicas."
-    ),
     "English": (
         "🔴 LEGAL NOTICE – SMARTCARGO-AIPA by May Roga LLC\n\n"
         "SmartCargo-AIPA operates strictly as a PREVENTIVE ADVISORY platform.\n"
@@ -33,6 +25,14 @@ LEGAL_TEXT = {
         "government authorities.\n"
         "Final responsibility for cargo and regulatory compliance remains with the user.\n\n"
         "💙 BENEFITS: Avoid rejections, delays, fines and financial loss."
+    ),
+    "Spanish": (
+        "🔴 AVISO LEGAL – SMARTCARGO-AIPA by May Roga LLC\n\n"
+        "SmartCargo-AIPA opera únicamente como plataforma de ASESORÍA PREVENTIVA.\n"
+        "No sustituimos decisiones de aerolíneas, agentes de carga, TSA, CBP, DOT u "
+        "autoridades gubernamentales.\n"
+        "La responsabilidad final sobre la carga y cumplimiento normativo es del usuario.\n\n"
+        "💙 BENEFICIOS: Evita rechazos, demoras, multas y pérdidas económicas."
     )
 }
 
@@ -49,7 +49,6 @@ def run_gemini(prompt: str):
         client = genai.Client(api_key=GEMINI_API_KEY)
         models = client.models.list()
         selected_model = next((m.name for m in models if "generateContent" in getattr(m, "supported_actions", [])), None)
-        
         if not selected_model:
             return None
 
@@ -61,9 +60,7 @@ def run_gemini(prompt: str):
                     for p in c.content.parts:
                         if hasattr(p, "text"):
                             full_text.append(p.text)
-        
-        final_text = "\n".join(full_text).strip()
-        return final_text if final_text else None
+        return "\n".join(full_text).strip() or None
     except Exception as e:
         print(f"Gemini error: {e}")
         return None
@@ -85,20 +82,18 @@ def run_openai(prompt: str):
         print(f"OpenAI error: {e}")
         return None
 
-# ---------------- CLASSIFICATION LOGIC (SEMAFORO) ----------------
+# ---------------- CLASSIFICATION LOGIC ----------------
 def semaforo(text: str):
     t = text.upper()
-    if any(w in t for w in ["RED", "ROJO", "RECHAZO", "REJECT", "PROHIBIDO", "FORBIDDEN", "DANGER"]):
+    if any(w in t for w in ["RED", "ROJO", "RECHAZO", "REJECT", "FORBIDDEN", "DANGER"]):
         return "RED"
-    if any(w in t for w in ["YELLOW", "AMARILLO", "REVISAR", "VERIFICAR", "CHECK", "REVIEW", "VALIDAR"]):
+    if any(w in t for w in ["YELLOW", "AMARILLO", "REVISAR", "VERIFICAR", "CHECK", "REVIEW", "VALIDATE"]):
         return "YELLOW"
     return "GREEN"
 
 # ---------------- ENDPOINTS ----------------
-
 @app.get("/", response_class=HTMLResponse)
 def home():
-    # Asegúrate de tener frontend/index.html creado
     try:
         return open("frontend/index.html", encoding="utf-8").read()
     except FileNotFoundError:
@@ -107,35 +102,33 @@ def home():
 @app.post("/validate")
 def validate(
     role: str = Form(...),
-    lang: str = Form(...),
+    lang: str = Form("English"),
     dossier: str = Form(...)
 ):
-    # Prompt Maestro con Reglas de Identidad y Estructura
+    # Prompt maestro con reglas y estructura
     prompt = f"""
-    Actúa como el Asesor Senior de SmartCargo-AIPA by May Roga. 
-    Eres especialista de alto nivel en cumplimiento de IATA, DOT, CBP y normativas de Avianca (Belly/PAX, Freighter, COMAT).
-    
-    REGLAS DE ORO:
-    - NO menciones que eres una IA, inteligencia artificial o modelo de lenguaje.
-    - NO uses la palabra "auditoría"; usa "Asesoría", "Revisión" o "Rectificación".
-    - Responde con lenguaje técnico, profesional y directo. Menos palabras, más peso.
-    - Es OBLIGATORIO usar TABLAS de Markdown para la claridad.
-    
-    INSTRUCCIONES DE ANÁLISIS:
-    1. Revisa esta carga/documentación: {dossier}
-    2. Clasifica estrictamente en: GREEN, YELLOW o RED.
-    3. Genera una TABLA con columnas: [Punto Revisado | Hallazgo Encontrado | Acción Sugerida].
-    4. Provee máximo 3 recomendaciones preventivas adicionales.
-    5. Finaliza con 2 preguntas clave para cerrar la resolución del problema.
-    
-    Idioma de respuesta: {lang}
+    Act as the Senior Advisor of SmartCargo-AIPA by May Roga. 
+    You are a high-level specialist in IATA, DOT, CBP, and airline compliance (Belly/PAX, Freighter, COMAT).
+
+    GOLDEN RULES:
+    - Do NOT mention you are an AI or language model.
+    - Do NOT use "audit"; use "Advisory", "Review" or "Rectification".
+    - Respond in professional, technical, and direct language.
+    - ALWAYS use Markdown TABLES for clarity.
+
+    ANALYSIS INSTRUCTIONS:
+    1. Review this cargo/documentation: {dossier}
+    2. Strictly classify as: GREEN, YELLOW, or RED.
+    3. Generate a TABLE with columns: [Reviewed Point | Finding | Suggested Action].
+    4. Provide up to 3 additional preventive recommendations.
+    5. End with 2 key questions to close the resolution.
+
+    Response language: {lang}
     """
 
-    # Ejecución con sistema de respaldo (Fallback)
     analysis = run_gemini(prompt) or run_openai(prompt)
-
     if not analysis:
-        analysis = "Aviso: El sistema de asesoría no está disponible momentáneamente. Realice revisión manual."
+        analysis = "Notice: Advisory system temporarily unavailable. Please perform a manual review."
 
     return JSONResponse({
         "status": semaforo(analysis),
@@ -150,11 +143,7 @@ def admin(
     question: str = Form(...)
 ):
     if password != ADMIN_PASSWORD:
-        return JSONResponse({"answer": "Acceso Denegado"}, status_code=401)
+        return JSONResponse({"answer": "Access Denied"}, status_code=401)
 
-    # El administrador puede hacer consultas técnicas abiertas
-    answer = run_openai(question) or run_gemini(question) or "Servicio no disponible"
+    answer = run_openai(question) or run_gemini(question) or "Service unavailable"
     return {"answer": answer}
-
-# ---------------- RUN COMMAND ----------------
-# Para ejecutar: uvicorn main:app --reload
