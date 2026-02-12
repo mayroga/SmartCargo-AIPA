@@ -1,159 +1,117 @@
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
 import uuid
-from typing import Dict, List
 
-app = FastAPI(
-    title="SMARTCARGO-AIPA",
-    version="2.0",
-    description="Operational Cargo Pre-Validation System"
+app = FastAPI(title="SMARTCARGO-AIPA", version="1.0")
+
+# Permitir CORS desde cualquier frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"]
 )
 
-# ===============================
-# STATIC FRONTEND
-# ===============================
-app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
-
-@app.get("/", response_class=HTMLResponse)
-def load_frontend():
-    with open("frontend/index.html", "r", encoding="utf-8") as f:
-        return f.read()
-
-# ===============================
-# DATA MODELS
-# ===============================
-class Answer(BaseModel):
-    question_id: int
-    value: str  # green | yellow | red
-    role: str
-
-class ValidationPayload(BaseModel):
-    operator: str
-    role: str
-    answers: List[Answer]
-    dimensions: Dict[str, float] | None = None  # height, width, length, weight
+# =========================
+# MODELOS
+# =========================
+class CargoAnswer(BaseModel):
+    answers: dict  # {"q1": "ok"/"warn"/"fail"}
+    operator: str | None = "Unknown"
 
 class ValidationResult(BaseModel):
     report_id: str
     timestamp: str
     operator: str
-    final_status: str
-    counts: Dict[str, int]
-    actions: List[str]
+    total_questions: int
+    green: int
+    yellow: int
+    red: int
+    status: str
+    recommendations: list[str]
 
-# ===============================
-# CORE VALIDATION
-# ===============================
+# =========================
+# PREGUNTAS REALES
+# =========================
+questions = [
+    {"id":"q1","question":"AWB original legible y sin tachaduras","role":"Forwarder","type":"text"},
+    {"id":"q2","question":"Altura del bulto dentro de límites Avianca","role":"Counter","type":"number","max_cm":80,"max_freighter":244},
+    {"id":"q3","question":"Camión refrigerado si carga Pharma/Perecederos","role":"Trucker","type":"boolean"},
+    {"id":"q4","question":"Temperatura registrada dentro de rango","role":"Trucker","type":"number"},
+    {"id":"q5","question":"Embalaje DG aprobado según UN","role":"DG","type":"boolean"},
+    {"id":"q6","question":"Etiquetas visibles y correctas (DG/Fragile/Perecedero)","role":"Counter","type":"boolean"},
+    {"id":"q7","question":"Peso y volumen coinciden con documentación","role":"Counter","type":"number"},
+    {"id":"q8","question":"Documentos Human Remains completos","role":"Forwarder","type":"boolean"},
+    {"id":"q9","question":"Dry Ice declarado y etiquetado correctamente","role":"DG","type":"boolean"},
+    {"id":"q10","question":"Pallet correctamente armado y estable","role":"Trucker","type":"boolean"},
+    # ... continuar hasta 49 preguntas reales siguiendo el mismo patrón
+]
+
+# =========================
+# ENDPOINTS
+# =========================
+@app.get("/questions")
+def get_questions():
+    return questions
+
 @app.post("/validate", response_model=ValidationResult)
-def validate_cargo(payload: ValidationPayload):
-
+def validate_cargo(data: CargoAnswer):
+    total = len(questions)
     green = yellow = red = 0
+    recs = []
 
-    for ans in payload.answers:
-        if ans.value == "green":
+    for q in questions:
+        ans = data.answers.get(q["id"])
+        # Validación según tipo de pregunta
+        if q.get("type") == "number" and ans is not None:
+            try:
+                val = float(ans)
+                max_val = q.get("max_cm", None)
+                if max_val and val > max_val:
+                    ans = "fail"
+                else:
+                    ans = "ok"
+            except:
+                ans = "fail"
+
+        if ans == "ok":
             green += 1
-        elif ans.value == "yellow":
+        elif ans == "warn":
             yellow += 1
-        elif ans.value == "red":
+        elif ans == "fail" or ans is None:
             red += 1
 
-    # ===============================
-    # SEMÁFORO OPERATIVO
-    # ===============================
+    # Determinar semáforo
     if red > 0:
-        final_status = "RED"
+        status = "RED"
+        recs.append("Cargo NO aceptado. Revisar inmediatamente los puntos críticos.")
     elif yellow > 0:
-        final_status = "YELLOW"
+        status = "YELLOW"
+        recs.append("Cargo con observaciones. Revisar antes de embarque.")
     else:
-        final_status = "GREEN"
+        status = "GREEN"
+        recs.append("Cargo listo para embarque.")
 
-    actions = generate_actions(
-        final_status=final_status,
-        payload=payload,
-        red=red,
-        yellow=yellow
-    )
+    # Recomendaciones adicionales según fallos
+    if red >= 3:
+        recs.append("Múltiples fallos críticos, contactar supervisor o DG.")
+    if yellow >= 5:
+        recs.append("Alto número de advertencias, re-inspección recomendada.")
 
     return ValidationResult(
-        report_id=f"AIPA-{uuid.uuid4().hex[:8].upper()}",
+        report_id=f"SCR-{uuid.uuid4().hex[:8].upper()}",
         timestamp=datetime.utcnow().isoformat(),
-        operator=payload.operator,
-        final_status=final_status,
-        counts={
-            "green": green,
-            "yellow": yellow,
-            "red": red,
-            "total": len(payload.answers)
-        },
-        actions=actions
+        operator=data.operator,
+        total_questions=total,
+        green=green,
+        yellow=yellow,
+        red=red,
+        status=status,
+        recommendations=recs
     )
 
-# ===============================
-# BUSINESS LOGIC (AVIATION REAL)
-# ===============================
-def generate_actions(final_status: str, payload: ValidationPayload, red: int, yellow: int) -> List[str]:
-    actions = []
-
-    if final_status == "GREEN":
-        actions.append("🟢 Carga aprobada para recepción en Avianca Cargo.")
-        actions.append("Proceder a aceptación en counter.")
-        actions.append("Registrar evidencia y continuar flujo normal.")
-
-    if final_status == "YELLOW":
-        actions.append("🟡 Carga con observaciones.")
-        actions.append("Revisión obligatoria antes de embarque.")
-        actions.append("Counter debe verificar documentación y medidas.")
-        actions.append("Supervisor recomendado.")
-
-    if final_status == "RED":
-        actions.append("🔴 CARGA RECHAZADA.")
-        actions.append("NO aceptar en counter.")
-        actions.append("Aislar la carga.")
-        actions.append("Notificar inmediatamente a:")
-        actions.append("- Freight Forwarder")
-        actions.append("- Agente DG (si aplica)")
-        actions.append("- Supervisor de Operaciones")
-
-    # ===============================
-    # DIMENSIONES AVIATION
-    # ===============================
-    dims = payload.dimensions
-    if dims:
-        h = dims.get("height", 0)
-        w = dims.get("width", 0)
-        l = dims.get("length", 0)
-
-        volume = round((h * w * l) / 1_000_000, 3)
-        actions.append(f"📦 Volumen calculado: {volume} m³")
-
-        if h > 80:
-            actions.append("❌ Altura excede límite PAX (80 cm). Reubicar a carguero.")
-        if h > 244:
-            actions.append("❌ Altura excede Main Deck A330F. Rechazo técnico.")
-        if l > 300:
-            actions.append("⚠️ Carga larga. Requiere aprobación de Ingeniería.")
-
-    # ===============================
-    # ESCALATION RULES
-    # ===============================
-    if red >= 3:
-        actions.append("🚨 Fallas críticas múltiples. Escalamiento obligatorio a gerencia.")
-    if yellow >= 5:
-        actions.append("⚠️ Alto número de observaciones. Inspección secundaria completa.")
-
-    return actions
-
-# ===============================
-# HEALTH CHECK
-# ===============================
 @app.get("/health")
 def health():
-    return {
-        "status": "OK",
-        "system": "SMARTCARGO-AIPA",
-        "mode": "Operational",
-        "timestamp": datetime.utcnow().isoformat()
-    }
+    return {"status":"OK","system":"SMARTCARGO-AIPA"}
