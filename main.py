@@ -1,12 +1,28 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from datetime import datetime
 import uuid
 
-app = FastAPI(title="SMARTCARGO BY MAY ROGA LLC", version="2.0")
+# Importación de la lógica y modelos desde models.py
+# Asegúrate de que models.py esté en la misma carpeta
+from models import (
+    CargoAnswer, 
+    ValidationResult, 
+    AlertLevel, 
+    QUESTIONS_DB, 
+    generate_report_id, 
+    get_legal_disclaimer
+)
 
-# Configuración de CORS para asegurar conexión con el Frontend
+app = FastAPI(
+    title="SMARTCARGO BY MAY ROGA LLC", 
+    version="2.0",
+    description="Sistema de cumplimiento técnico IATA, CBP, TSA y DOT"
+)
+
+# =========================
+# CONFIGURACIÓN DE SEGURIDAD (CORS)
+# =========================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,120 +31,86 @@ app.add_middleware(
 )
 
 # =========================
-# MODELOS DE DATOS (Pydantic)
+# RUTAS DE LA API
 # =========================
-class CargoAnswer(BaseModel):
-    answers: dict  # Recibe {"q1": "ok", "q2": "fail", ...}
-    operator: str | None = "Unknown"
-    cargo_type: str | None = "General"
 
-class ValidationResult(BaseModel):
-    report_id: str
-    timestamp: str
-    operator: str
-    total_questions: int
-    green: int
-    yellow: int
-    red: int
-    status: str
-    recommendations: list[str]
-    legal_note: str
-
-# =========================
-# BASE DE CONOCIMIENTO TÉCNICO (IATA/CBP/TSA/DOT)
-# =========================
-# Aquí se define la autoridad del sistema.
-questions_db = [
-    # --- BLOQUE DOCUMENTAL (CBP / IATA) ---
-    {"id":"q1","q":"MAWB original legible + 3 copias (fuera del sobre)","tip":"Requerido para agilizar proceso de aceptación y archivo de estación."},
-    {"id":"q2","q":"HMAWB y Manifiesto coinciden 100% con MAWB (Consolidados)","tip":"Discrepancias generan multas de aduana y retención de carga (CBP)."},
-    {"id":"q3","q":"Factura Comercial y Packing List (Original + Copias)","tip":"Indispensable para valoración aduanera y desglose de bultos."},
-    {"id":"q4","q":"EIN / Tax ID de Shipper y Consignatario en sistema","tip":"Dato obligatorio para transmisión AMS (Automated Manifest System)."},
-    
-    # --- BLOQUE SEGURIDAD (TSA) ---
-    {"id":"q5","q":"Declaración de contenido coincide con Inspección Física/X-Ray","tip":"Requisito TSA. Contenido no declarado es motivo de rechazo inmediato."},
-    {"id":"q6","q":"Sello de seguridad de camión presente y sin alteración","tip":"Garantiza la integridad de la cadena de custodia desde el origen."},
-    
-    # --- BLOQUE DIMENSIONES Y PESO (AVIANCA ENGINEERING) ---
-    {"id":"q7","q":"Altura ≤ 80cm (Avión PAX) o ≤ 160cm (Carguero/Belly)","tip":"Límite físico de compuerta. Si excede, la carga no vuela en la ruta asignada."},
-    {"id":"q8","q":"Peso por pie cuadrado ≤ 732 kg/m² (Shoring si aplica)","tip":"Evita daños estructurales en el suelo de la bodega de la aeronave."},
-    {"id":"q9","q":"Carga sobre pallet, envuelta en stretch y con red de seguridad","tip":"Asegura estabilidad para evitar desplazamientos en vuelo."},
-    
-    # --- BLOQUE MERCANCÍAS PELIGROSAS (IATA DGR / DOT) ---
-    {"id":"q10","q":"DGD firmada en original y Embalaje con Marcado UN","tip":"Mercancía peligrosa sin marcado normativo genera multas federales graves."},
-    {"id":"q11","q":"Etiquetas de Riesgo y Manipulación visibles y legibles","tip":"Indispensable para la segregación correcta en bodega (No mezclar incompatibles)."},
-    {"id":"q12","q":"MSDS (Hoja de Seguridad) adjunta al set documental","tip":"Requerida para protocolos de emergencia en caso de derrame."},
-    
-    # --- BLOQUE CADENA DE FRÍO (PHARMA / PERISHABLE) ---
-    {"id":"q13","q":"Termógrafo activo y Rango térmico entre 2°C y 8°C","tip":"Garantiza la viabilidad del producto. Fuera de rango genera reclamos (Claims)."},
-    {"id":"q14","q":"Embalaje térmico intacto (Gel packs / Hielo seco declarado)","tip":"El hielo seco debe estar declarado como DG por riesgo de asfixia."},
-    
-    # --- BLOQUE ESPECIALES (HUMAN REMAINS) ---
-    {"id":"q15","q":"Permiso de Sanidad y Acta de Defunción Original","tip":"Documentación legal obligatoria para el transporte de restos humanos."},
-    {"id":"q16","q":"Ataúd con embalaje hermético y caja exterior de madera/cartón","tip":"Cumplimiento de bioseguridad para evitar fugas de fluidos."},
-
-    # ... Se pueden expandir hasta las 49 o más según necesidad de la estación ...
-]
-
-# =========================
-# MOTOR DE ASESORÍA (LOGIC)
-# =========================
+@app.get("/")
+def home():
+    """Ruta raíz para verificar que el servicio está LIVE en Render"""
+    return {
+        "service": "SMARTCARGO BY MAY ROGA LLC",
+        "status": "OPERATIONAL",
+        "authority": "IATA/CBP/TSA/DOT compliant"
+    }
 
 @app.get("/questions")
 def get_questions():
-    return questions_db
+    """Retorna la base de conocimiento técnica de models.py"""
+    return QUESTIONS_DB
 
 @app.post("/validate", response_model=ValidationResult)
 def validate_cargo(data: CargoAnswer):
-    total = len(questions_db)
-    green = yellow = red = 0
-    recs = []
+    """
+    Motor de Asesoría: Procesa respuestas y emite un dictamen legal.
+    No permite ambigüedades; si hay un fallo crítico (RED), la carga se detiene.
+    """
+    green = 0
+    yellow = 0
+    red = 0
+    recommendations = []
 
-    # Análisis de cada respuesta enviada
-    for q in questions_db:
-        ans = data.answers.get(q["id"])
+    # Buscamos cada pregunta de la DB técnica para validar la respuesta del frontend
+    for q_item in QUESTIONS_DB:
+        q_id = q_item["id"]
+        # Obtenemos la respuesta del usuario para ese ID (por defecto 'fail' si no llega)
+        ans_value = data.answers.get(q_id, "fail")
         
-        if ans == "ok":
+        if ans_value == "ok":
             green += 1
-        elif ans == "warn":
+        elif ans_value == "warn":
             yellow += 1
-            recs.append(f"OBSERVACIÓN en {q['id']}: {q['q']}. Verificar antes de paletizar.")
+            recommendations.append(
+                f"OBSERVACIÓN TÉCNICA ({q_id}): {q_item['description']}. Requiere verificación manual."
+            )
         else:
             red += 1
-            recs.append(f"RECHAZO CRÍTICO en {q['id']}: {q['q']}. Acción: Detener recepción.")
+            recommendations.append(
+                f"RECHAZO CRÍTICO ({q_id}): {q_item['description']}. Acción: Detener recepción de carga."
+            )
 
-    # Dictamen de Seguridad y Vuelo
+    # Determinar el semáforo final de autoridad
     if red > 0:
-        status = "RED - CARGA NO APTA"
-        recs.insert(0, "DICTAMEN: Rechazo automático por incumplimiento de seguridad/normativa.")
+        final_status = AlertLevel.RED
+        recommendations.insert(0, "DICTAMEN FINAL: CARGA NO APTA PARA VUELO. Incumplimiento de normativa de seguridad.")
     elif yellow > 0:
-        status = "YELLOW - ACEPTACIÓN CONDICIONADA"
-        recs.insert(0, "DICTAMEN: Carga requiere acción correctiva inmediata en counter.")
+        final_status = AlertLevel.YELLOW
+        recommendations.insert(0, "DICTAMEN FINAL: ACEPTACIÓN CONDICIONADA. Corregir observaciones antes del pesaje.")
     else:
-        status = "GREEN - LISTA PARA VUELO"
-        recs.insert(0, "DICTAMEN: Cumplimiento total. Proceder con el pesado y etiquetado.")
+        final_status = AlertLevel.GREEN
+        recommendations.insert(0, "DICTAMEN FINAL: CUMPLIMIENTO TOTAL. Proceder con el embarque y etiquetado.")
 
-    # Notas de Autoridad
-    legal_info = "Reporte generado bajo normativas IATA, CBP, TSA y SOP de Avianca Cargo. SMARTCARGO BY MAY ROGA LLC."
-
+    # Construcción del reporte basado en la estructura de models.py
     return ValidationResult(
-        report_id=f"SCR-{uuid.uuid4().hex[:8].upper()}",
+        report_id=generate_report_id(),
         timestamp=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
         operator=data.operator if data.operator else "Counter_Default",
-        total_questions=total,
+        cargo_type=data.cargo_type.value,
+        total_questions=len(QUESTIONS_DB),
         green=green,
         yellow=yellow,
         red=red,
-        status=status,
-        recommendations=recs,
-        legal_note=legal_info
+        status=final_status,
+        recommendations=recommendations,
+        legal_note=get_legal_disclaimer()
     )
 
 @app.get("/health")
 def health():
-    return {"status":"ACTIVE","provider":"SMARTCARGO BY MAY ROGA LLC"}
+    """Endpoint para monitoreo de Render"""
+    return {"status": "ACTIVE", "provider": "SMARTCARGO BY MAY ROGA LLC"}
 
 # =========================
 # NOTA DE EJECUCIÓN
 # =========================
-# Ejecutar con: uvicorn main:app --reload
+# Para desarrollo local: uvicorn main:app --reload
+# Para Render (Automático): uvicorn main:app --host 0.0.0.0 --port $PORT
