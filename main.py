@@ -1,192 +1,152 @@
 # main.py
-from fastapi import FastAPI, Request, Form, Depends, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi import FastAPI, Form
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
-from datetime import datetime
-from typing import Optional
-import uuid
-import io
-from weasyprint import HTML
+import os
 
-# =========================
-# APP SETUP
-# =========================
-app = FastAPI(title="SMARTCARGO-AIPA", version="1.0")
+# ---------------- APP CONFIG ----------------
+app = FastAPI(title="SmartCargo-AIPA")
+
+# Crear carpeta 'static' si no existe
+if not os.path.exists("static"):
+    os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
 
-# =========================
-# LOGIN SIMPLE
-# =========================
-USERS_DB = {
-    "admin": "1234",
-    "supervisor": "cargo2026"
+# ---------------- ENVIRONMENT VARIABLES ----------------
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+ADMIN_USER = os.getenv("ADMIN_USER", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "SmartCargo2026")
+
+# ---------------- LEGAL & COMPLIANCE TEXT ----------------
+LEGAL_TEXT = {
+    "English": (
+        "🔴 LEGAL NOTICE – SMARTCARGO-AIPA by May Roga LLC\n\n"
+        "SmartCargo-AIPA operates strictly as a PREVENTIVE ADVISORY platform.\n"
+        "We do not replace decisions made by airlines, cargo agents, TSA, CBP, DOT or "
+        "government authorities.\n"
+        "Final responsibility for cargo and regulatory compliance remains with the user.\n\n"
+        "💙 BENEFITS: Avoid rejections, delays, fines and financial loss."
+    ),
+    "Spanish": (
+        "🔴 AVISO LEGAL – SMARTCARGO-AIPA by May Roga LLC\n\n"
+        "SmartCargo-AIPA opera únicamente como plataforma de ASESORÍA PREVENTIVA.\n"
+        "No sustituimos decisiones de aerolíneas, agentes de carga, TSA, CBP, DOT u "
+        "autoridades gubernamentales.\n"
+        "La responsabilidad final sobre la carga y cumplimiento normativo es del usuario.\n\n"
+        "💙 BENEFICIOS: Evita rechazos, demoras, multas y pérdidas económicas."
+    )
 }
 
-def authenticate_user(username: str, password: str):
-    if username in USERS_DB and USERS_DB[username] == password:
-        return True
-    return False
+# ---------------- GEMINI ENGINE (PRIMARY) ----------------
+try:
+    from google import genai
+except ImportError:
+    genai = None
 
-# =========================
-# DATA MODELS
-# =========================
-class CargoValidation(BaseModel):
-    answers: dict  # {"q1":"ok","q2":"warn","q3":"fail",...}
-    operator: Optional[str] = "Unknown"
+def run_gemini(prompt: str):
+    if not GEMINI_API_KEY or not genai:
+        return None
+    try:
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        models = client.models.list()
+        selected_model = next((m.name for m in models if "generateContent" in getattr(m, "supported_actions", [])), None)
+        if not selected_model:
+            return None
 
-class ValidationResult(BaseModel):
-    report_id: str
-    timestamp: str
-    operator: str
-    total_questions: int
-    green: int
-    yellow: int
-    red: int
-    status: str
-    recommendations: list[str]
+        response = client.models.generate_content(model=selected_model, contents=prompt)
+        full_text = []
+        if hasattr(response, "candidates"):
+            for c in response.candidates:
+                if hasattr(c, "content") and hasattr(c.content, "parts"):
+                    for p in c.content.parts:
+                        if hasattr(p, "text"):
+                            full_text.append(p.text)
+        return "\n".join(full_text).strip() or None
+    except Exception as e:
+        print(f"Gemini error: {e}")
+        return None
 
-# =========================
-# ENDPOINTS
-# =========================
+# ---------------- OPENAI ENGINE (BACKUP) ----------------
+def run_openai(prompt: str):
+    if not OPENAI_API_KEY:
+        return None
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        print(f"OpenAI error: {e}")
+        return None
+
+# ---------------- CLASSIFICATION LOGIC ----------------
+def semaforo(text: str):
+    t = text.upper()
+    if any(w in t for w in ["RED", "ROJO", "RECHAZO", "REJECT", "FORBIDDEN", "DANGER"]):
+        return "RED"
+    if any(w in t for w in ["YELLOW", "AMARILLO", "REVISAR", "VERIFICAR", "CHECK", "REVIEW", "VALIDATE"]):
+        return "YELLOW"
+    return "GREEN"
+
+# ---------------- ENDPOINTS ----------------
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+def home():
+    try:
+        return open("frontend/index.html", encoding="utf-8").read()
+    except FileNotFoundError:
+        return "<h1>SmartCargo-AIPA Frontend Not Found</h1>"
 
-@app.post("/login")
-async def login(username: str = Form(...), password: str = Form(...)):
-    if authenticate_user(username, password):
-        return {"success": True, "username": username}
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+# ---------------- VALIDATE CARGO ----------------
+@app.post("/validate")
+def validate(
+    role: str = Form(...),
+    lang: str = Form("English"),
+    dossier: str = Form(...)
+):
+    prompt = f"""
+    Act as the Senior Advisor of SmartCargo-AIPA by May Roga.
+    You are a high-level specialist in IATA, DOT, CBP, and airline compliance.
 
-@app.post("/validate", response_model=ValidationResult)
-async def validate_cargo(data: CargoValidation):
-    total_questions = 49
-    green = yellow = red = 0
+    GOLDEN RULES:
+    - Do NOT mention you are an AI.
+    - Use "Advisory", "Review", "Rectification".
+    - Respond professional, technical, direct.
+    - ALWAYS use Markdown TABLES.
 
-    # =========================
-    # CASCADA LETAL SIMPLIFICADA
-    # =========================
-    answers_filtered = {}
-    for qid, value in data.answers.items():
-        # Aplicar lógica de cascada letal
-        # Ejemplo: si DG, ignorar bloques de perecederos
-        if "q1" in data.answers:
-            cargo_type = data.answers["q1"]
-            if cargo_type == "DG" and qid in ["q_temp1", "q_temp2"]:
-                continue  # Saltar preguntas irrelevantes
-            if cargo_type == "Perishable" and qid in ["q_dg1", "q_dg2"]:
-                continue
-        answers_filtered[qid] = value
+    ANALYSIS:
+    1. Review this cargo/documentation: {dossier}
+    2. Classify as: GREEN, YELLOW, RED.
+    3. Generate TABLE: [Reviewed Point | Finding | Suggested Action].
+    4. Up to 3 preventive recommendations.
+    5. End with 2 key closure questions.
 
-        if value == "ok":
-            green += 1
-        elif value == "warn":
-            yellow += 1
-        elif value == "fail":
-            red += 1
-
-    # =========================
-    # SEMAFORO
-    # =========================
-    if red > 0:
-        status = "RED"
-    elif yellow > 0:
-        status = "YELLOW"
-    else:
-        status = "GREEN"
-
-    recommendations = generate_recommendations(status, red, yellow)
-
-    # Guardar para PDF
-    report_id = f"SCR-{uuid.uuid4().hex[:8].upper()}"
-    return ValidationResult(
-        report_id=report_id,
-        timestamp=datetime.utcnow().isoformat(),
-        operator=data.operator,
-        total_questions=total_questions,
-        green=green,
-        yellow=yellow,
-        red=red,
-        status=status,
-        recommendations=recommendations
-    )
-
-@app.get("/pdf/{report_id}")
-async def get_pdf(report_id: str, operator: str = "Unknown", status: str = "GREEN", recs: str = ""):
-    """
-    Genera PDF de Certificado de Conformidad con blindaje legal y autopropaganda.
-    """
-    html_content = f"""
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>SmartCargo-AIPA Certificate</title>
-        <style>
-            body {{ font-family: "Segoe UI", Arial, sans-serif; background: #f9f9f9; }}
-            .container {{ max-width: 800px; margin: 30px auto; background: white; padding: 30px; border-radius: 14px; }}
-            h1 {{ color: #002b5c; }}
-            h2 {{ color: #004080; }}
-            .status-green {{ color: #0a8f08; }}
-            .status-yellow {{ color: #d4a000; }}
-            .status-red {{ color: #c00000; }}
-            .recs {{ margin-top: 20px; font-size: 14px; }}
-            footer {{ font-size: 11px; color: #555; margin-top: 30px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Certificado de Conformidad - SmartCargo-AIPA</h1>
-            <h2>Report ID: {report_id}</h2>
-            <p>Operador: {operator}</p>
-            <p>Fecha: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC</p>
-            <h2>Status:</h2>
-            <p class="status-{status.lower()}">{status}</p>
-            <div class="recs">
-                <h3>Recomendaciones:</h3>
-                <p>{recs.replace('|','<br>')}</p>
-            </div>
-            <footer>
-                SmartCargo-AIPA by May Roga LLC<br>
-                Este reporte constituye asesoría técnica preventiva basada en los datos proporcionados.<br>
-                No sustituye la autoridad final de CBP, TSA o aerolínea.<br>
-                Use bajo su responsabilidad.
-            </footer>
-        </div>
-    </body>
-    </html>
+    Response language: {lang}
     """
 
-    pdf_file = io.BytesIO()
-    HTML(string=html_content).write_pdf(pdf_file)
-    pdf_file.seek(0)
-    return FileResponse(pdf_file, media_type='application/pdf', filename=f"{report_id}.pdf")
+    analysis = run_gemini(prompt) or run_openai(prompt)
+    if not analysis:
+        analysis = "Notice: Advisory system temporarily unavailable. Please perform a manual review."
 
-# =========================
-# LOGIC FOR RECOMMENDATIONS
-# =========================
-def generate_recommendations(status: str, red: int, yellow: int) -> list[str]:
-    recs = []
+    return JSONResponse({
+        "status": semaforo(analysis),
+        "analysis": analysis,
+        "disclaimer": LEGAL_TEXT.get(lang, LEGAL_TEXT["English"])
+    })
 
-    if status == "GREEN":
-        recs.append("Cargo aceptado para procesamiento|Proceda con armado y planificación de vuelo|Mantener estándares de cumplimiento actuales")
-    elif status == "YELLOW":
-        recs.append("Cargo aceptado condicionalmente|Revise documentación y manejo físico|Verificación del supervisor antes de liberación|Re-chequear temperatura, etiquetado y segregación si aplica")
-    elif status == "RED":
-        recs.append("Cargo NO aceptado|Acción correctiva inmediata requerida|Aislar carga y notificar supervisor|No proceder hasta que todos los problemas críticos estén resueltos|Documentar incumplimiento según estándares AIPA")
+# ---------------- ADMIN LOGIN (AL FINAL) ----------------
+@app.post("/admin")
+def admin(
+    username: str = Form(...),
+    password: str = Form(...),
+    question: str = Form(...)
+):
+    if username != ADMIN_USER or password != ADMIN_PASSWORD:
+        return JSONResponse({"answer": "Access Denied"}, status_code=401)
 
-    if red >= 3:
-        recs.append("Múltiples fallos críticos detectados – escalar a gerencia")
-    if yellow >= 5:
-        recs.append("Número elevado de advertencias – realizar inspección secundaria completa")
-
-    return recs
-
-# =========================
-# HEALTH CHECK
-# =========================
-@app.get("/health")
-def health():
-    return {"status": "OK", "system": "SMARTCARGO-AIPA"}
+    answer = run_openai(question) or run_gemini(question) or "Service unavailable"
+    return {"answer": answer}
