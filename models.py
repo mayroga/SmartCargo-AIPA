@@ -1,11 +1,11 @@
 # models.py
-from typing import List, Optional
+from typing import List, Optional, Dict
 from enum import Enum
 from datetime import datetime
-
+import uuid
 
 # =========================
-# ENUMS
+# ENUMS (ESTÁNDARES DE CARGA)
 # =========================
 
 class Role(str, Enum):
@@ -14,6 +14,7 @@ class Role(str, Enum):
     FORWARDER = "Forwarder"
     COUNTER = "Counter"
     DG = "DG"
+    HUMAN_REMAINS = "Human Remains"
 
 
 class AlertLevel(str, Enum):
@@ -23,13 +24,13 @@ class AlertLevel(str, Enum):
 
 
 # =========================
-# CORE DATA STRUCTURES
+# ESTRUCTURAS DE DATOS CORE
 # =========================
 
 class Question:
     def __init__(
         self,
-        id: int,
+        id: str,
         text: str,
         role: Role,
         red_if: Optional[str] = None,
@@ -45,9 +46,15 @@ class Question:
 
 
 class Answer:
-    def __init__(self, question_id: int, value: AlertLevel):
+    def __init__(self, question_id: str, value: str):
         self.question_id = question_id
-        self.value = value
+        # Mapeo de valores de HTML a AlertLevel
+        if value == "ok":
+            self.level = AlertLevel.GREEN
+        elif value == "warn":
+            self.level = AlertLevel.YELLOW
+        else:
+            self.level = AlertLevel.RED
 
 
 class Dimensions:
@@ -66,168 +73,117 @@ class CargoReport:
     def __init__(
         self,
         operator: str,
-        role: Role,
         answers: List[Answer],
-        dimensions: Dimensions
+        dimensions: Optional[Dimensions] = None
     ):
+        self.report_id = f"SCR-{uuid.uuid4().hex[:8].upper()}"
         self.operator = operator
-        self.role = role
         self.answers = answers
         self.dimensions = dimensions
         self.created_at = datetime.utcnow()
 
     def calculate_semaphore(self) -> AlertLevel:
-        for a in self.answers:
-            if a.value == AlertLevel.RED:
-                return AlertLevel.RED
-        for a in self.answers:
-            if a.value == AlertLevel.YELLOW:
-                return AlertLevel.YELLOW
+        # Si hay un solo ROJO, el estatus es RED
+        if any(a.level == AlertLevel.RED for a in self.answers):
+            return AlertLevel.RED
+        # Si hay amarillos pero no rojos, es YELLOW
+        if any(a.level == AlertLevel.YELLOW for a in self.answers):
+            return AlertLevel.YELLOW
         return AlertLevel.GREEN
 
-    def count_by_color(self):
-        green = sum(1 for a in self.answers if a.value == AlertLevel.GREEN)
-        yellow = sum(1 for a in self.answers if a.value == AlertLevel.YELLOW)
-        red = sum(1 for a in self.answers if a.value == AlertLevel.RED)
-        return green, yellow, red
+    def count_by_color(self) -> Dict[str, int]:
+        return {
+            "green": sum(1 for a in self.answers if a.level == AlertLevel.GREEN),
+            "yellow": sum(1 for a in self.answers if a.level == AlertLevel.YELLOW),
+            "red": sum(1 for a in self.answers if a.level == AlertLevel.RED)
+        }
 
 
 # =========================
-# AVIanca DIMENSION LIMITS
+# LÍMITES DE DIMENSIONES AVIANCA
 # =========================
 
 AVIATION_LIMITS = {
-    "PAX": {
+    "PAX_NARROW_BODY": {
         "max_height_cm": 80,
         "max_width_cm": 120,
         "max_length_cm": 120,
         "aircraft": ["A319", "A320", "A321"],
-        "rule": "Si excede 80 cm de alto → RECHAZO AUTOMÁTICO"
+        "rule": "Piezas > 80cm de altura no son aptas para aviones de pasajeros."
     },
-    "CARGO_A330F": {
+    "FREIGHTER_A330F": {
         "main_deck_height_cm": 244,
         "lower_deck_height_cm": 162,
         "max_piece_length_cm": 300,
-        "rule": "Piezas >300 cm requieren aprobación de ingeniería"
+        "rule": "Piezas que excedan 300cm requieren aprobación técnica."
     }
 }
 
 
 # =========================
-# FINAL QUESTION SET (49)
+# DATA SET DE 49 PREGUNTAS (SMARTCARGO)
 # =========================
 
-QUESTIONS: List[Question] = [
+# Esta lista sirve como referencia para el motor de asesoría
+QUESTIONS_REF: List[Question] = [
+    # Propietario / Cliente (1-8)
+    Question("q1", "AWB original legible", Role.OWNER),
+    Question("q2", "Factura y packing list completos", Role.OWNER),
+    Question("q3", "Declaración coincide con documentos", Role.OWNER),
+    Question("q4", "Permisos y certificados presentes", Role.OWNER),
+    Question("q5", "Peso declarado coincide con carga", Role.OWNER),
+    Question("q6", "Tipo de carga declarada en papel", Role.OWNER),
+    Question("q7", "Shipper coincide con AWB", Role.OWNER),
+    Question("q8", "Docs Human Remains completos", Role.OWNER),
+    
+    # Chofer / Camión (9-14)
+    Question("q9", "Camión refrigerado adecuado", Role.TRUCKER),
+    Question("q10", "Camión limpio y seguro", Role.TRUCKER),
+    Question("q11", "Sello del camión presente", Role.TRUCKER),
+    Question("q12", "Carga asegurada y estable", Role.TRUCKER),
+    Question("q13", "Temperatura registrada correctamente", Role.TRUCKER),
+    Question("q14", "Pallet y embalaje adecuado", Role.TRUCKER),
 
-    # ---------- IDENTIFICATION ----------
-    Question(1, "Tipo de carga correctamente declarada", Role.OWNER,
-             red_if="Tipo incorrecto", reference="IATA AHM"),
-    Question(2, "Shipper / Owner identificado", Role.OWNER,
-             red_if="No identificado"),
-    Question(3, "Documentos entregados completos", Role.OWNER,
-             yellow_if="Faltan copias"),
+    # Forwarder (15-21)
+    Question("q15", "AWB coincidente con documentos", Role.FORWARDER),
+    Question("q16", "House / Master AWB alineados", Role.FORWARDER),
+    Question("q17", "Packaging revisado y aprobado", Role.FORWARDER),
+    Question("q18", "Temperatura declarada compatible", Role.FORWARDER),
+    Question("q19", "Dry Ice declarado y etiquetado", Role.FORWARDER),
+    Question("q20", "Fragile declarado y embalaje", Role.FORWARDER),
+    Question("q21", "Docs Human Remains completos", Role.FORWARDER),
 
-    # ---------- TRUCK / DELIVERY ----------
-    Question(4, "Camión adecuado para el tipo de carga", Role.TRUCKER,
-             red_if="Camión no apto"),
-    Question(5, "Carga protegida durante transporte", Role.TRUCKER,
-             yellow_if="Protección parcial"),
-    Question(6, "Camión limpio y sin contaminación", Role.TRUCKER,
-             red_if="Camión contaminado"),
-    Question(7, "Sello del camión presente", Role.TRUCKER,
-             red_if="Sin sello"),
-    Question(8, "Temperatura controlada (si aplica)", Role.TRUCKER,
-             red_if="Fuera de rango"),
+    # Counter (22-28)
+    Question("q22", "Altura dentro de límite Avianca", Role.COUNTER),
+    Question("q23", "Largo y ancho dentro de límite", Role.COUNTER),
+    Question("q24", "Peso por pie cuadrado seguro", Role.COUNTER),
+    Question("q25", "Carga estable y segura", Role.COUNTER),
+    Question("q26", "No mezcla DG/Pharma/Perecedero", Role.COUNTER),
+    Question("q27", "Etiquetas visibles y legibles", Role.COUNTER),
+    Question("q28", "Verificación docs completa", Role.COUNTER),
 
-    # ---------- DIMENSIONS ----------
-    Question(9, "Altura compatible con aeronave asignada", Role.COUNTER,
-             red_if="Excede límites Avianca"),
-    Question(10, "Largo compatible con tipo de avión", Role.COUNTER,
-              red_if="Excede 300 cm"),
-    Question(11, "Peso distribuido correctamente", Role.COUNTER,
-              yellow_if="Requiere shoring"),
+    # Mercancías Peligrosas (29-34)
+    Question("q29", "DG declarado en AWB", Role.DG),
+    Question("q30", "Clase DG correcta", Role.DG),
+    Question("q31", "DGD y MSDS firmados", Role.DG),
+    Question("q32", "Embalaje UN aprobado", Role.DG),
+    Question("q33", "Labels DG visibles", Role.DG),
+    Question("q34", "DG no mezclado", Role.DG),
 
-    # ---------- DOCUMENTATION ----------
-    Question(12, "AWB original presente", Role.FORWARDER,
-              red_if="No disponible"),
-    Question(13, "AWB legible y sin enmiendas", Role.FORWARDER,
-              yellow_if="Correcciones visibles"),
-    Question(14, "House y Master AWB coinciden", Role.FORWARDER,
-              red_if="Inconsistencia"),
-    Question(15, "Factura comercial correcta", Role.FORWARDER,
-              red_if="Datos incorrectos"),
-    Question(16, "Packing List coincide con carga", Role.FORWARDER,
-              red_if="No coincide"),
-    Question(17, "Permisos y certificados completos", Role.FORWARDER,
-              yellow_if="Faltan anexos"),
-
-    # ---------- PALLETS ----------
-    Question(18, "Pallet aprobado para aviación", Role.COUNTER,
-              red_if="Pallet no permitido"),
-    Question(19, "Carga correctamente envuelta", Role.COUNTER,
-              yellow_if="Envoltura deficiente"),
-    Question(20, "Etiquetas visibles", Role.COUNTER,
-              yellow_if="No visibles"),
-    Question(21, "Carga segregada correctamente", Role.COUNTER,
-              red_if="Mezcla no permitida"),
-
-    # ---------- PHARMA ----------
-    Question(22, "Carga farmacéutica declarada", Role.FORWARDER),
-    Question(23, "Rango de temperatura indicado", Role.FORWARDER,
-              red_if="No declarado"),
-    Question(24, "Dispositivos térmicos presentes", Role.COUNTER,
-              yellow_if="Cantidad insuficiente"),
-
-    # ---------- DG ----------
-    Question(25, "Mercancía peligrosa declarada", Role.DG,
-              red_if="DG no declarada"),
-    Question(26, "Clase DG correcta", Role.DG,
-              red_if="Clase incorrecta"),
-    Question(27, "DGD firmada", Role.DG,
-              red_if="No firmada"),
-    Question(28, "MSDS adjunto", Role.DG,
-              red_if="No disponible"),
-    Question(29, "Embalaje UN aprobado", Role.DG,
-              red_if="No conforme"),
-    Question(30, "Etiquetas DG visibles", Role.DG,
-              red_if="Faltantes"),
-
-    # ---------- PERISHABLE ----------
-    Question(31, "Tipo perecedero identificado", Role.FORWARDER),
-    Question(32, "Tiempo de tránsito compatible", Role.FORWARDER,
-              yellow_if="Margen crítico"),
-    Question(33, "Ventilación adecuada", Role.COUNTER,
-              red_if="No adecuada"),
-
-    # ---------- HUMAN REMAINS ----------
-    Question(34, "Documentos Human Remains completos", Role.FORWARDER,
-              red_if="Faltantes"),
-    Question(35, "Ataúd conforme normativa", Role.COUNTER,
-              red_if="No conforme"),
-    Question(36, "AWB HR correcta", Role.COUNTER,
-              red_if="Error en AWB"),
-
-    # ---------- FINAL ----------
-    Question(37, "Peso coincide con documentación", Role.COUNTER,
-              red_if="Diferencia"),
-    Question(38, "Volumen dentro de límites", Role.COUNTER,
-              red_if="Excede"),
-    Question(39, "Carga apta para Belly Cargo", Role.COUNTER,
-              red_if="No apta"),
-    Question(40, "No mezcla DG/PER", Role.COUNTER,
-              red_if="Mezcla crítica"),
-    Question(41, "Checklist completo", Role.COUNTER,
-              yellow_if="Incompleto"),
-    Question(42, "Aprobación supervisor requerida", Role.COUNTER),
-    Question(43, "Carga lista para build-up", Role.COUNTER),
-    Question(44, "Cumple IATA", Role.COUNTER,
-              red_if="Incumplimiento"),
-    Question(45, "Cumple DOT", Role.COUNTER,
-              red_if="Incumplimiento"),
-    Question(46, "Cumple CBP", Role.COUNTER,
-              red_if="Incumplimiento"),
-    Question(47, "Cumple estándar Avianca", Role.COUNTER,
-              red_if="No conforme"),
-    Question(48, "No requiere corrección adicional", Role.COUNTER),
-    Question(49, "Autorizado para embarque", Role.COUNTER)
+    # Human Remains & Especiales (35-49)
+    Question("q35", "Ataúd conforme y embalaje", Role.HUMAN_REMAINS),
+    Question("q36", "Packing list separado", Role.HUMAN_REMAINS),
+    Question("q37", "Docs Human Remains correctos", Role.HUMAN_REMAINS),
+    Question("q38", "Tiempo tránsito compatible", Role.HUMAN_REMAINS),
+    Question("q39", "Temperatura y ventilación", Role.HUMAN_REMAINS),
+    Question("q40", "Peso total validado", Role.HUMAN_REMAINS),
+    Question("q41", "Facturas y packing organizados", Role.HUMAN_REMAINS),
+    Question("q42", "Peso coincidente documentos", Role.HUMAN_REMAINS),
+    Question("q43", "Docs consolidados correctos", Role.HUMAN_REMAINS),
+    Question("q44", "Apto belly cargo", Role.HUMAN_REMAINS),
+    Question("q45", "No mezcla DG / Perecedero", Role.HUMAN_REMAINS),
+    Question("q46", "Checklist completo revisado", Role.HUMAN_REMAINS),
+    Question("q47", "Peso bulto y pallets verificado", Role.HUMAN_REMAINS),
+    Question("q48", "Revisión final semáforo", Role.HUMAN_REMAINS),
+    Question("q49", "Recomendaciones claras", Role.HUMAN_REMAINS),
 ]
