@@ -21,6 +21,77 @@ select { padding: 0.3rem; }
 </style>
 </head>
 <body>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // ===== Accordion =====
+  const acc = document.getElementsByClassName("accordion");
+  for (let i = 0; i < acc.length; i++) {
+    acc[i].addEventListener("click", function() {
+      this.classList.toggle("active");
+      const panel = this.nextElementSibling;
+      panel.style.display = panel.style.display === "block" ? "none" : "block";
+    });
+  }
+
+  // ===== Form submit =====
+  const form = document.getElementById("cargoForm");
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    // Recolectar respuestas
+    const formData = new FormData(form);
+    const answers = {};
+    for (const [key, value] of formData.entries()) {
+      answers[key] = value;
+    }
+
+    // Opcional: pedir operador
+    const operator = prompt("Ingrese nombre del operador:", "Unknown") || "Unknown";
+
+    try {
+      const response = await axios.post("http://localhost:8000/validate", {
+        answers: answers,
+        operator: operator
+      });
+
+      const data = response.data;
+
+      // Crear o actualizar contenedor de resultados
+      let resultDiv = document.getElementById("resultContainer");
+      if (!resultDiv) {
+        resultDiv = document.createElement("div");
+        resultDiv.id = "resultContainer";
+        resultDiv.className = "status";
+        form.parentNode.appendChild(resultDiv);
+      }
+
+      // Colores según semáforo
+      let bgColor = "#d4edda"; // GREEN
+      if (data.status === "YELLOW") bgColor = "#fff3cd";
+      if (data.status === "RED") bgColor = "#f8d7da";
+
+      resultDiv.style.backgroundColor = bgColor;
+      resultDiv.innerHTML = `
+        <h2>Resultado de Validación: ${data.status}</h2>
+        <p><strong>Operador:</strong> ${data.operator}</p>
+        <p><strong>Total preguntas:</strong> ${data.total_questions}</p>
+        <p><strong>✅ Verde:</strong> ${data.green} | <strong>⚠️ Amarillo:</strong> ${data.yellow} | <strong>❌ Rojo:</strong> ${data.red}</p>
+        <h3>Recomendaciones:</h3>
+        <ul>
+          ${data.recommendations.map(rec => `<li>${rec}</li>`).join("")}
+        </ul>
+      `;
+
+      // Scroll al resultado
+      resultDiv.scrollIntoView({ behavior: "smooth" });
+
+    } catch (err) {
+      console.error(err);
+      alert("Error al validar la carga. ¿Está corriendo el backend en http://localhost:8000?");
+    }
+  });
+});
+</script>
 
 <header>
 <h1>SMARTCARGO-AIPA - Validación de Carga Avianca Cargo</h1>
