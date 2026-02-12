@@ -11,8 +11,5 @@ SQLAlchemy
 psycopg2-binary
 redis
 boto3
-fastapi
-uvicorn
 jinja2
 pytesseract
-StaticFiles
