@@ -3,218 +3,449 @@
 <head>
 <meta charset="UTF-8">
 <title>SMARTCARGO-AIPA</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<!-- Estilos básicos -->
+<link rel="stylesheet" href="/static/styles.css">
+<script defer src="/static/scripts.js"></script>
 <style>
-body {
-  font-family: "Segoe UI", Arial, sans-serif;
-  background: #f2f4f7;
-  margin: 0;
-  padding: 0;
+/* 🔹 Preguntas en 3 columnas */
+.questions-container {
+  display: flex;
+  gap: 20px;
+  margin: 15px 0;
 }
-.container {
-  max-width: 1300px;
-  margin: 30px auto;
-  background: #fff;
-  padding: 30px 40px;
-  border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+.column {
+  flex: 1;
 }
-h1 { margin-top:0; color:#002b5c;}
-.subtitle { color:#555; margin-bottom:20px; }
-
-.level {
-  margin-bottom: 25px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  overflow: hidden;
+label {
+  font-weight: bold;
+  display: block;
+  margin-top: 10px;
 }
-.level-header {
-  background:#004080;
-  color:white;
-  padding:14px 18px;
-  font-size:17px;
-  cursor:pointer;
+.checkbox-group input {
+  margin-right: 5px;
 }
-.level-content { display:none; padding:20px; background:#fafafa; }
-
-.question { margin-bottom:18px; }
-.question-title { font-weight:600; margin-bottom:8px; color:#222; }
-.options label { display:block; margin-bottom:6px; cursor:pointer; }
-.options input { margin-right:8px; }
-
-.actions { text-align:center; margin-top:25px; }
-button {
-  background:#004080;
-  color:white;
-  border:none;
-  padding:12px 26px;
-  font-size:16px;
-  border-radius:8px;
-  cursor:pointer;
-  margin:6px;
-}
-button:hover { background:#0066cc; }
-
-#result {
-  margin-top:25px;
-  padding:20px;
-  border-radius:12px;
-  display:none;
-  background:#e8f0fe;
-}
-.green { color:#0a8f08; }
-.yellow { color:#d4a000; }
-.red { color:#c00000; }
-
-input[type=number] { width:80px; padding:4px; margin-right:8px; }
+/* 🔴 🟡 🟢 colores para semáforo visual */
+.red { color: red; font-weight: bold; }
+.yellow { color: orange; font-weight: bold; }
+.green { color: green; font-weight: bold; }
 </style>
 </head>
-
 <body>
-<div class="container">
-<h1>SMARTCARGO-AIPA</h1>
-<p class="subtitle">
-Preventive Cargo Acceptance Advisory System – Operational · Legal · Non-binding
-</p>
+<div class="box">
 
-<!-- Usuario IA experta -->
-<div class="question">
-  <div class="question-title">IA Experta Login</div>
-  <div class="options">
-    <label>Username: <input type="text" id="iaUser" placeholder="Username"></label>
-    <label>Password: <input type="password" id="iaPass" placeholder="Password"></label>
+<h2>SMARTCARGO-AIPA</h2>
+<div class="banner">
+Avoid rejections · Delays · Fines · Save time, effort and money
+</div>
+
+<p id="reportId" style="font-size:13px;color:#555;"></p>
+
+<select id="lang" onchange="switchLang()">
+  <option value="English">English</option>
+  <option value="Spanish">Spanish</option>
+</select>
+
+<label id="roleLabel">Role</label>
+<select id="role">
+  <option>Shipper</option>
+  <option>Driver</option>
+  <option>Forwarder</option>
+  <option>Warehouse</option>
+  <option>Counter</option>
+</select>
+
+<textarea id="dossier" placeholder="Paste FULL documentation reviewed at counter"></textarea>
+
+<!-- ✅ Preguntas en 3 columnas -->
+<div class="questions-container">
+  <div class="column">
+    <!-- Preguntas 1-18 -->
+    <label class="red">1️⃣ Tipo de carga</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Farmacéutica<br>
+      <input type="checkbox"> DG (Dangerous Goods)<br>
+      <input type="checkbox"> Perecederos<br>
+      <input type="checkbox"> Human Remains<br>
+      <input type="checkbox"> General Cargo / Consolidados<br>
+      <input type="checkbox"> Otro
+    </div>
+
+    <label class="green">2️⃣ Quien entrega</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Chofer autorizado<br>
+      <input type="checkbox"> Freight Forwarder<br>
+      <input type="checkbox"> Empresa<br>
+      <input type="checkbox"> Propietario/Dueño
+    </div>
+
+    <label class="yellow">3️⃣ Medio de transporte terrestre</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Camión refrigerado<br>
+      <input type="checkbox"> Camión común<br>
+      <input type="checkbox"> Otro
+    </div>
+
+    <label class="red">4️⃣ Documentación completa</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> MAWB<br>
+      <input type="checkbox"> HAWB<br>
+      <input type="checkbox"> Factura comercial<br>
+      <input type="checkbox"> Packing list<br>
+      <input type="checkbox"> Certificados especiales
+    </div>
+
+    <label class="green">5️⃣ Certificados de seguridad</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> ISPM15<br>
+      <input type="checkbox"> FDA<br>
+      <input type="checkbox"> DG declaration
+    </div>
+
+    <label class="yellow">6️⃣ Embalaje adecuado</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Reforzado<br>
+      <input type="checkbox"> Protecciones internas<br>
+      <input type="checkbox"> Etiquetado correcto
+    </div>
+
+    <label class="red">7️⃣ Etiquetas visibles</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Fragile<br>
+      <input type="checkbox"> DG<br>
+      <input type="checkbox"> Perishable
+    </div>
+
+    <label class="green">8️⃣ Peso declarado</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correcto<br>
+      <input type="checkbox"> Revisar discrepancia
+    </div>
+
+    <label class="yellow">9️⃣ Dimensiones declaradas</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correctas<br>
+      <input type="checkbox"> Revisar diferencias
+    </div>
+
+    <label class="red">10️⃣ Fecha de vuelo</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Confirmada<br>
+      <input type="checkbox"> Revisar cambios
+    </div>
+
+    <label class="green">11️⃣ Tipo de aeronave</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Belly/PAX<br>
+      <input type="checkbox"> Freighter<br>
+      <input type="checkbox"> Combo
+    </div>
+
+    <label class="yellow">12️⃣ Restricciones del país destino</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> DG<br>
+      <input type="checkbox"> Alimentos<br>
+      <input type="checkbox"> Medicamentos
+    </div>
+
+    <label class="red">13️⃣ Seguro de carga</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Incluido<br>
+      <input type="checkbox"> No incluido<br>
+      <input type="checkbox"> Revisar póliza
+    </div>
+
+    <label class="green">14️⃣ Declaración aduanal</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Completa<br>
+      <input type="checkbox"> Faltan documentos
+    </div>
+
+    <label class="yellow">15️⃣ Peso volumétrico</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correcto<br>
+      <input type="checkbox"> Revisar cálculo
+    </div>
+
+    <label class="red">16️⃣ Inspección previa</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Realizada<br>
+      <input type="checkbox"> Pendiente
+    </div>
+
+    <label class="green">17️⃣ Etiquetas de seguridad</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correctas<br>
+      <input type="checkbox"> Faltan
+    </div>
+
+    <label class="yellow">18️⃣ Temperatura requerida</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correcta<br>
+      <input type="checkbox"> Revisar transporte
+    </div>
+  </div>
+
+  <div class="column">
+    <!-- Preguntas 19-36 -->
+    <label class="red">19️⃣ Peso máximo permitido</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Dentro de límites<br>
+      <input type="checkbox"> Excede
+    </div>
+
+    <label class="green">20️⃣ Validación de documentos electrónicos</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Confirmados<br>
+      <input type="checkbox"> Pendientes
+    </div>
+
+    <label class="yellow">21️⃣ Certificados fitosanitarios</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correctos<br>
+      <input type="checkbox"> Revisar
+    </div>
+
+    <label class="red">22️⃣ Verificación de DG</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Confirmada<br>
+      <input type="checkbox"> Revisar declaración
+    </div>
+
+    <label class="green">23️⃣ Comprobante de pago</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Confirmado<br>
+      <input type="checkbox"> Falta
+    </div>
+
+    <label class="yellow">24️⃣ Estado del contenedor</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correcto<br>
+      <input type="checkbox"> Revisar daños
+    </div>
+
+    <label class="red">25️⃣ Pallets asegurados</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Sí<br>
+      <input type="checkbox"> No
+    </div>
+
+    <label class="green">26️⃣ Registro de temperatura</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Incluido<br>
+      <input type="checkbox"> Faltante
+    </div>
+
+    <label class="yellow">27️⃣ Documentos de aduana</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Presentados<br>
+      <input type="checkbox"> Faltan
+    </div>
+
+    <label class="red">28️⃣ Autorizaciones especiales</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Incluidas<br>
+      <input type="checkbox"> Revisar
+    </div>
+
+    <label class="green">29️⃣ Código IATA</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correcto<br>
+      <input type="checkbox"> Revisar
+    </div>
+
+    <label class="yellow">30️⃣ Número de vuelo</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Confirmado<br>
+      <input type="checkbox"> Revisar
+    </div>
+
+    <label class="red">31️⃣ Confirmación del transportista</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Confirmado<br>
+      <input type="checkbox"> Pendiente
+    </div>
+
+    <label class="green">32️⃣ Seguridad en transporte</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Cumplida<br>
+      <input type="checkbox"> Falta
+    </div>
+
+    <label class="yellow">33️⃣ Inspección por TSA/CBP</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Realizada<br>
+      <input type="checkbox"> Pendiente
+    </div>
+
+    <label class="red">34️⃣ Etiquetas de advertencia</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correctas<br>
+      <input type="checkbox"> Faltan
+    </div>
+
+    <label class="green">35️⃣ Integridad del embalaje</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correcta<br>
+      <input type="checkbox"> Revisar
+    </div>
+
+    <label class="yellow">36️⃣ Registro de transportista</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Confirmado<br>
+      <input type="checkbox"> Pendiente
+    </div>
+  </div>
+
+  <div class="column">
+    <!-- Preguntas 37-54 -->
+    <label class="red">37️⃣ Peso total consolidado</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correcto<br>
+      <input type="checkbox"> Revisar
+    </div>
+
+    <label class="green">38️⃣ Certificado sanitario</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Incluido<br>
+      <input type="checkbox"> Faltante
+    </div>
+
+    <label class="yellow">39️⃣ Certificado de origen</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correcto<br>
+      <input type="checkbox"> Faltante
+    </div>
+
+    <label class="red">40️⃣ Documentos de seguro</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Incluidos<br>
+      <input type="checkbox"> Faltante
+    </div>
+
+    <label class="green">41️⃣ Declaración de valor</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correcta<br>
+      <input type="checkbox"> Revisar
+    </div>
+
+    <label class="yellow">42️⃣ Inspección de seguridad</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Realizada<br>
+      <input type="checkbox"> Pendiente
+    </div>
+
+    <label class="red">43️⃣ Verificación de etiquetas especiales</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correctas<br>
+      <input type="checkbox"> Faltan
+    </div>
+
+    <label class="green">44️⃣ Registro de temperatura adicional</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correcto<br>
+      <input type="checkbox"> Revisar
+    </div>
+
+    <label class="yellow">45️⃣ Confirmación de entrega</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Confirmada<br>
+      <input type="checkbox"> Pendiente
+    </div>
+
+    <label class="red">46️⃣ Validación de documentación digital</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correcta<br>
+      <input type="checkbox"> Revisar
+    </div>
+
+    <label class="green">47️⃣ Pallets inspeccionados</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Sí<br>
+      <input type="checkbox"> No
+    </div>
+
+    <label class="yellow">48️⃣ Etiquetas DG visibles</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Sí<br>
+      <input type="checkbox"> No
+    </div>
+
+    <label class="red">49️⃣ Embalaje a prueba de humedad</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Sí<br>
+      <input type="checkbox"> No
+    </div>
+
+    <!-- 5 preguntas adicionales -->
+    <label class="green">50️⃣ Documentos de transporte adicionales</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Incluidos<br>
+      <input type="checkbox"> Faltan
+    </div>
+
+    <label class="yellow">51️⃣ Confirmación de inspección externa</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Realizada<br>
+      <input type="checkbox"> Pendiente
+    </div>
+
+    <label class="red">52️⃣ Validación de permisos especiales</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correctos<br>
+      <input type="checkbox"> Revisar
+    </div>
+
+    <label class="green">53️⃣ Documentos de almacenamiento</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Correctos<br>
+      <input type="checkbox"> Revisar
+    </div>
+
+    <label class="yellow">54️⃣ Confirmación final de carga</label>
+    <div class="checkbox-group">
+      <input type="checkbox"> Confirmada<br>
+      <input type="checkbox"> Pendiente
+    </div>
   </div>
 </div>
 
-<div id="levels"></div>
+<button id="validateBtn" onclick="validate()">Validate Cargo</button>
+<button onclick="clearAll()">🧹 Clear</button>
 
-<div class="actions">
-  <button onclick="submitForm()">Validate Cargo</button>
-  <button onclick="location.reload()">Clear</button>
-  <button onclick="downloadPDF()">Download PDF</button>
-  <button onclick="sendWhatsApp()">Send via WhatsApp</button>
+<div id="result" class="hidden">
+  <h3 id="semaforo"></h3>
+  <div id="analysis" class="analysis-box"></div>
+  <div class="analysis-box" style="margin-top:22px;">
+    <strong>LEGAL & COMPLIANCE NOTICE</strong><br><br>
+    This report was generated by <strong>SMARTCARGO-AIPA by May Roga LLC</strong> as a
+    <strong>preventive, non-binding advisory analysis</strong>.<br><br>
+    This system does not replace decisions of airlines, cargo agents, TSA, CBP, DOT, ICAO, or IATA.<br><br>
+    Final responsibility remains with the user.<br><br>
+  </div>
+  <button onclick="speak()">🔊 Listen</button>
+  <button onclick="sendWhatsApp()">📲 WhatsApp</button>
+  <button onclick="window.print()">📑 PDF</button>
 </div>
 
-<div id="result">
-  <h2 id="semaphore"></h2>
-  <div id="recommendations"></div>
-  <div id="volume-weight"></div>
-</div>
-</div>
+<hr>
+<h3>Admin Login</h3>
+<input id="adminUser" placeholder="Username">
+<input id="adminPass" type="password" placeholder="Password">
+<textarea id="adminQ" placeholder="Ask the AI as Admin"></textarea>
+<button onclick="adminAsk()">Ask AI</button>
+<pre id="adminAnswer"></pre>
 
 <script>
-// ================== DATOS DE LOS NIVELES Y PREGUNTAS ==================
-const levels = [
-  { title:"Level 1 – Identification & Transport", q:[
-    {id:1,text:"Type of cargo"}, {id:2,text:"Delivered by"}, {id:3,text:"Ground transport type"}, {id:4,text:"Cargo condition at receipt"},
-    {id:5,text:"Max pallet/bundle height (cm/in)", type:"dimension"}, {id:6,text:"Max pallet/bundle length (cm/in)", type:"dimension"}, 
-    {id:7,text:"Truck seal present"}, {id:8,text:"Truck cleanliness"}
-  ]},
-  { title:"Level 2 – Documentation", q:[
-    {id:9,text:"Original AWB present"}, {id:10,text:"AWB & document copies"}, {id:11,text:"Document readability"},
-    {id:12,text:"Shipper name consistent"}, {id:13,text:"AWB matches physical cargo"},
-    {id:14,text:"Invoices & packing list organized"}, {id:15,text:"Master / House AWB aligned"}, {id:16,text:"Origin / sanitary seals"}
-  ]},
-  { title:"Level 3 – Pallets & Packaging", q:[
-    {id:17,text:"Pallet type compliant"}, {id:18,text:"Pallet wrapping adequate"}, {id:19,text:"Height compliance"},
-    {id:20,text:"Labels visible"}, {id:21,text:"Cargo segregated"}
-  ]},
-  { title:"Level 4 – Special Cargo Handling", q:[
-    {id:22,text:"Pharma: Temp controlled, SLI, packaging"}, {id:23,text:"DG declaration & labels"}, {id:24,text:"Perishables: Temp & ventilation"},
-    {id:25,text:"Human Remains: Documents & coffin check"}, {id:26,text:"Security & escort if required"}
-  ]},
-  { title:"Level 5 – Final Compliance", q:[
-    {id:27,text:"Weight correctly declared"}, {id:28,text:"Dimensions correctly declared"}, {id:29,text:"No prohibited items"},
-    {id:30,text:"No leaks detected"}, {id:31,text:"Stacking allowed"}, {id:32,text:"ULD compatible"},
-    {id:33,text:"Acceptance checklist complete"}, {id:34,text:"Supervisor approval"}, {id:35,text:"Final compliance confirmed"}
-  ]}
-];
-
-let qId = 1;
-const container = document.getElementById("levels");
-
-// ================== CREACIÓN DE CHECKLIST PLEGABLE ==================
-levels.forEach(lvl=>{
-  const levelDiv = document.createElement("div");
-  levelDiv.className = "level";
-
-  const header = document.createElement("div");
-  header.className = "level-header";
-  header.textContent = lvl.title;
-  header.onclick = ()=> { content.style.display = content.style.display==="block"?"none":"block"; };
-
-  const content = document.createElement("div");
-  content.className = "level-content";
-
-  lvl.q.forEach(q=>{
-    const d = document.createElement("div");
-    d.className="question";
-
-    let html = `<div class="question-title">${qId}. ${q.text}</div><div class="options">`;
-    html += `<label><input type="radio" name="q${qId}" value="ok"> Compliant</label>`;
-    html += `<label><input type="radio" name="q${qId}" value="warn"> Requires Review</label>`;
-    html += `<label><input type="radio" name="q${qId}" value="fail"> Not Compliant</label>`;
-    if(q.type==="dimension"){
-      html += `<br><label>Height (cm): <input type="number" id="height${qId}" min="0"></label>`;
-      html += `<label>Width (cm): <input type="number" id="width${qId}" min="0"></label>`;
-      html += `<label>Length (cm): <input type="number" id="length${qId}" min="0"></label>`;
-    }
-    html += `</div>`;
-    d.innerHTML = html;
-    content.appendChild(d);
-    qId++;
-  });
-
-  levelDiv.appendChild(header);
-  levelDiv.appendChild(content);
-  container.appendChild(levelDiv);
-});
-
-// ================== FUNCIONES ==================
-function submitForm(){
-  const answers = {};
-  document.querySelectorAll("input[type=radio]:checked").forEach(r=>{
-    answers[r.name] = r.value;
-  });
-
-  // Calcular volumen total si hay dimensiones
-  let totalVolume=0, totalWeight=0;
-  for(let i=1;i<qId;i++){
-    const h = parseFloat(document.getElementById(`height${i}`)?.value || 0);
-    const w = parseFloat(document.getElementById(`width${i}`)?.value || 0);
-    const l = parseFloat(document.getElementById(`length${i}`)?.value || 0);
-    if(h && w && l){ totalVolume += h*w*l; } // cm3
-  }
-
-  fetch("/validate",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({answers})
-  })
-  .then(r=>r.json())
-  .then(res=>{
-    document.getElementById("result").style.display="block";
-    const sem=document.getElementById("semaphore");
-    sem.className="";
-    if(res.status==="GREEN"){sem.textContent="🟢 GREEN – ACCEPTED"; sem.classList.add("green");}
-    else if(res.status==="YELLOW"){sem.textContent="🟡 YELLOW – CONDITIONAL"; sem.classList.add("yellow");}
-    else{sem.textContent="🔴 RED – NOT ACCEPTED"; sem.classList.add("red");}
-
-    document.getElementById("recommendations").innerHTML = res.recommendations.join("<br>");
-    document.getElementById("volume-weight").innerHTML = `Total Volume: ${totalVolume.toLocaleString()} cm³`;
-  });
-}
-
-function downloadPDF(){
-  alert("Function to generate PDF will be implemented in next version.");
-}
-
-function sendWhatsApp(){
-  alert("Function to send report via WhatsApp will be implemented in next version.");
-}
+(function generateReportId() {
+  const now = new Date();
+  const id = "SCR-AIPA-" + now.getFullYear() +
+    (now.getMonth()+1).toString().padStart(2,"0") +
+    now.getDate().toString().padStart(2,"0") + "-" +
+    Math.random().toString(36).substring(2,8).toUpperCase();
+  document.getElementById("reportId").innerText =
+    "Report ID: " + id + " · Generated: " + now.toLocaleString();
+})();
 </script>
 
+</div>
 </body>
 </html>
