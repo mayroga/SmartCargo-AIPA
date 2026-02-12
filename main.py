@@ -1,10 +1,10 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import uuid
 
-# Importación de la lógica y modelos desde models.py
-# Asegúrate de que models.py esté en la misma carpeta
+# Importación de la autoridad desde models.py
 from models import (
     CargoAnswer, 
     ValidationResult, 
@@ -14,11 +14,7 @@ from models import (
     get_legal_disclaimer
 )
 
-app = FastAPI(
-    title="SMARTCARGO BY MAY ROGA LLC", 
-    version="2.0",
-    description="Sistema de cumplimiento técnico IATA, CBP, TSA y DOT"
-)
+app = FastAPI(title="SMARTCARGO BY MAY ROGA LLC", version="2.0")
 
 # =========================
 # CONFIGURACIÓN DE SEGURIDAD (CORS)
@@ -31,17 +27,30 @@ app.add_middleware(
 )
 
 # =========================
-# RUTAS DE LA API
+# RUTA RAÍZ (INTERFAZ VISUAL)
 # =========================
+@app.get("/", response_class=HTMLResponse)
+def get_interface():
+    """
+    Esta función permite que al entrar a la URL veas la App, no solo texto.
+    Carga el contenido del index.html directamente.
+    """
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return """
+        <html>
+            <body style='font-family:sans-serif; text-align:center; padding-top:50px;'>
+                <h1 style='color:#d8232a;'>SMARTCARGO BY MAY ROGA LLC</h1>
+                <p>Error: Archivo index.html no encontrado en el servidor.</p>
+            </body>
+        </html>
+        """
 
-@app.get("/")
-def home():
-    """Ruta raíz para verificar que el servicio está LIVE en Render"""
-    return {
-        "service": "SMARTCARGO BY MAY ROGA LLC",
-        "status": "OPERATIONAL",
-        "authority": "IATA/CBP/TSA/DOT compliant"
-    }
+# =========================
+# RUTAS DE DATOS (API)
+# =========================
 
 @app.get("/questions")
 def get_questions():
@@ -50,46 +59,35 @@ def get_questions():
 
 @app.post("/validate", response_model=ValidationResult)
 def validate_cargo(data: CargoAnswer):
-    """
-    Motor de Asesoría: Procesa respuestas y emite un dictamen legal.
-    No permite ambigüedades; si hay un fallo crítico (RED), la carga se detiene.
-    """
-    green = 0
-    yellow = 0
-    red = 0
+    """Motor de Asesoría: Procesa respuestas y emite dictamen legal"""
+    green = yellow = red = 0
     recommendations = []
 
-    # Buscamos cada pregunta de la DB técnica para validar la respuesta del frontend
     for q_item in QUESTIONS_DB:
         q_id = q_item["id"]
-        # Obtenemos la respuesta del usuario para ese ID (por defecto 'fail' si no llega)
         ans_value = data.answers.get(q_id, "fail")
+        desc = q_item["description"]
         
         if ans_value == "ok":
             green += 1
         elif ans_value == "warn":
             yellow += 1
-            recommendations.append(
-                f"OBSERVACIÓN TÉCNICA ({q_id}): {q_item['description']}. Requiere verificación manual."
-            )
+            recommendations.append(f"ADVERTENCIA en {q_id}: {desc}")
         else:
             red += 1
-            recommendations.append(
-                f"RECHAZO CRÍTICO ({q_id}): {q_item['description']}. Acción: Detener recepción de carga."
-            )
+            recommendations.append(f"RECHAZO CRÍTICO en {q_id}: {desc}")
 
-    # Determinar el semáforo final de autoridad
+    # Semáforo de autoridad
     if red > 0:
-        final_status = AlertLevel.RED
-        recommendations.insert(0, "DICTAMEN FINAL: CARGA NO APTA PARA VUELO. Incumplimiento de normativa de seguridad.")
+        status = AlertLevel.RED
+        recommendations.insert(0, "DICTAMEN: CARGA NO APTA. Incumplimiento de seguridad.")
     elif yellow > 0:
-        final_status = AlertLevel.YELLOW
-        recommendations.insert(0, "DICTAMEN FINAL: ACEPTACIÓN CONDICIONADA. Corregir observaciones antes del pesaje.")
+        status = AlertLevel.YELLOW
+        recommendations.insert(0, "DICTAMEN: ACEPTACIÓN CONDICIONADA. Verificar observaciones.")
     else:
-        final_status = AlertLevel.GREEN
-        recommendations.insert(0, "DICTAMEN FINAL: CUMPLIMIENTO TOTAL. Proceder con el embarque y etiquetado.")
+        status = AlertLevel.GREEN
+        recommendations.insert(0, "DICTAMEN: CUMPLIMIENTO TOTAL. Proceder con el embarque.")
 
-    # Construcción del reporte basado en la estructura de models.py
     return ValidationResult(
         report_id=generate_report_id(),
         timestamp=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
@@ -99,18 +97,11 @@ def validate_cargo(data: CargoAnswer):
         green=green,
         yellow=yellow,
         red=red,
-        status=final_status,
+        status=status,
         recommendations=recommendations,
         legal_note=get_legal_disclaimer()
     )
 
 @app.get("/health")
 def health():
-    """Endpoint para monitoreo de Render"""
     return {"status": "ACTIVE", "provider": "SMARTCARGO BY MAY ROGA LLC"}
-
-# =========================
-# NOTA DE EJECUCIÓN
-# =========================
-# Para desarrollo local: uvicorn main:app --reload
-# Para Render (Automático): uvicorn main:app --host 0.0.0.0 --port $PORT
