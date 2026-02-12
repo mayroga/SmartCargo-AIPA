@@ -1,28 +1,34 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Dict, List, Optional
 import uuid
-from typing import Optional, Dict, List
+import os
 
 # =========================
-# APP INSTANCE
+# APP
 # =========================
-app = FastAPI(title="SMARTCARGO-AIPA", version="1.0")
+app = FastAPI(
+    title="SMARTCARGO-AIPA",
+    version="1.0"
+)
 
 # =========================
-# STATIC & TEMPLATES
+# FRONTEND (REAL)
 # =========================
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+FRONTEND_DIR = "frontend"
+INDEX_FILE = os.path.join(FRONTEND_DIR, "index.html")
+
+if os.path.isdir(FRONTEND_DIR):
+    app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
 
 # =========================
-# DATA MODELS
+# MODELS
 # =========================
 class CargoValidation(BaseModel):
-    answers: Dict[str, str]  # {"q1":"ok","q2":"warn","q3":"fail",...}
+    answers: Dict[str, str]   # q1: ok|warn|fail
     operator: Optional[str] = "Unknown"
 
 class ValidationResult(BaseModel):
@@ -40,17 +46,20 @@ class ValidationResult(BaseModel):
 # ROUTES
 # =========================
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    """Render main HTML page"""
-    return templates.TemplateResponse("index.html", {"request": request})
+def root():
+    if not os.path.exists(INDEX_FILE):
+        return HTMLResponse(
+            "<h2>frontend/index.html NOT FOUND</h2>",
+            status_code=500
+        )
+    return FileResponse(INDEX_FILE)
 
 @app.post("/validate", response_model=ValidationResult)
-async def validate_cargo(data: CargoValidation):
-    """Validate cargo answers and return status with recommendations"""
-    total_questions = 49
+def validate_cargo(data: CargoValidation):
+
+    TOTAL_QUESTIONS = 49
     green = yellow = red = 0
 
-    # Count green, yellow, red based on answers
     for value in data.answers.values():
         if value == "ok":
             green += 1
@@ -59,7 +68,9 @@ async def validate_cargo(data: CargoValidation):
         elif value == "fail":
             red += 1
 
-    # Determine overall status
+    # =========================
+    # SEMÁFORO
+    # =========================
     if red > 0:
         status = "RED"
     elif yellow > 0:
@@ -73,7 +84,7 @@ async def validate_cargo(data: CargoValidation):
         report_id=f"SCR-{uuid.uuid4().hex[:8].upper()}",
         timestamp=datetime.utcnow().isoformat(),
         operator=data.operator,
-        total_questions=total_questions,
+        total_questions=TOTAL_QUESTIONS,
         green=green,
         yellow=yellow,
         red=red,
@@ -82,52 +93,56 @@ async def validate_cargo(data: CargoValidation):
     )
 
 # =========================
-# BUSINESS LOGIC
+# LOGIC
 # =========================
 def generate_recommendations(status: str, red: int, yellow: int) -> List[str]:
-    recs: List[str] = []
+    recs = []
 
     if status == "GREEN":
-        recs.extend([
+        recs += [
             "Cargo accepted for processing.",
             "Proceed with build-up and flight planning.",
-            "Maintain current compliance standards."
-        ])
-    elif status == "YELLOW":
-        recs.extend([
-            "Cargo conditionally accepted.",
-            "Review documentation and physical handling issues.",
-            "Supervisor verification recommended before release.",
-            "Re-check temperature, labeling, and segregation if applicable."
-        ])
-    elif status == "RED":
-        recs.extend([
-            "Cargo NOT accepted.",
-            "Immediate corrective action required.",
-            "Isolate cargo and notify supervisor.",
-            "Do not proceed until all critical issues are resolved.",
-            "Document non-compliance per AIPA cargo standards."
-        ])
+            "No operational restrictions detected."
+        ]
 
-    # Risk weighting guidance
+    if status == "YELLOW":
+        recs += [
+            "Cargo conditionally accepted.",
+            "Correct warnings before release.",
+            "Supervisor approval required.",
+            "Re-check labels, documentation, temperature, and segregation."
+        ]
+
+    if status == "RED":
+        recs += [
+            "Cargo NOT accepted.",
+            "Immediate stop of operation.",
+            "Isolate cargo and notify supervisor.",
+            "Correct all critical failures before revalidation.",
+            "Record non-compliance per AIPA / airline procedures."
+        ]
+
     if red >= 3:
-        recs.append("Multiple critical failures detected – escalate to management.")
+        recs.append("Multiple critical failures – escalate to management immediately.")
+
     if yellow >= 5:
-        recs.append("High number of warnings – conduct full secondary inspection.")
+        recs.append("High operational risk – perform full secondary inspection.")
 
     return recs
 
 # =========================
-# HEALTH CHECK
+# HEALTH
 # =========================
 @app.get("/health")
 def health():
-    """Health check endpoint"""
-    return {"status": "OK", "system": "SMARTCARGO-AIPA"}
+    return {
+        "status": "OK",
+        "service": "SMARTCARGO-AIPA"
+    }
 
 # =========================
-# RUN LOCAL SERVER (optional)
+# LOCAL RUN (OPTIONAL)
 # =========================
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
