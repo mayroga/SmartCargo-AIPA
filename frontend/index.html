@@ -2,249 +2,183 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>SMARTCARGO-AIPA | Avianca Cargo</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMARTCARGO-AIPA</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  background: #0b1e33;
-  color: #ffffff;
-  margin: 0;
-}
-header {
-  background: #102a44;
-  padding: 15px;
-  text-align: center;
-}
-h1 { margin: 0; font-size: 22px; }
-h2 { font-size: 18px; margin-top: 30px; }
-
-.container {
-  max-width: 1200px;
-  margin: auto;
-  padding: 20px;
-}
-
-.section {
-  background: #132f4c;
-  margin-bottom: 15px;
-  border-radius: 6px;
-}
-
-.section summary {
-  padding: 15px;
-  font-weight: bold;
-  cursor: pointer;
-  background: #1b4f72;
-}
-
-.section details div {
-  padding: 15px;
-  border-top: 1px solid #1e5f8a;
-}
-
-.question {
-  margin-bottom: 12px;
-}
-
-label {
-  display: block;
-  margin-bottom: 5px;
-}
-
-select, input {
-  width: 100%;
-  padding: 6px;
-  border-radius: 4px;
-  border: none;
-}
-
-.green { color: #2ecc71; }
-.yellow { color: #f1c40f; }
-.red { color: #e74c3c; }
-
-button {
-  padding: 12px;
-  width: 100%;
-  background: #27ae60;
-  color: #fff;
-  border: none;
-  font-size: 16px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-button:hover { background: #2ecc71; }
-
-.result {
-  margin-top: 20px;
-  padding: 15px;
-  background: #0e3a5d;
-  border-radius: 6px;
-}
+body { background-color: #f8f9fa; }
+.accordion-button:not(.collapsed) { background-color: #0d6efd; color: white; }
+.semaforo { font-size: 1.5rem; margin-left: 10px; }
+.recommendation { margin-top: 10px; padding: 10px; border-radius: 5px; background-color: #e9ecef; }
 </style>
 </head>
-
 <body>
+<div class="container my-4">
+  <h1 class="mb-4">SMARTCARGO-AIPA - Validación de Carga</h1>
 
-<header>
-  <h1>SMARTCARGO-AIPA</h1>
-  <div>Pre-Validación Operativa | Avianca Cargo</div>
-</header>
+  <div class="mb-3">
+    <label for="operator" class="form-label">Operador</label>
+    <input type="text" id="operator" class="form-control" placeholder="Nombre del operador">
+  </div>
 
-<div class="container">
+  <div class="accordion" id="accordionQuestions">
+    <!-- ====== Owner ====== -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingOwner">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOwner">
+          Owner / Cliente
+        </button>
+      </h2>
+      <div id="collapseOwner" class="accordion-collapse collapse show" data-bs-parent="#accordionQuestions">
+        <div class="accordion-body" id="ownerQuestions"></div>
+      </div>
+    </div>
+    <!-- ====== Trucker ====== -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingTrucker">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTrucker">
+          Trucker / Chofer
+        </button>
+      </h2>
+      <div id="collapseTrucker" class="accordion-collapse collapse" data-bs-parent="#accordionQuestions">
+        <div class="accordion-body" id="truckerQuestions"></div>
+      </div>
+    </div>
+    <!-- ====== Forwarder ====== -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingForwarder">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseForwarder">
+          Freight Forwarder
+        </button>
+      </h2>
+      <div id="collapseForwarder" class="accordion-collapse collapse" data-bs-parent="#accordionQuestions">
+        <div class="accordion-body" id="forwarderQuestions"></div>
+      </div>
+    </div>
+    <!-- ====== Counter ====== -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingCounter">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCounter">
+          Counter / Operativo
+        </button>
+      </h2>
+      <div id="collapseCounter" class="accordion-collapse collapse" data-bs-parent="#accordionQuestions">
+        <div class="accordion-body" id="counterQuestions"></div>
+      </div>
+    </div>
+    <!-- ====== DG ====== -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingDG">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDG">
+          DG / Mercancías Peligrosas
+        </button>
+      </h2>
+      <div id="collapseDG" class="accordion-collapse collapse" data-bs-parent="#accordionQuestions">
+        <div class="accordion-body" id="dgQuestions"></div>
+      </div>
+    </div>
+    <!-- ====== Misc ====== -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingMisc">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMisc">
+          Misceláneos / Otros
+        </button>
+      </h2>
+      <div id="collapseMisc" class="accordion-collapse collapse" data-bs-parent="#accordionQuestions">
+        <div class="accordion-body" id="miscQuestions"></div>
+      </div>
+    </div>
+  </div>
 
-<!-- ================= OPERATOR ================= -->
-<div class="section">
-<details open>
-<summary>🧑‍✈️ Identificación del Operador</summary>
-<div>
-<label>Nombre del operador</label>
-<input id="operator" placeholder="Nombre y apellido">
+  <div class="mt-3">
+    <button class="btn btn-success" id="validateBtn">Validar Carga</button>
+  </div>
 
-<label>Rol</label>
-<select id="role">
-  <option value="Owner">Owner / Cliente</option>
-  <option value="Trucker">Chofer</option>
-  <option value="Forwarder">Freight Forwarder</option>
-  <option value="Counter">Counter Avianca</option>
-  <option value="DG">Agente DG</option>
-</select>
+  <div class="mt-3">
+    <span>Semáforo:</span><span id="semaforo" class="semaforo">🟢</span>
+  </div>
+
+  <div id="recommendations" class="recommendation"></div>
+
+  <div class="mt-3">
+    <button class="btn btn-primary" id="pdfBtn">Generar PDF</button>
+    <button class="btn btn-info" id="whatsappBtn">Enviar WhatsApp</button>
+  </div>
 </div>
-</details>
-</div>
 
-<!-- ================= DIMENSIONS ================= -->
-<div class="section">
-<details>
-<summary>📦 Dimensiones y Peso (Avianca)</summary>
-<div>
-<label>Altura (cm)</label>
-<input type="number" id="height">
-
-<label>Ancho (cm)</label>
-<input type="number" id="width">
-
-<label>Largo (cm)</label>
-<input type="number" id="length">
-
-<label>Peso (kg)</label>
-<input type="number" id="weight">
-</div>
-</details>
-</div>
-
-<!-- ================= CHECKLIST ================= -->
-<div class="section">
-<details open>
-<summary>✅ Checklist Operativo (49 preguntas)</summary>
-<div id="questions"></div>
-</details>
-</div>
-
-<button onclick="validate()">VALIDAR CARGA</button>
-
-<div class="result" id="result"></div>
-
-</div>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-const questions = [
-  {id:1, text:"Tipo de carga correctamente declarada", role:"Owner"},
-  {id:2, text:"Quien entrega identificado", role:"Owner"},
-  {id:3, text:"Camión adecuado para la carga", role:"Trucker"},
-  {id:4, text:"Carga organizada y segregada", role:"Trucker"},
-  {id:5, text:"Altura dentro de límites", role:"Counter"},
-  {id:6, text:"Largo dentro de límites", role:"Counter"},
-  {id:7, text:"Sello del camión presente", role:"Trucker"},
-  {id:8, text:"Camión limpio", role:"Trucker"},
-  {id:9, text:"AWB original presente", role:"Forwarder"},
-  {id:10, text:"AWB legible y sin tachaduras", role:"Forwarder"},
-  {id:11, text:"Shipper coincide con factura", role:"Forwarder"},
-  {id:12, text:"AWB coincide con carga física", role:"Counter"},
-  {id:13, text:"Facturas y packing list completos", role:"Forwarder"},
-  {id:14, text:"House / Master AWB alineados", role:"Forwarder"},
-  {id:15, text:"Sellos sanitarios correctos", role:"Counter"},
-  {id:16, text:"Tipo de pallet adecuado", role:"Trucker"},
-  {id:17, text:"Pallet envuelto correctamente", role:"Trucker"},
-  {id:18, text:"Etiquetas visibles", role:"Counter"},
-  {id:19, text:"No mezcla de mercancías", role:"Counter"},
-  {id:20, text:"Carga estable", role:"Counter"},
-  {id:21, text:"Clasificación Pharma correcta", role:"Forwarder"},
-  {id:22, text:"Rango de temperatura declarado", role:"Forwarder"},
-  {id:23, text:"Dry ice declarado y etiquetado", role:"DG"},
-  {id:24, text:"SLI firmado", role:"Forwarder"},
-  {id:25, text:"Packaging validado", role:"Counter"},
-  {id:26, text:"MSDS presente (si aplica)", role:"DG"},
-  {id:27, text:"Temperatura registrada", role:"Trucker"},
-  {id:28, text:"Fechas de caducidad legibles", role:"Counter"},
-  {id:29, text:"DG declarado en AWB", role:"DG"},
-  {id:30, text:"Clase DG correcta", role:"DG"},
-  {id:31, text:"DGD firmada", role:"DG"},
-  {id:32, text:"Embalaje UN aprobado", role:"DG"},
-  {id:33, text:"Labels DG visibles", role:"DG"},
-  {id:34, text:"DG no mezclado", role:"DG"},
-  {id:35, text:"Fragile visible", role:"Counter"},
-  {id:36, text:"Tipo perecedero identificado", role:"Forwarder"},
-  {id:37, text:"Temperatura cumplida", role:"Counter"},
-  {id:38, text:"Ventilación adecuada", role:"Counter"},
-  {id:39, text:"Tiempo de tránsito compatible", role:"Forwarder"},
-  {id:40, text:"Docs Human Remains completos", role:"Forwarder"},
-  {id:41, text:"Ataúd conforme", role:"Counter"},
-  {id:42, text:"AWB Human Remains correcta", role:"Counter"},
-  {id:43, text:"Packing list separado", role:"Forwarder"},
-  {id:44, text:"Facturas organizadas", role:"Forwarder"},
-  {id:45, text:"Peso coincide con docs", role:"Counter"},
-  {id:46, text:"Docs consolidados correctos", role:"Forwarder"},
-  {id:47, text:"Apto belly cargo", role:"Counter"},
-  {id:48, text:"No mezcla con DG/PER", role:"Counter"},
-  {id:49, text:"Checklist completo", role:"Counter"}
-];
+const apiBase = "http://localhost:8000"; // Cambiar al deploy real
+let questions = [];
 
-const qDiv = document.getElementById("questions");
+async function loadQuestions() {
+  const res = await fetch(`${apiBase}/questions`);
+  questions = await res.json();
+  renderQuestions();
+}
 
-questions.forEach(q => {
-  qDiv.innerHTML += `
-    <div class="question">
-      <label>${q.id}. ${q.text} <small>(${q.role})</small></label>
-      <select id="q${q.id}">
-        <option value="green">🟢 Cumple</option>
-        <option value="yellow">🟡 Revisar</option>
-        <option value="red">🔴 No cumple</option>
-      </select>
-    </div>`;
-});
+function renderQuestions() {
+  const containers = {
+    Owner: document.getElementById("ownerQuestions"),
+    Trucker: document.getElementById("truckerQuestions"),
+    Forwarder: document.getElementById("forwarderQuestions"),
+    Counter: document.getElementById("counterQuestions"),
+    DG: document.getElementById("dgQuestions"),
+    Misc: document.getElementById("miscQuestions")
+  };
 
-function validate() {
-  const answers = questions.map(q => ({
-    question_id: q.id,
-    value: document.getElementById("q"+q.id).value,
-    role: q.role
-  }));
+  Object.values(containers).forEach(c => c.innerHTML = "");
 
-  fetch("/validate", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      operator: document.getElementById("operator").value,
-      role: document.getElementById("role").value,
-      answers: answers,
-      dimensions: {
-        height: Number(height.value),
-        width: Number(width.value),
-        length: Number(length.value),
-        weight: Number(weight.value)
-      }
-    })
-  })
-  .then(r=>r.json())
-  .then(data=>{
-    document.getElementById("result").innerHTML =
-      `<h3>Resultado: ${data.final_status}</h3>
-       <pre>${JSON.stringify(data, null, 2)}</pre>`;
+  questions.forEach(q => {
+    const div = document.createElement("div");
+    div.className = "mb-2";
+    let inputHtml = '';
+    if(q.type === "boolean") {
+      inputHtml = `<select class="form-select" data-qid="${q.id}">
+                     <option value="">Seleccione</option>
+                     <option value="ok">✔ Cumple</option>
+                     <option value="fail">❌ No cumple</option>
+                   </select>`;
+    } else {
+      inputHtml = `<input type="${q.type}" class="form-control" data-qid="${q.id}" placeholder="Respuesta">`;
+    }
+    div.innerHTML = `<label>${q.question} (${q.role})</label>${inputHtml}`;
+    containers[q.role].appendChild(div);
   });
 }
-</script>
 
+async function validateCargo() {
+  const answers = {};
+  document.querySelectorAll('[data-qid]').forEach(el => {
+    let val = el.value;
+    if(val) answers[el.dataset.qid] = val;
+  });
+
+  const operator = document.getElementById("operator").value || "Unknown";
+
+  const res = await fetch(`${apiBase}/validate`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({answers, operator})
+  });
+
+  const result = await res.json();
+  updateUI(result);
+}
+
+function updateUI(result) {
+  const semaforoEl = document.getElementById("semaforo");
+  if(result.status === "GREEN") semaforoEl.textContent = "🟢";
+  else if(result.status === "YELLOW") semaforoEl.textContent = "🟡";
+  else semaforoEl.textContent = "🔴";
+
+  const recsEl = document.getElementById("recommendations");
+  recsEl.innerHTML = result.recommendations.join("<br>");
+}
+
+document.getElementById("validateBtn").addEventListener("click", validateCargo);
+
+loadQuestions();
+</script>
 </body>
 </html>
