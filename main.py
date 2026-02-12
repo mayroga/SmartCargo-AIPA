@@ -2,13 +2,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from typing import Dict
+from typing import Dict, Optional, List
 from datetime import datetime
-import uuid
+from uuid import uuid4
 
 from models import (
-    CargoAnswer,
-    ValidationResult,
     AlertLevel,
     CargoType,
     QUESTIONS_DB,
@@ -17,11 +15,14 @@ from models import (
     get_legal_disclaimer
 )
 
-app = FastAPI(title="SMARTCARGO BY MAY ROGA LLC", version="3.0")
+# ======================================================
+# APP
+# ======================================================
+app = FastAPI(
+    title="SMARTCARGO – Audit Ready Cargo Validation",
+    version="4.1"
+)
 
-# =========================
-# CORS
-# =========================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,85 +30,200 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# =========================
-# FRONTEND INTEGRADO
-# =========================
+# ======================================================
+# FRONTEND
+# ======================================================
 HTML_CONTENT = open("frontend/index.html", "r", encoding="utf-8").read()
 
 @app.get("/", response_class=HTMLResponse)
 def root():
     return HTML_CONTENT
 
-# =========================
-# API PARA PREGUNTAS
-# =========================
+# ======================================================
+# MODELOS AUDIT / IA
+# ======================================================
+class AuditLog(BaseModel):
+    audit_id: str
+    timestamp: str
+    airline: str
+    role: str
+    cargo_type: str
+    decision: str
+    message: str
+    applied_rules: Dict[str, str]
+
+class AIObservation(BaseModel):
+    observation: str
+    risk_level: str
+
+# ======================================================
+# REQUEST PRINCIPAL
+# ======================================================
+class CargoRequest(BaseModel):
+    cargo_type: str
+    answers: Dict[str, str]
+    role: str = "COUNTER"
+    airline: str = "AVIANCA"
+    temperature_c: Optional[float] = None
+    weight_kg: Optional[float] = None
+    volume_m3: Optional[float] = None
+
+# ======================================================
+# VALIDACIONES BASE (CORE – NO AEROLÍNEA)
+# ======================================================
+def validate_identity(role: str) -> AlertLevel:
+    return AlertLevel.GREEN if role else AlertLevel.RED
+
+def validate_documents(answers: Dict[str, str]) -> AlertLevel:
+    if any(v == "RED" for v in answers.values()):
+        return AlertLevel.RED
+    if any(v == "YELLOW" for v in answers.values()):
+        return AlertLevel.YELLOW
+    return AlertLevel.GREEN
+
+def validate_physical_conditions(data: CargoRequest) -> AlertLevel:
+    if data.weight_kg and data.volume_m3:
+        density = data.weight_kg / max(data.volume_m3, 0.01)
+        if density > 300:
+            return AlertLevel.YELLOW
+    return AlertLevel.GREEN
+
+# ======================================================
+# REGLAS AVIANA CARGO (AISLADAS)
+# ======================================================
+def avianca_rules(data: CargoRequest) -> AlertLevel:
+
+    # Perecederos – temperatura
+    if data.cargo_type == "PERISHABLE" and data.temperature_c is not None:
+        if data.temperature_c > 8:
+            return AlertLevel.YELLOW
+
+    # COMAT – solo personal autorizado
+    if data.cargo_type == "COMAT" and data.role != "SUPERVISOR":
+        return AlertLevel.RED
+
+    # DG – densidad sospechosa
+    if data.cargo_type == "DG" and data.weight_kg and data.volume_m3:
+        if (data.weight_kg / max(data.volume_m3, 0.01)) > 400:
+            return AlertLevel.YELLOW
+
+    # Express – prioridad
+    if data.cargo_type == "EXPRESS":
+        if any(v == "RED" for v in data.answers.values()):
+            return AlertLevel.RED
+
+    return AlertLevel.GREEN
+
+def apply_airline_rules(data: CargoRequest) -> AlertLevel:
+    if data.airline.upper() == "AVIANCA":
+        return avianca_rules(data)
+    return AlertLevel.GREEN
+
+# ======================================================
+# DECISIÓN FINAL (NO IA)
+# ======================================================
+def final_decision(results: List[AlertLevel]):
+    if AlertLevel.RED in results:
+        return AlertLevel.RED, "Carga NO APTA – incumplimiento crítico"
+    if AlertLevel.YELLOW in results:
+        return AlertLevel.YELLOW, "Carga APTA CON OBSERVACIONES"
+    return AlertLevel.GREEN, "Carga APTA – cumplimiento total"
+
+# ======================================================
+# IA SOLO OBSERVACIONES (NO DECIDE)
+# ======================================================
+def ai_observation_layer(data: CargoRequest) -> Optional[AIObservation]:
+    notes = []
+
+    if data.cargo_type == "PERISHABLE" and data.temperature_c:
+        if data.temperature_c > 8:
+            notes.append("Posible degradación térmica del producto")
+
+    if data.weight_kg and data.volume_m3:
+        if (data.weight_kg / max(data.volume_m3, 0.01)) > 250:
+            notes.append("Alta densidad: posible inspección adicional")
+
+    if not notes:
+        return None
+
+    return AIObservation(
+        observation=" | ".join(notes),
+        risk_level="INFORMATIVO"
+    )
+
+# ======================================================
+# AUDIT LOG
+# ======================================================
+def generate_audit_log(
+    data: CargoRequest,
+    decision: AlertLevel,
+    message: str,
+    rules: Dict[str, str]
+) -> AuditLog:
+    return AuditLog(
+        audit_id=str(uuid4()),
+        timestamp=datetime.utcnow().isoformat() + "Z",
+        airline=data.airline,
+        role=data.role,
+        cargo_type=data.cargo_type,
+        decision=decision.value,
+        message=message,
+        applied_rules=rules
+    )
+
+# ======================================================
+# API PREGUNTAS
+# ======================================================
 @app.get("/get_questions/{cargo_type}")
-def api_get_questions(cargo_type: str):
+def get_questions(cargo_type: str):
     try:
         cargo_enum = CargoType[cargo_type]
     except KeyError:
         raise HTTPException(status_code=400, detail="Tipo de carga inválido")
-    questions = get_questions_by_type(cargo_enum)
-    return questions
+    return get_questions_by_type(cargo_enum)
 
-# =========================
-# API PARA VALIDACIÓN
-# =========================
-class CargoAnswerRequest(BaseModel):
-    cargo_type: str
-    answers: Dict[str, str]
-    operator: str = "Counter_Default"
+# ======================================================
+# ENDPOINT FINAL PRO
+# ======================================================
+@app.post("/validate-cargo")
+def validate_cargo(data: CargoRequest):
 
-@app.post("/validate_cargo")
-def validate_cargo(data: CargoAnswerRequest):
-    cargo_enum = CargoType[data.cargo_type] if data.cargo_type in CargoType.__members__ else CargoType.GENERAL
-    questions = get_questions_by_type(cargo_enum)
+    rules_applied = {}
+    checks = []
 
-    green = yellow = red = 0
-    recommendations = []
+    checks.append(validate_identity(data.role))
+    rules_applied["identity"] = "validated"
 
-    for q in questions:
-        qid = q["id"]
-        ans = data.answers.get(qid, "RED")  # default = RED si no responde
-        desc = q["description"]
+    checks.append(validate_documents(data.answers))
+    rules_applied["documents"] = "checked"
 
-        if ans.upper() == "GREEN":
-            green += 1
-        elif ans.upper() == "YELLOW":
-            yellow += 1
-            recommendations.append(f"OBSERVACIÓN en {qid}: {desc}")
-        else:
-            red += 1
-            recommendations.append(f"RECHAZO CRÍTICO en {qid}: {desc}")
+    checks.append(validate_physical_conditions(data))
+    rules_applied["physical_conditions"] = "evaluated"
 
-    # Determinar nivel de alerta global
-    if red > 0:
-        status = AlertLevel.RED
-        recommendations.insert(0, "DICTAMEN: CARGA NO APTA. Incumplimiento de seguridad.")
-    elif yellow > 0:
-        status = AlertLevel.YELLOW
-        recommendations.insert(0, "DICTAMEN: ACEPTACIÓN CONDICIONADA. Verificar observaciones.")
-    else:
-        status = AlertLevel.GREEN
-        recommendations.insert(0, "DICTAMEN: CUMPLIMIENTO TOTAL. Proceder con el embarque.")
+    airline_result = apply_airline_rules(data)
+    checks.append(airline_result)
+    rules_applied["avianca_rules"] = "applied"
 
-    result = ValidationResult(
-        report_id=generate_report_id(),
-        timestamp=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
-        operator=data.operator,
-        cargo_type=cargo_enum.value,
-        total_questions=len(questions),
-        green=green,
-        yellow=yellow,
-        red=red,
-        status=status,
-        recommendations=recommendations,
-        legal_note=get_legal_disclaimer()
+    decision, message = final_decision(checks)
+
+    audit_log = generate_audit_log(
+        data=data,
+        decision=decision,
+        message=message,
+        rules=rules_applied
     )
 
-    return result
+    ai_notes = ai_observation_layer(data)
 
-# =========================
-# RUN INSTRUCTIONS
-# =========================
+    return {
+        "decision": decision.value,
+        "message": message,
+        "audit_log": audit_log,
+        "ai_observation": ai_notes,
+        "legal_note": get_legal_disclaimer()
+    }
+
+# ======================================================
+# RUN
+# ======================================================
 # uvicorn main:app --reload
