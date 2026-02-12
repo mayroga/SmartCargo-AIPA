@@ -1,148 +1,159 @@
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Dict, List, Optional
 import uuid
-import os
+from typing import Dict, List
 
-# =========================
-# APP
-# =========================
 app = FastAPI(
     title="SMARTCARGO-AIPA",
-    version="1.0"
+    version="2.0",
+    description="Operational Cargo Pre-Validation System"
 )
 
-# =========================
-# FRONTEND (REAL)
-# =========================
-FRONTEND_DIR = "frontend"
-INDEX_FILE = os.path.join(FRONTEND_DIR, "index.html")
+# ===============================
+# STATIC FRONTEND
+# ===============================
+app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 
-if os.path.isdir(FRONTEND_DIR):
-    app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+@app.get("/", response_class=HTMLResponse)
+def load_frontend():
+    with open("frontend/index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
-# =========================
-# MODELS
-# =========================
-class CargoValidation(BaseModel):
-    answers: Dict[str, str]   # q1: ok|warn|fail
-    operator: Optional[str] = "Unknown"
+# ===============================
+# DATA MODELS
+# ===============================
+class Answer(BaseModel):
+    question_id: int
+    value: str  # green | yellow | red
+    role: str
+
+class ValidationPayload(BaseModel):
+    operator: str
+    role: str
+    answers: List[Answer]
+    dimensions: Dict[str, float] | None = None  # height, width, length, weight
 
 class ValidationResult(BaseModel):
     report_id: str
     timestamp: str
     operator: str
-    total_questions: int
-    green: int
-    yellow: int
-    red: int
-    status: str
-    recommendations: List[str]
+    final_status: str
+    counts: Dict[str, int]
+    actions: List[str]
 
-# =========================
-# ROUTES
-# =========================
-@app.get("/", response_class=HTMLResponse)
-def root():
-    if not os.path.exists(INDEX_FILE):
-        return HTMLResponse(
-            "<h2>frontend/index.html NOT FOUND</h2>",
-            status_code=500
-        )
-    return FileResponse(INDEX_FILE)
-
+# ===============================
+# CORE VALIDATION
+# ===============================
 @app.post("/validate", response_model=ValidationResult)
-def validate_cargo(data: CargoValidation):
+def validate_cargo(payload: ValidationPayload):
 
-    TOTAL_QUESTIONS = 49
     green = yellow = red = 0
 
-    for value in data.answers.values():
-        if value == "ok":
+    for ans in payload.answers:
+        if ans.value == "green":
             green += 1
-        elif value == "warn":
+        elif ans.value == "yellow":
             yellow += 1
-        elif value == "fail":
+        elif ans.value == "red":
             red += 1
 
-    # =========================
-    # SEMÁFORO
-    # =========================
+    # ===============================
+    # SEMÁFORO OPERATIVO
+    # ===============================
     if red > 0:
-        status = "RED"
+        final_status = "RED"
     elif yellow > 0:
-        status = "YELLOW"
+        final_status = "YELLOW"
     else:
-        status = "GREEN"
+        final_status = "GREEN"
 
-    recommendations = generate_recommendations(status, red, yellow)
-
-    return ValidationResult(
-        report_id=f"SCR-{uuid.uuid4().hex[:8].upper()}",
-        timestamp=datetime.utcnow().isoformat(),
-        operator=data.operator,
-        total_questions=TOTAL_QUESTIONS,
-        green=green,
-        yellow=yellow,
+    actions = generate_actions(
+        final_status=final_status,
+        payload=payload,
         red=red,
-        status=status,
-        recommendations=recommendations
+        yellow=yellow
     )
 
-# =========================
-# LOGIC
-# =========================
-def generate_recommendations(status: str, red: int, yellow: int) -> List[str]:
-    recs = []
+    return ValidationResult(
+        report_id=f"AIPA-{uuid.uuid4().hex[:8].upper()}",
+        timestamp=datetime.utcnow().isoformat(),
+        operator=payload.operator,
+        final_status=final_status,
+        counts={
+            "green": green,
+            "yellow": yellow,
+            "red": red,
+            "total": len(payload.answers)
+        },
+        actions=actions
+    )
 
-    if status == "GREEN":
-        recs += [
-            "Cargo accepted for processing.",
-            "Proceed with build-up and flight planning.",
-            "No operational restrictions detected."
-        ]
+# ===============================
+# BUSINESS LOGIC (AVIATION REAL)
+# ===============================
+def generate_actions(final_status: str, payload: ValidationPayload, red: int, yellow: int) -> List[str]:
+    actions = []
 
-    if status == "YELLOW":
-        recs += [
-            "Cargo conditionally accepted.",
-            "Correct warnings before release.",
-            "Supervisor approval required.",
-            "Re-check labels, documentation, temperature, and segregation."
-        ]
+    if final_status == "GREEN":
+        actions.append("🟢 Carga aprobada para recepción en Avianca Cargo.")
+        actions.append("Proceder a aceptación en counter.")
+        actions.append("Registrar evidencia y continuar flujo normal.")
 
-    if status == "RED":
-        recs += [
-            "Cargo NOT accepted.",
-            "Immediate stop of operation.",
-            "Isolate cargo and notify supervisor.",
-            "Correct all critical failures before revalidation.",
-            "Record non-compliance per AIPA / airline procedures."
-        ]
+    if final_status == "YELLOW":
+        actions.append("🟡 Carga con observaciones.")
+        actions.append("Revisión obligatoria antes de embarque.")
+        actions.append("Counter debe verificar documentación y medidas.")
+        actions.append("Supervisor recomendado.")
 
+    if final_status == "RED":
+        actions.append("🔴 CARGA RECHAZADA.")
+        actions.append("NO aceptar en counter.")
+        actions.append("Aislar la carga.")
+        actions.append("Notificar inmediatamente a:")
+        actions.append("- Freight Forwarder")
+        actions.append("- Agente DG (si aplica)")
+        actions.append("- Supervisor de Operaciones")
+
+    # ===============================
+    # DIMENSIONES AVIATION
+    # ===============================
+    dims = payload.dimensions
+    if dims:
+        h = dims.get("height", 0)
+        w = dims.get("width", 0)
+        l = dims.get("length", 0)
+
+        volume = round((h * w * l) / 1_000_000, 3)
+        actions.append(f"📦 Volumen calculado: {volume} m³")
+
+        if h > 80:
+            actions.append("❌ Altura excede límite PAX (80 cm). Reubicar a carguero.")
+        if h > 244:
+            actions.append("❌ Altura excede Main Deck A330F. Rechazo técnico.")
+        if l > 300:
+            actions.append("⚠️ Carga larga. Requiere aprobación de Ingeniería.")
+
+    # ===============================
+    # ESCALATION RULES
+    # ===============================
     if red >= 3:
-        recs.append("Multiple critical failures – escalate to management immediately.")
-
+        actions.append("🚨 Fallas críticas múltiples. Escalamiento obligatorio a gerencia.")
     if yellow >= 5:
-        recs.append("High operational risk – perform full secondary inspection.")
+        actions.append("⚠️ Alto número de observaciones. Inspección secundaria completa.")
 
-    return recs
+    return actions
 
-# =========================
-# HEALTH
-# =========================
+# ===============================
+# HEALTH CHECK
+# ===============================
 @app.get("/health")
 def health():
     return {
         "status": "OK",
-        "service": "SMARTCARGO-AIPA"
+        "system": "SMARTCARGO-AIPA",
+        "mode": "Operational",
+        "timestamp": datetime.utcnow().isoformat()
     }
-
-# =========================
-# LOCAL RUN (OPTIONAL)
-# =========================
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000)
