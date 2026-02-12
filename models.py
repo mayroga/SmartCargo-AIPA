@@ -2,39 +2,69 @@ from typing import List, Dict, Optional
 from enum import Enum
 from datetime import datetime
 import uuid
+from pydantic import BaseModel
 
-# =========================
+# ======================================================
 # ENUMS PRINCIPALES
-# =========================
+# ======================================================
+
+class Role(str, Enum):
+    shipper = "SHIPPER"
+    forwarder = "FORWARDER"
+    trucker = "TRUCKER"
+    owner = "OWNER"
+    counter = "COUNTER"
+    supervisor = "SUPERVISOR"
 
 class CargoType(str, Enum):
-    GENERAL = "General Cargo"
-    DG = "Dangerous Goods"
-    PERISHABLE = "Perishable"
-    LIVE_ANIMALS = "Live Animals"
-    EXPRESS = "Express Cargo"
-    PASSENGER_BAGGAGE = "Passenger Baggage"
-    MAIL = "Mail"
-    COMAT = "COMAT (Company Material)"
+    general = "GENERAL"
+    pharma = "PHARMA"
+    dg = "DG"
+    valuable = "VALUABLE"
+    perishable = "PERISHABLE"
+    live_animals = "LIVE_ANIMALS"
+    express = "EXPRESS"
+    comat = "COMAT"
 
 class AlertLevel(str, Enum):
     GREEN = "APTO"
     YELLOW = "OBSERVACIÓN"
     RED = "RECHAZO"
 
-# =========================
+class DecisionLevel(str, Enum):
+    green = "GREEN"
+    yellow = "YELLOW"
+    red = "RED"
+
+# ======================================================
 # MODELOS DE DATOS
-# =========================
+# ======================================================
 
-class CargoAnswer:
+class CargoAnswer(BaseModel):
     """
-    Estructura para recibir respuestas de la interfaz.
+    Estructura para recibir respuestas de la interfaz web.
     """
-    answers: Dict[str, str]  # {question_id: "ok"|"warn"|"fail"}
+    answers: Dict[str, str]  # {question_id: "GREEN"|"YELLOW"|"RED"}
     operator: Optional[str] = "Counter_Default"
-    cargo_type: CargoType = CargoType.GENERAL
+    cargo_type: CargoType = CargoType.general
 
-class ValidationResult:
+class CargoRequest(BaseModel):
+    """
+    Request completo para validación de carga y reglas Avianca.
+    """
+    role: Role
+    cargo_type: CargoType
+    documents: List[str]
+    weight_kg: float
+    volume_m3: float
+    temperature_c: Optional[float] = None
+    packaging_ok: bool
+    labels_ok: bool
+    seals_ok: bool
+    answers: Optional[Dict[str, str]] = None
+    airline: Optional[str] = "AVIANCA"
+
+class ValidationResult(BaseModel):
     """
     Estructura de respuesta tras validar la carga.
     """
@@ -50,9 +80,9 @@ class ValidationResult:
     recommendations: List[str]
     legal_note: str
 
-# =========================
+# ======================================================
 # FUNCIONES DE UTILIDAD
-# =========================
+# ======================================================
 
 def generate_report_id() -> str:
     return str(uuid.uuid4()).split('-')[0].upper()
@@ -63,9 +93,9 @@ def get_legal_disclaimer() -> str:
         "CBP, DOT y TSA. No sustituye inspecciones físicas obligatorias ni responsabilidades legales de la aerolínea."
     )
 
-# =========================
+# ======================================================
 # BASE DE PREGUNTAS (40+)
-# =========================
+# ======================================================
 
 QUESTIONS_DB = [
     # 1-10: DOCUMENTACIÓN Y AWB
@@ -117,21 +147,17 @@ QUESTIONS_DB = [
     {"id": "q40", "description": "Todos los procedimientos cumplen con normas internas de Avianca Cargo.", "tip": "Airline SOP", "authority": "Avianca"},
 ]
 
-# =========================
-# EXTENSIÓN: FUNCIONES PARA FUTURO CRECIMIENTO
-# =========================
-
+# ======================================================
+# FILTRO DE PREGUNTAS POR TIPO DE CARGA
+# ======================================================
 def get_questions_by_type(cargo_type: CargoType) -> List[Dict]:
-    """
-    Filtra preguntas relevantes según tipo de carga.
-    """
-    if cargo_type == CargoType.DG:
+    if cargo_type == CargoType.dg:
         return [q for q in QUESTIONS_DB if "DG" in q["tip"] or "Dangerous" in q["description"]]
-    elif cargo_type == CargoType.PERISHABLE or cargo_type == CargoType.LIVE_ANIMALS:
+    elif cargo_type in [CargoType.perishable, CargoType.live_animals]:
         return [q for q in QUESTIONS_DB if "Live Animals" in q["tip"] or "refrigerado" in q["description"].lower()]
-    elif cargo_type == CargoType.EXPRESS:
+    elif cargo_type == CargoType.express:
         return [q for q in QUESTIONS_DB if "Express" in q["tip"] or "express" in q["description"].lower()]
-    elif cargo_type == CargoType.COMAT:
+    elif cargo_type == CargoType.comat:
         return [q for q in QUESTIONS_DB if "COMAT" in q["description"]]
     else:
         return QUESTIONS_DB
