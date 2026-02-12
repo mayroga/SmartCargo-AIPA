@@ -15,8 +15,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # ---------------- ENVIRONMENT VARIABLES ----------------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "SmartCargo2026")
 
 # ---------------- LEGAL & COMPLIANCE TEXT ----------------
 LEGAL_TEXT = {
@@ -138,15 +136,9 @@ def validate(
         "disclaimer": LEGAL_TEXT.get(lang, LEGAL_TEXT["English"])
     })
 
-# ---------------- ADMIN LOGIN (AL FINAL) ----------------
+# ---------------- ADMIN ASK SIN LOGIN ----------------
 @app.post("/admin")
-def admin(
-    username: str = Form(...),
-    password: str = Form(...),
-    question: str = Form(...)
-):
-    if username != ADMIN_USERNAME or password != ADMIN_PASSWORD:
-        return JSONResponse({"answer": "Access Denied"}, status_code=401)
-
+def admin(question: str = Form(...)):
+    # Ya no pide username/password
     answer = run_openai(question) or run_gemini(question) or "Service unavailable"
     return {"answer": answer}
