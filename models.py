@@ -1,17 +1,17 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
+from typing import List, Dict, Optional
 from enum import Enum
 from datetime import datetime
 import uuid
 
 # =========================
-# ESTÁNDARES DE AUTORIDAD
+# ENUMS
 # =========================
 
 class AlertLevel(str, Enum):
-    GREEN = "GREEN - LISTA PARA VUELO"
-    YELLOW = "YELLOW - ACEPTACIÓN CONDICIONADA"
-    RED = "RED - CARGA NO APTA"
+    GREEN = "CUMPLE - LISTA PARA VUELO"
+    YELLOW = "OBSERVACIÓN - ACEPTACIÓN CONDICIONADA"
+    RED = "RECHAZO - CARGA NO APTA"
 
 class CargoType(str, Enum):
     GENERAL = "General Cargo"
@@ -22,19 +22,20 @@ class CargoType(str, Enum):
     LIVE_ANIMALS = "Live Animals"
 
 # =========================
-# MODELOS DE ENTRADA / SALIDA
+# MODELOS
 # =========================
 
 class CargoAnswer(BaseModel):
-    """Datos recibidos desde el Frontend"""
-    answers: Dict[str, str] = Field(
-        ..., example={"q1": "ok", "q7": "fail"}
-    )
+    answers: Dict[str, str] = Field(..., example={"q1":"ok","q7":"fail"})
     operator: Optional[str] = "Counter_Default"
     cargo_type: CargoType = CargoType.GENERAL
+    length: Optional[float] = 0
+    width: Optional[float] = 0
+    height: Optional[float] = 0
+    weight_declared: Optional[float] = 0
+    weight_real: Optional[float] = 0
 
 class ValidationResult(BaseModel):
-    """Reporte técnico profesional"""
     report_id: str
     timestamp: str
     operator: str
@@ -46,148 +47,21 @@ class ValidationResult(BaseModel):
     status: AlertLevel
     recommendations: List[str]
     legal_note: str
+    chargeable_weight: float
+    verified_weight: float
+    weight_adjustment: float
 
 # =========================
-# MODELOS FÍSICOS (OPCIONAL)
-# =========================
-
-class Dimensions(BaseModel):
-    height_cm: float
-    width_cm: float
-    length_cm: float
-    weight_kg: float
-
-    @property
-    def volume_cbm(self) -> float:
-        return round(
-            (self.height_cm * self.width_cm * self.length_cm) / 1_000_000,
-            3
-        )
-
-    @property
-    def pax_height_ok(self) -> bool:
-        return self.height_cm <= 80
-
-# =========================
-# LÍMITES AERONÁUTICOS
-# =========================
-
-AVIATION_LIMITS = {
-    "NARROW_BODY": {
-        "max_height_cm": 80,
-        "aircraft": ["A319", "A320", "A321"],
-        "authority": "Avianca Cargo GOM"
-    },
-    "WIDE_BODY_LOWER": {
-        "max_height_cm": 160,
-        "aircraft": ["A330", "A330F"],
-        "authority": "IATA ULD Regulations"
-    }
-}
-
-# =========================
-# BASE DE CONOCIMIENTO SMARTCARGO
+# PREGUNTAS BASE
 # =========================
 
 QUESTIONS_DB = [
-    {
-        "id": "q1",
-        "category": "DOCS",
-        "description": "MAWB original legible + 3 copias",
-        "tip": "Documento base para aceptación y archivo de estación.",
-        "authority": "CBP / Avianca"
-    },
-    {
-        "id": "q2",
-        "category": "DOCS",
-        "description": "HMAWB y Manifiesto coinciden 100%",
-        "tip": "Discrepancias generan multas AMS.",
-        "authority": "CBP AMS"
-    },
-    {
-        "id": "q3",
-        "category": "DOCS",
-        "description": "Factura Comercial y Packing List",
-        "tip": "Indispensable para valoración aduanera.",
-        "authority": "IATA"
-    },
-    {
-        "id": "q4",
-        "category": "CBP",
-        "description": "EIN / Tax ID de Shipper y Consignee",
-        "tip": "Dato obligatorio para transmisión AMS.",
-        "authority": "CBP"
-    },
-    {
-        "id": "q5",
-        "category": "TSA",
-        "description": "Contenido coincide con inspección física/X-Ray",
-        "tip": "Contenido no declarado = rechazo inmediato.",
-        "authority": "TSA"
-    },
-    {
-        "id": "q6",
-        "category": "SECURITY",
-        "description": "Sello de camión intacto",
-        "tip": "Garantiza cadena de custodia.",
-        "authority": "Chain of Custody"
-    },
-    {
-        "id": "q7",
-        "category": "DIMENSIONS",
-        "description": "Altura ≤ 80cm (PAX) o ≤ 160cm (Carguero)",
-        "tip": "Exceder altura impide el embarque.",
-        "authority": "Engineering"
-    },
-    {
-        "id": "q8",
-        "category": "WEIGHT",
-        "description": "Peso ≤ 732 kg/m²",
-        "tip": "Evita daños estructurales en bodega.",
-        "authority": "Aircraft Floor Limit"
-    },
-    {
-        "id": "q9",
-        "category": "SAFETY",
-        "description": "Pallet stretch + red de seguridad",
-        "tip": "Evita desplazamientos en vuelo.",
-        "authority": "Flight Safety"
-    },
-    {
-        "id": "q10",
-        "category": "DG",
-        "description": "DGD firmada y Marcado UN",
-        "tip": "DG mal declarada genera multas federales.",
-        "authority": "IATA DGR / DOT"
-    },
-    {
-        "id": "q11",
-        "category": "DG",
-        "description": "Etiquetas de riesgo visibles",
-        "tip": "Clave para segregación segura.",
-        "authority": "IATA DGR"
-    },
-    {
-        "id": "q13",
-        "category": "TEMP",
-        "description": "Termógrafo activo (2°C – 8°C)",
-        "tip": "Fuera de rango genera Claims.",
-        "authority": "Pharma / Perishable"
-    },
-    {
-        "id": "q15",
-        "category": "HUMAN_REMAINS",
-        "description": "Permiso Sanidad + Acta Defunción",
-        "tip": "Documento legal obligatorio.",
-        "authority": "Biosecurity"
-    },
-    {
-        "id": "q16",
-        "category": "HUMAN_REMAINS",
-        "description": "Ataúd hermético + caja exterior",
-        "tip": "Prevención de fugas biológicas.",
-        "authority": "IATA TACT"
-    }
+    {"id":"q1","category":"DOCS","description":"MAWB original legible + 3 copias","tip":"Documento base","authority":"CBP / Avianca"},
+    {"id":"q2","category":"DOCS","description":"HMAWB y Manifiesto coinciden 100%","tip":"Discrepancias generan multas","authority":"CBP AMS"},
+    {"id":"q3","category":"DOCS","description":"Factura Comercial y Packing List","tip":"Indispensable para aduana","authority":"IATA"},
+    {"id":"q4","category":"CBP","description":"EIN / Tax ID de Shipper y Consignee","tip":"Obligatorio para AMS","authority":"CBP"},
+    {"id":"q5","category":"SECURITY","description":"Sello de camión intacto","tip":"Garantiza cadena de custodia","authority":"Chain of Custody"},
+    {"id":"q6","category":"DIMENSIONS","description":"Altura ≤ 80cm (PAX) o ≤ 160cm (Carguero)","tip":"Exceder altura impide embarque","authority":"Engineering"}
 ]
 
 # =========================
@@ -200,6 +74,75 @@ def generate_report_id() -> str:
 def get_legal_disclaimer() -> str:
     return (
         "Este informe se emite bajo estándares IATA, CBP, TSA y DOT. "
-        "SMARTCARGO BY MAY ROGA LLC garantiza validación previa en Counter "
-        "para reducir riesgos operacionales, multas y rechazos."
+        "SMARTCARGO BY MAY ROGA LLC valida previamente la carga para proteger el avión, aumentar rentabilidad y reducir riesgos."
     )
+
+# =========================
+# SMARTCARGO LOGIC
+# =========================
+
+class SmartCargoAdvisory:
+    def __init__(self, data: CargoAnswer):
+        self.data = data
+        self.errors = []
+        self.recommendations = []
+        self.status = AlertLevel.GREEN
+        self.chargeable_weight = 0
+        self.verified_weight = 0
+        self.weight_adjustment = 0
+
+    def calculate_metrics(self):
+        l = float(self.data.length or 0)
+        w = float(self.data.width or 0)
+        h = float(self.data.height or 0)
+        weight_declared = float(self.data.weight_declared or 0)
+        weight_real = float(self.data.weight_real or 0)
+
+        # Peso Volumétrico
+        vol_weight = (l * w * h) / 6000
+        self.chargeable_weight = max(weight_real, vol_weight)
+        self.verified_weight = weight_real
+        self.weight_adjustment = round(self.chargeable_weight - weight_declared,2)
+
+        # Presión sobre Piso (Floor Load)
+        area_m2 = (l / 100) * (w / 100)
+        floor_load = weight_real / area_m2 if area_m2 > 0 else 0
+
+        # Alertas por presión
+        if floor_load <= 732:
+            self.recommendations.append("Carga segura, proceder normalmente.")
+        elif floor_load <= 1000:
+            self.recommendations.append("ALERTA: Presión alta. Aplicar SHORING (tablas distribuidoras).")
+            self.status = AlertLevel.YELLOW
+        else:
+            self.recommendations.append("RIESGO ESTRUCTURAL: No recibir sin aprobación de Ingeniería de Vuelo.")
+            self.status = AlertLevel.RED
+
+        # Validaciones adicionales
+        if h > 80 and self.data.cargo_type == CargoType.GENERAL:
+            self.errors.append("Altura excede límite PAX, transferir a carguero o rechazar ingreso.")
+            self.status = AlertLevel.RED
+
+        if weight_real > weight_declared * 1.02:
+            self.errors.append(f"Discrepancia: Peso real > 2% del declarado, ajustar tarifa por {weight_real - weight_declared} kg.")
+            if self.status == AlertLevel.GREEN:
+                self.status = AlertLevel.YELLOW
+
+    def get_report(self):
+        self.calculate_metrics()
+        return ValidationResult(
+            report_id=generate_report_id(),
+            timestamp=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+            operator=self.data.operator or "Counter_Default",
+            cargo_type=self.data.cargo_type.value,
+            total_questions=len(QUESTIONS_DB),
+            green=len([1 for v in self.data.answers.values() if v=="ok"]),
+            yellow=len([1 for v in self.data.answers.values() if v=="warn"]),
+            red=len([1 for v in self.data.answers.values() if v=="fail"]),
+            status=self.status,
+            recommendations=self.recommendations + self.errors,
+            legal_note=get_legal_disclaimer(),
+            chargeable_weight=self.chargeable_weight,
+            verified_weight=self.verified_weight,
+            weight_adjustment=self.weight_adjustment
+        )
