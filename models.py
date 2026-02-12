@@ -1,66 +1,59 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
-from sqlalchemy.orm import declarative_base, relationship
-from datetime import datetime
+from pydantic import BaseModel, Field, validator
+from typing import Optional
 
-Base = declarative_base()
+# ============================
+# MODELO PRINCIPAL DE CARGA
+# ============================
+class CargoItem(BaseModel):
+    # INFORMACIÓN GENERAL
+    role: str = Field(..., description="Rol del usuario que ingresa la carga")
+    lang: str = Field(..., description="Idioma del formulario")
+    cargoType: str = Field(..., description="Tipo de carga: Perishable, DG, Mixed")
 
-class Cargo(Base):
-    __tablename__ = "cargos"
+    # BLOQUE LEGAL
+    sli: Optional[str] = Field(None, description="SLI / Factura completa: Yes / No")
+    embargo: Optional[str] = Field(None, description="Embargo / restricción: None / Restricted")
 
-    id = Column(Integer, primary_key=True, index=True)
-    mawb = Column(String, nullable=True)  # Master AWB
-    hawb = Column(String, nullable=True)  # House AWB
-    origin = Column(String, nullable=True)
-    destination = Column(String, nullable=True)
-    cargo_type = Column(String, nullable=False, default="normal")  # perecederos, DG, normal
-    avion = Column(String, nullable=False, default="belly/pax")  # Belly/PAX, Freighter
-    alto_cm = Column(Integer, nullable=True)
-    peso_guia = Column(Integer, nullable=True)
-    peso_real = Column(Integer, nullable=True)
-    dg_firmado = Column(String, nullable=True)  # yes / no
-    temp_rango = Column(String, nullable=True)  # ok / fuera
-    madera_nimf = Column(String, nullable=True)  # yes / no
+    # BLOQUE SEGURIDAD
+    knownShipper: Optional[str] = Field(None, description="Known Shipper: Yes / No")
 
-    semaforo = Column(String, nullable=True)  # ROJO / AMARILLO / VERDE
-    observaciones = Column(String, nullable=True)  # JSON o texto con observaciones
-    solucion = Column(String, nullable=True)  # JSON o texto con acciones sugeridas
+    # BLOQUE FÍSICO / EMBALAJE
+    material: Optional[str] = Field(None, description="Material del embalaje: Wood / Plastic")
+    height: Optional[float] = Field(None, description="Altura de la carga en cm")
+    weightDiff: Optional[float] = Field(None, description="Diferencia Peso Báscula vs Guía en %")
 
-    role = Column(String, nullable=False, default="Shipper")
+    # BLOQUE PERECEDEROS
+    tempRange: Optional[str] = Field(None, description="Rango de temperatura para perecederos")
+    iceType: Optional[str] = Field(None, description="Tipo de hielo: DryIce / Regular")
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    is_active = Column(Boolean, default=True)
+    # BLOQUE DG (Dangerous Goods)
+    dgd: Optional[str] = Field(None, description="DGD firmada: Yes / No")
+    unNumber: Optional[str] = Field(None, description="Número UN de la carga peligrosa")
 
-    # Relación con documentos
-    documents = relationship(
-        "Document",
-        back_populates="cargo",
-        cascade="all, delete-orphan"
-    )
+    # VALIDACIONES INTELIGENTES
+    @validator("height")
+    def validate_height(cls, v):
+        if v is not None and v <= 0:
+            raise ValueError("La altura debe ser mayor que 0 cm")
+        return v
 
+    @validator("weightDiff")
+    def validate_weight(cls, v):
+        if v is not None and v < 0:
+            raise ValueError("La diferencia de peso no puede ser negativa")
+        return v
 
-class Document(Base):
-    __tablename__ = "documents"
+    @validator("cargoType")
+    def validate_cargo_type(cls, v):
+        allowed = ["Perishable", "DG", "Mixed"]
+        if v not in allowed:
+            raise ValueError(f"Tipo de carga inválido. Debe ser uno de {allowed}")
+        return v
 
-    id = Column(Integer, primary_key=True, index=True)
-    cargo_id = Column(Integer, ForeignKey("cargos.id"))
-    doc_type = Column(String, nullable=False)  # tipo de documento
-    filename = Column(String, nullable=False)
-    description = Column(String, nullable=True)
-
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
-    uploaded_by = Column(String, default="user")
-
-    cargo = relationship("Cargo", back_populates="documents")
-
-
-class AdminLog(Base):
-    """
-    Guarda preguntas y respuestas realizadas por el admin
-    """
-    __tablename__ = "admin_logs"
-
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, nullable=False)
-    question = Column(String, nullable=False)
-    answer = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+# ============================
+# MODELO DE RESPUESTA DEL SISTEMA
+# ============================
+class ValidationResponse(BaseModel):
+    status: str = Field(..., description="Semáforo de la validación: GREEN, YELLOW, RED")
+    analysis: str = Field(..., description="Análisis detallado de las validaciones")
+    disclaimer: str = Field(..., description="Aviso legal y recomendaciones de acción")
