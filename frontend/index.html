@@ -1,193 +1,213 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SmartCargo-AIPA</title>
-<link rel="stylesheet" href="/static/style.css">
+<title>SMARTCARGO-AIPA</title>
 <style>
-  body { font-family: Arial, sans-serif; background: #121212; color: #f0f0f0; margin: 0; padding: 0; }
-  header { background: #1f1f1f; padding: 1rem; text-align: center; font-size: 1.5rem; font-weight: bold; }
-  .container { padding: 1rem; max-width: 1200px; margin: auto; }
-  .block { border: 1px solid #444; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
-  .block h2 { margin-top: 0; }
-  label { display: block; margin: 0.5rem 0 0.2rem 0; }
-  select, input[type=text], textarea { width: 100%; padding: 0.5rem; border-radius: 5px; border: 1px solid #555; background: #222; color: #fff; }
-  button { padding: 0.7rem 1.5rem; border: none; border-radius: 5px; cursor: pointer; margin-right: 0.5rem; font-weight: bold; }
-  button.validate { background: #28a745; color: #fff; }
-  button.clear { background: #ffc107; color: #000; }
-  button.pdf { background: #007bff; color: #fff; }
-  .result { margin-top: 1rem; padding: 1rem; border-radius: 8px; }
-  .GREEN { background: #28a745; color: #fff; }
-  .YELLOW { background: #ffc107; color: #000; }
-  .RED { background: #dc3545; color: #fff; }
-  .hidden { display: none; }
-  footer { font-size: 0.8rem; color: #aaa; padding: 1rem; text-align: center; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: #f2f4f7;
+    margin: 0;
+    padding: 0;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 30px auto;
+    background: #ffffff;
+    padding: 30px 40px;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  }
+  h1 { margin-top: 0; color: #002b5c; }
+  .subtitle { color: #555; margin-bottom: 30px; }
+  .level { margin-bottom: 25px; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; }
+  .level-header { background: #004080; color: white; padding: 14px 18px; font-size: 17px; cursor: pointer; }
+  .level-content { display: none; padding: 20px; background: #fafafa; }
+  .question { margin-bottom: 22px; }
+  .question-title { font-weight: 600; margin-bottom: 10px; color: #222; }
+  .options label { display: block; margin-bottom: 6px; cursor: pointer; }
+  .options input { margin-right: 8px; }
+  .actions { text-align: center; margin-top: 35px; }
+  button { background: #004080; color: white; border: none; padding: 14px 26px; font-size: 16px; border-radius: 8px; cursor: pointer; margin: 8px; }
+  button:hover { background: #0066cc; }
+  #result { margin-top: 35px; padding: 25px; border-radius: 12px; display: none; }
+  #semaphore { font-size: 22px; font-weight: bold; margin-bottom: 15px; }
+  .green { color: #0a8f08; }
+  .yellow { color: #d4a000; }
+  .red { color: #c00000; }
+  .recommendations { margin-top: 15px; font-size: 15px; }
+  #login-box { margin-bottom: 25px; padding: 20px; background: #eef2f7; border-radius: 12px; }
+  #login-box input { padding: 10px; width: 200px; margin-right: 10px; border-radius: 6px; border: 1px solid #ccc; }
 </style>
 </head>
+
 <body>
 
-<header>SmartCargo-AIPA by May Roga LLC</header>
-
 <div class="container">
-  <form id="cargoForm">
-    
-    <!-- BLOQUE GENERAL -->
-    <div class="block">
-      <h2>Información General</h2>
-      <label for="role">Rol de Usuario:</label>
-      <select id="role" name="role">
-        <option value="Operator">Operador</option>
-        <option value="Supervisor">Supervisor</option>
-        <option value="Admin">Administrador</option>
-      </select>
+  <h1>SMARTCARGO-AIPA</h1>
+  <p class="subtitle">
+    Preventive Cargo Acceptance Advisory System<br>
+    Operational · Legal · Non-binding
+  </p>
 
-      <label for="lang">Idioma:</label>
-      <select id="lang" name="lang">
-        <option value="English">English</option>
-        <option value="Spanish">Español</option>
-      </select>
+  <!-- ================= LOGIN ================= -->
+  <div id="login-box">
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <p id="login-msg" style="color:red;"></p>
+  </div>
 
-      <label for="cargoType">Tipo de Carga:</label>
-      <select id="cargoType" name="cargoType">
-        <option value="">--Seleccione--</option>
-        <option value="Perishable">Perecederos</option>
-        <option value="DG">Carga Peligrosa (DG)</option>
-        <option value="Mixed">Mixta</option>
-      </select>
-    </div>
+  <!-- ================= LEVELS ================= -->
+  <div id="questions-section" style="display:none;">
 
-    <!-- BLOQUE LEGAL -->
-    <div class="block" id="blockLegal">
-      <h2>Legal</h2>
-      <label for="sli">SLI / Factura Completa:</label>
-      <select id="sli" name="sli">
-        <option value="">--Seleccione--</option>
-        <option value="Yes">Sí</option>
-        <option value="No">No</option>
-      </select>
+    <!-- LEVEL 1 EXAMPLE -->
+    <div class="level">
+      <div class="level-header" onclick="toggleLevel(this)">Level 1 – Identification & Transport</div>
+      <div class="level-content">
+        <div class="question">
+          <div class="question-title">1. Type of cargo</div>
+          <div class="options">
+            <label><input type="radio" name="q1" value="ok"> Pharmaceutical</label>
+            <label><input type="radio" name="q1" value="warn"> DG</label>
+            <label><input type="radio" name="q1" value="warn"> Perishable</label>
+            <label><input type="radio" name="q1" value="ok"> Human Remains</label>
+            <label><input type="radio" name="q1" value="ok"> General Cargo</label>
+            <label><input type="radio" name="q1" value="ok"> Other</label>
+          </div>
+        </div>
 
-      <label for="embargo">Embargo / Restricción:</label>
-      <select id="embargo" name="embargo">
-        <option value="">--Seleccione--</option>
-        <option value="None">Ninguno</option>
-        <option value="Restricted">Restringido</option>
-      </select>
-    </div>
-
-    <!-- BLOQUE SEGURIDAD -->
-    <div class="block" id="blockSecurity">
-      <h2>Seguridad</h2>
-      <label for="knownShipper">Known Shipper:</label>
-      <select id="knownShipper" name="knownShipper">
-        <option value="">--Seleccione--</option>
-        <option value="Yes">Sí</option>
-        <option value="No">No</option>
-      </select>
-    </div>
-
-    <!-- BLOQUE FÍSICO -->
-    <div class="block" id="blockPhysical">
-      <h2>Físico / Embalaje</h2>
-      <label for="material">Material del embalaje:</label>
-      <select id="material" name="material">
-        <option value="">--Seleccione--</option>
-        <option value="Wood">Madera</option>
-        <option value="Plastic">Plástico</option>
-      </select>
-
-      <label for="height">Altura de la carga (cm):</label>
-      <input type="text" id="height" name="height">
-
-      <label for="weightDiff">Diferencia Peso Báscula vs Guía (%):</label>
-      <input type="text" id="weightDiff" name="weightDiff">
-
-      <div id="perishableBlock" class="hidden">
-        <label for="tempRange">Rango de temperatura (°C):</label>
-        <input type="text" id="tempRange" name="tempRange">
-
-        <label for="iceType">Tipo de hielo:</label>
-        <select id="iceType" name="iceType">
-          <option value="">--Seleccione--</option>
-          <option value="DryIce">Hielo Seco</option>
-          <option value="Regular">Hielo Regular</option>
-        </select>
-      </div>
-
-      <div id="dgBlock" class="hidden">
-        <label for="dgd">DGD firmada:</label>
-        <select id="dgd" name="dgd">
-          <option value="">--Seleccione--</option>
-          <option value="Yes">Sí</option>
-          <option value="No">No</option>
-        </select>
-
-        <label for="unNumber">UN Number:</label>
-        <input type="text" id="unNumber" name="unNumber">
+        <div class="question">
+          <div class="question-title">2. Delivered by</div>
+          <div class="options">
+            <label><input type="radio" name="q2" value="ok"> Authorized Driver</label>
+            <label><input type="radio" name="q2" value="ok"> Freight Forwarder</label>
+            <label><input type="radio" name="q2" value="ok"> Company</label>
+            <label><input type="radio" name="q2" value="warn"> Owner personally</label>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- BOTONES -->
-    <div class="block">
-      <button type="button" class="validate" onclick="validateCargo()">Validar</button>
-      <button type="button" class="clear" onclick="clearForm()">Limpiar</button>
-      <button type="button" class="pdf" onclick="generatePDF()">Generar PDF</button>
+    <!-- LEVEL 2 EXAMPLE -->
+    <div class="level">
+      <div class="level-header" onclick="toggleLevel(this)">Level 2 – Documentation</div>
+      <div class="level-content">
+        <div class="question">
+          <div class="question-title">9. Original AWB present</div>
+          <div class="options">
+            <label><input type="radio" name="q9" value="ok"> Inside envelope</label>
+            <label><input type="radio" name="q9" value="warn"> Loose</label>
+            <label><input type="radio" name="q9" value="fail"> Not available</label>
+          </div>
+        </div>
+
+        <div class="question">
+          <div class="question-title">12. Shipper name matches documents</div>
+          <div class="options">
+            <label><input type="radio" name="q12" value="ok"> Yes</label>
+            <label><input type="radio" name="q12" value="warn"> Unclear</label>
+            <label><input type="radio" name="q12" value="fail"> No</label>
+          </div>
+        </div>
+      </div>
     </div>
-  </form>
 
-  <!-- RESULTADO -->
-  <div id="result" class="result hidden"></div>
+    <!-- ================= ACTIONS ================= -->
+    <div class="actions">
+      <button onclick="submitForm()">Validate Cargo</button>
+      <button onclick="location.reload()">Clear</button>
+      <button id="pdf-btn" style="display:none;" onclick="downloadPDF()">Download PDF</button>
+    </div>
 
-  <!-- AVISO LEGAL -->
-  <footer>
-    🔴 Aviso Legal: SmartCargo-AIPA by May Roga LLC. La asesoría no sustituye decisiones de TSA, CBP, DOT o aerolíneas.
-  </footer>
+    <!-- ================= RESULT ================= -->
+    <div id="result">
+      <div id="semaphore"></div>
+      <div class="recommendations" id="recommendations"></div>
+    </div>
+
+  </div>
 </div>
 
 <script>
-const cargoTypeSelect = document.getElementById("cargoType");
-const perishableBlock = document.getElementById("perishableBlock");
-const dgBlock = document.getElementById("dgBlock");
-
-cargoTypeSelect.addEventListener("change", () => {
-    const type = cargoTypeSelect.value;
-    perishableBlock.classList.add("hidden");
-    dgBlock.classList.add("hidden");
-    if (type === "Perishable") perishableBlock.classList.remove("hidden");
-    if (type === "DG") dgBlock.classList.remove("hidden");
-    if (type === "Mixed") {
-        perishableBlock.classList.remove("hidden");
-        dgBlock.classList.remove("hidden");
-    }
-});
-
-function validateCargo() {
-    const form = document.getElementById("cargoForm");
-    const formData = new FormData(form);
-    const data = {};
-    formData.forEach((v,k) => data[k] = v);
-
-    fetch("/validate", {
-        method: "POST",
-        body: new URLSearchParams(data)
-    })
-    .then(res => res.json())
-    .then(resp => {
-        const resultDiv = document.getElementById("result");
-        resultDiv.className = "result " + resp.status;
-        resultDiv.innerHTML = `<h3>Semáforo: ${resp.status}</h3><pre>${resp.analysis}</pre><p>${resp.disclaimer}</p>`;
-        resultDiv.classList.remove("hidden");
-    })
-    .catch(err => alert("Error al validar: " + err));
+function toggleLevel(el) {
+  const content = el.nextElementSibling;
+  content.style.display = content.style.display === "block" ? "none" : "block";
 }
 
-function clearForm() {
-    document.getElementById("cargoForm").reset();
-    document.getElementById("result").classList.add("hidden");
+// ================= LOGIN =================
+let loggedUser = "";
+function login() {
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+  fetch("/login", {
+    method: "POST",
+    body: new URLSearchParams({username, password})
+  })
+  .then(r => {
+    if (!r.ok) throw new Error("Login failed");
+    return r.json();
+  })
+  .then(res => {
+    loggedUser = username;
+    document.getElementById("login-box").style.display = "none";
+    document.getElementById("questions-section").style.display = "block";
+  })
+  .catch(err => {
+    document.getElementById("login-msg").innerText = "Invalid username or password";
+  });
 }
 
-function generatePDF() {
-    alert("Función PDF simulada. Los datos actuales se mostrarían en PDF en producción.");
+// ================= VALIDATE FORM =================
+let lastResult = {};
+function submitForm() {
+  const answers = {};
+  document.querySelectorAll("input[type=radio]:checked").forEach(r => {
+    answers[r.name] = r.value;
+  });
+  if (Object.keys(answers).length === 0) { alert("Please select answers"); return; }
+
+  fetch("/validate", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ answers, operator: loggedUser })
+  })
+  .then(r => r.json())
+  .then(res => {
+    lastResult = res;
+    showResult(res);
+    document.getElementById("pdf-btn").style.display = "inline-block";
+  })
+  .catch(() => alert("Validation service unavailable"));
+}
+
+// ================= SHOW RESULT =================
+function showResult(res) {
+  const box = document.getElementById("result");
+  const sem = document.getElementById("semaphore");
+  const rec = document.getElementById("recommendations");
+
+  box.style.display = "block";
+
+  if (res.status === "GREEN") {
+    sem.innerHTML = "🟢 ACCEPTABLE FOR CARGO";
+    sem.className = "green";
+  } else if (res.status === "YELLOW") {
+    sem.innerHTML = "🟡 CONDITIONAL – REVIEW REQUIRED";
+    sem.className = "yellow";
+  } else {
+    sem.innerHTML = "🔴 NOT ACCEPTABLE – ACTION REQUIRED";
+    sem.className = "red";
+  }
+
+  rec.innerHTML = res.recommendations.map(r => r.replace(/\|/g, "<br>")).join("<br>");
+}
+
+// ================= DOWNLOAD PDF =================
+function downloadPDF() {
+  const recs = lastResult.recommendations.join("|");
+  const url = `/pdf/${lastResult.report_id}?operator=${encodeURIComponent(lastResult.operator)}&status=${lastResult.status}&recs=${encodeURIComponent(recs)}`;
+  window.open(url, "_blank");
 }
 </script>
 
