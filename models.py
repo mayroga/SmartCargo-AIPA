@@ -1,41 +1,43 @@
-from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
 from enum import Enum
 from datetime import datetime
 import uuid
 
 # =========================
-# ENUMS
+# ENUMS PRINCIPALES
 # =========================
-
-class AlertLevel(str, Enum):
-    GREEN = "CUMPLE - LISTA PARA VUELO"
-    YELLOW = "OBSERVACIÓN - ACEPTACIÓN CONDICIONADA"
-    RED = "RECHAZO - CARGA NO APTA"
 
 class CargoType(str, Enum):
     GENERAL = "General Cargo"
-    PERISHABLE = "Perishable"
-    PHARMA = "Pharma"
     DG = "Dangerous Goods"
-    HUMAN_REMAINS = "Human Remains"
+    PERISHABLE = "Perishable"
     LIVE_ANIMALS = "Live Animals"
+    EXPRESS = "Express Cargo"
+    PASSENGER_BAGGAGE = "Passenger Baggage"
+    MAIL = "Mail"
+    COMAT = "COMAT (Company Material)"
+
+class AlertLevel(str, Enum):
+    GREEN = "APTO"
+    YELLOW = "OBSERVACIÓN"
+    RED = "RECHAZO"
 
 # =========================
-# MODELOS
+# MODELOS DE DATOS
 # =========================
 
-class CargoAnswer(BaseModel):
-    answers: Dict[str, str] = Field(..., example={"q1":"ok","q7":"fail"})
+class CargoAnswer:
+    """
+    Estructura para recibir respuestas de la interfaz.
+    """
+    answers: Dict[str, str]  # {question_id: "ok"|"warn"|"fail"}
     operator: Optional[str] = "Counter_Default"
     cargo_type: CargoType = CargoType.GENERAL
-    length: Optional[float] = 0
-    width: Optional[float] = 0
-    height: Optional[float] = 0
-    weight_declared: Optional[float] = 0
-    weight_real: Optional[float] = 0
 
-class ValidationResult(BaseModel):
+class ValidationResult:
+    """
+    Estructura de respuesta tras validar la carga.
+    """
     report_id: str
     timestamp: str
     operator: str
@@ -47,102 +49,89 @@ class ValidationResult(BaseModel):
     status: AlertLevel
     recommendations: List[str]
     legal_note: str
-    chargeable_weight: float
-    verified_weight: float
-    weight_adjustment: float
 
 # =========================
-# PREGUNTAS BASE
-# =========================
-
-QUESTIONS_DB = [
-    {"id":"q1","category":"DOCS","description":"MAWB original legible + 3 copias","tip":"Documento base","authority":"CBP / Avianca"},
-    {"id":"q2","category":"DOCS","description":"HMAWB y Manifiesto coinciden 100%","tip":"Discrepancias generan multas","authority":"CBP AMS"},
-    {"id":"q3","category":"DOCS","description":"Factura Comercial y Packing List","tip":"Indispensable para aduana","authority":"IATA"},
-    {"id":"q4","category":"CBP","description":"EIN / Tax ID de Shipper y Consignee","tip":"Obligatorio para AMS","authority":"CBP"},
-    {"id":"q5","category":"SECURITY","description":"Sello de camión intacto","tip":"Garantiza cadena de custodia","authority":"Chain of Custody"},
-    {"id":"q6","category":"DIMENSIONS","description":"Altura ≤ 80cm (PAX) o ≤ 160cm (Carguero)","tip":"Exceder altura impide embarque","authority":"Engineering"}
-]
-
-# =========================
-# UTILIDADES
+# FUNCIONES DE UTILIDAD
 # =========================
 
 def generate_report_id() -> str:
-    return f"SCR-{uuid.uuid4().hex[:8].upper()}"
+    return str(uuid.uuid4()).split('-')[0].upper()
 
 def get_legal_disclaimer() -> str:
     return (
-        "Este informe se emite bajo estándares IATA, CBP, TSA y DOT. "
-        "SMARTCARGO BY MAY ROGA LLC valida previamente la carga para proteger el avión, aumentar rentabilidad y reducir riesgos."
+        "SMARTCARGO BY MAY ROGA LLC proporciona recomendaciones basadas en regulaciones IATA, "
+        "CBP, DOT y TSA. No sustituye inspecciones físicas obligatorias ni responsabilidades legales de la aerolínea."
     )
 
 # =========================
-# SMARTCARGO LOGIC
+# BASE DE PREGUNTAS (40+)
 # =========================
 
-class SmartCargoAdvisory:
-    def __init__(self, data: CargoAnswer):
-        self.data = data
-        self.errors = []
-        self.recommendations = []
-        self.status = AlertLevel.GREEN
-        self.chargeable_weight = 0
-        self.verified_weight = 0
-        self.weight_adjustment = 0
+QUESTIONS_DB = [
+    # 1-10: DOCUMENTACIÓN Y AWB
+    {"id": "q01", "description": "AWB correctamente emitida con número de vuelo y fecha.", "tip": "IATA 6.1.1", "authority": "IATA"},
+    {"id": "q02", "description": "Declaración de valor y seguro presentes.", "tip": "IATA 8.4", "authority": "IATA"},
+    {"id": "q03", "description": "Manifestación correcta según CBP.", "tip": "CBP 19 CFR", "authority": "CBP"},
+    {"id": "q04", "description": "Documentos de exportación/importación según país.", "tip": "DOT / FAA", "authority": "DOT"},
+    {"id": "q05", "description": "Etiqueta de origen y destino correcta.", "tip": "IATA 7.1", "authority": "IATA"},
+    {"id": "q06", "description": "Número de tracking y referencia interna validada.", "tip": "Airline Standard", "authority": "Avianca"},
+    {"id": "q07", "description": "Formulario de DG completado si aplica.", "tip": "IATA DGR 8.0", "authority": "IATA"},
+    {"id": "q08", "description": "Permisos especiales para carga especial (médica, armas, organismos vivos).", "tip": "CBP / TSA", "authority": "CBP"},
+    {"id": "q09", "description": "Declaración de contenido y cantidad precisa.", "tip": "IATA 7.2", "authority": "IATA"},
+    {"id": "q10", "description": "Inspección previa de documentos firmada por el operador.", "tip": "Airline SOP", "authority": "Avianca"},
 
-    def calculate_metrics(self):
-        l = float(self.data.length or 0)
-        w = float(self.data.width or 0)
-        h = float(self.data.height or 0)
-        weight_declared = float(self.data.weight_declared or 0)
-        weight_real = float(self.data.weight_real or 0)
+    # 11-20: SEGURIDAD Y PESO
+    {"id": "q11", "description": "Peso total no excede límite de vuelo.", "tip": "DOT / IATA 6.7", "authority": "IATA"},
+    {"id": "q12", "description": "Distribución del peso equilibrada en ULD o palet.", "tip": "IATA 6.7.2", "authority": "IATA"},
+    {"id": "q13", "description": "Cargas peligrosas correctamente separadas.", "tip": "IATA DGR", "authority": "IATA"},
+    {"id": "q14", "description": "Presión de piso compatible con tipo de ULD.", "tip": "Avianca Cargo SOP", "authority": "Avianca"},
+    {"id": "q15", "description": "Shoring o refuerzo utilizado si necesario.", "tip": "IATA 6.7.3", "authority": "IATA"},
+    {"id": "q16", "description": "Cargas refrigeradas con temperatura monitoreada.", "tip": "IATA CEIV Pharma", "authority": "IATA"},
+    {"id": "q17", "description": "Live animals asegurados y ventilados.", "tip": "IATA Live Animals", "authority": "IATA"},
+    {"id": "q18", "description": "Peso volumétrico correctamente calculado.", "tip": "IATA 6.7", "authority": "IATA"},
+    {"id": "q19", "description": "Carga sobrepasada en altura o volumen revisada.", "tip": "Avianca SOP", "authority": "Avianca"},
+    {"id": "q20", "description": "Unidad de carga asegurada con straps o net.", "tip": "IATA 6.8", "authority": "IATA"},
 
-        # Peso Volumétrico
-        vol_weight = (l * w * h) / 6000
-        self.chargeable_weight = max(weight_real, vol_weight)
-        self.verified_weight = weight_real
-        self.weight_adjustment = round(self.chargeable_weight - weight_declared,2)
+    # 21-30: RESTRICCIONES Y DG
+    {"id": "q21", "description": "No hay explosivos o materiales prohibidos.", "tip": "IATA DGR 2.0", "authority": "IATA"},
+    {"id": "q22", "description": "Baterías de litio embaladas y etiquetadas correctamente.", "tip": "IATA DGR 4.2", "authority": "IATA"},
+    {"id": "q23", "description": "Sustancias químicas clasificadas y separadas.", "tip": "IATA DGR 3.0", "authority": "IATA"},
+    {"id": "q24", "description": "Marcaje de DG visible y no dañado.", "tip": "IATA DGR 7.0", "authority": "IATA"},
+    {"id": "q25", "description": "Cantidad máxima por ULD respetada.", "tip": "IATA DGR 1.0", "authority": "IATA"},
+    {"id": "q26", "description": "Artículos de riesgo biológico identificados.", "tip": "IATA DGR 6.0", "authority": "IATA"},
+    {"id": "q27", "description": "Carga con medicamentos cumple CEIV Pharma.", "tip": "IATA CEIV", "authority": "IATA"},
+    {"id": "q28", "description": "Carga express etiquetada con prioridad correcta.", "tip": "Airline SOP", "authority": "Avianca Express"},
+    {"id": "q29", "description": "Carga COMAT declarada y entregada por personal autorizado.", "tip": "Airline SOP", "authority": "Avianca COMAT"},
+    {"id": "q30", "description": "Correo o paquetes postales con control aduanero.", "tip": "CBP / Postal Regulations", "authority": "CBP"},
 
-        # Presión sobre Piso (Floor Load)
-        area_m2 = (l / 100) * (w / 100)
-        floor_load = weight_real / area_m2 if area_m2 > 0 else 0
+    # 31-40: CLIENTES, PROCEDIMIENTOS Y ALERTAS
+    {"id": "q31", "description": "Cliente correctamente registrado y autorizado.", "tip": "Airline SOP", "authority": "Avianca"},
+    {"id": "q32", "description": "Facturación electrónica emitida según DOT.", "tip": "DOT 14 CFR", "authority": "DOT"},
+    {"id": "q33", "description": "Alertas previas de peso o volumen revisadas.", "tip": "Airline SOP", "authority": "Avianca"},
+    {"id": "q34", "description": "Procedimiento de check-in respetado para carga.", "tip": "IATA 7.0", "authority": "IATA"},
+    {"id": "q35", "description": "Registro de inspección de seguridad firmado.", "tip": "Airline SOP", "authority": "Avianca"},
+    {"id": "q36", "description": "Equipos especiales (gruas, rampas) disponibles.", "tip": "Airline SOP", "authority": "Avianca"},
+    {"id": "q37", "description": "Discrepancias entre AWB y contenido verificadas.", "tip": "IATA 8.2", "authority": "IATA"},
+    {"id": "q38", "description": "Cargas refrigeradas y perecederos etiquetadas y revisadas.", "tip": "IATA CEIV", "authority": "IATA"},
+    {"id": "q39", "description": "Cargas de alto valor aseguradas y documentadas.", "tip": "Airline SOP", "authority": "Avianca"},
+    {"id": "q40", "description": "Todos los procedimientos cumplen con normas internas de Avianca Cargo.", "tip": "Airline SOP", "authority": "Avianca"},
+]
 
-        # Alertas por presión
-        if floor_load <= 732:
-            self.recommendations.append("Carga segura, proceder normalmente.")
-        elif floor_load <= 1000:
-            self.recommendations.append("ALERTA: Presión alta. Aplicar SHORING (tablas distribuidoras).")
-            self.status = AlertLevel.YELLOW
-        else:
-            self.recommendations.append("RIESGO ESTRUCTURAL: No recibir sin aprobación de Ingeniería de Vuelo.")
-            self.status = AlertLevel.RED
+# =========================
+# EXTENSIÓN: FUNCIONES PARA FUTURO CRECIMIENTO
+# =========================
 
-        # Validaciones adicionales
-        if h > 80 and self.data.cargo_type == CargoType.GENERAL:
-            self.errors.append("Altura excede límite PAX, transferir a carguero o rechazar ingreso.")
-            self.status = AlertLevel.RED
-
-        if weight_real > weight_declared * 1.02:
-            self.errors.append(f"Discrepancia: Peso real > 2% del declarado, ajustar tarifa por {weight_real - weight_declared} kg.")
-            if self.status == AlertLevel.GREEN:
-                self.status = AlertLevel.YELLOW
-
-    def get_report(self):
-        self.calculate_metrics()
-        return ValidationResult(
-            report_id=generate_report_id(),
-            timestamp=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
-            operator=self.data.operator or "Counter_Default",
-            cargo_type=self.data.cargo_type.value,
-            total_questions=len(QUESTIONS_DB),
-            green=len([1 for v in self.data.answers.values() if v=="ok"]),
-            yellow=len([1 for v in self.data.answers.values() if v=="warn"]),
-            red=len([1 for v in self.data.answers.values() if v=="fail"]),
-            status=self.status,
-            recommendations=self.recommendations + self.errors,
-            legal_note=get_legal_disclaimer(),
-            chargeable_weight=self.chargeable_weight,
-            verified_weight=self.verified_weight,
-            weight_adjustment=self.weight_adjustment
-        )
+def get_questions_by_type(cargo_type: CargoType) -> List[Dict]:
+    """
+    Filtra preguntas relevantes según tipo de carga.
+    """
+    if cargo_type == CargoType.DG:
+        return [q for q in QUESTIONS_DB if "DG" in q["tip"] or "Dangerous" in q["description"]]
+    elif cargo_type == CargoType.PERISHABLE or cargo_type == CargoType.LIVE_ANIMALS:
+        return [q for q in QUESTIONS_DB if "Live Animals" in q["tip"] or "refrigerado" in q["description"].lower()]
+    elif cargo_type == CargoType.EXPRESS:
+        return [q for q in QUESTIONS_DB if "Express" in q["tip"] or "express" in q["description"].lower()]
+    elif cargo_type == CargoType.COMAT:
+        return [q for q in QUESTIONS_DB if "COMAT" in q["description"]]
+    else:
+        return QUESTIONS_DB
