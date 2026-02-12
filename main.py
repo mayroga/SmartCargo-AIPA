@@ -4,9 +4,9 @@ from pydantic import BaseModel
 from datetime import datetime
 import uuid
 
-app = FastAPI(title="SMARTCARGO-AIPA", version="1.0")
+app = FastAPI(title="SMARTCARGO BY MAY ROGA LLC", version="2.0")
 
-# Permitir CORS para conexión con frontend local
+# Configuración de CORS para asegurar conexión con el Frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,11 +15,12 @@ app.add_middleware(
 )
 
 # =========================
-# MODELOS
+# MODELOS DE DATOS (Pydantic)
 # =========================
 class CargoAnswer(BaseModel):
     answers: dict  # Recibe {"q1": "ok", "q2": "fail", ...}
     operator: str | None = "Unknown"
+    cargo_type: str | None = "General"
 
 class ValidationResult(BaseModel):
     report_id: str
@@ -31,117 +32,103 @@ class ValidationResult(BaseModel):
     red: int
     status: str
     recommendations: list[str]
+    legal_note: str
 
 # =========================
-# 49 PREGUNTAS CONFIGURADAS
+# BASE DE CONOCIMIENTO TÉCNICO (IATA/CBP/TSA/DOT)
 # =========================
-questions = [
-    {"id":"q1","question":"AWB original legible","role":"Owner"},
-    {"id":"q2","question":"Factura y packing list completos","role":"Owner"},
-    {"id":"q3","question":"Declaración coincide con documentos","role":"Owner"},
-    {"id":"q4","question":"Permisos y certificados presentes","role":"Owner"},
-    {"id":"q5","question":"Peso declarado coincide con carga","role":"Owner"},
-    {"id":"q6","question":"Tipo de carga declarada en papel","role":"Owner"},
-    {"id":"q7","question":"Shipper coincide con AWB","role":"Owner"},
-    {"id":"q8","question":"Docs Human Remains completos","role":"Owner"},
-    {"id":"q9","question":"Camión refrigerado adecuado","role":"Trucker"},
-    {"id":"q10","question":"Camión limpio y seguro","role":"Trucker"},
-    {"id":"q11","question":"Sello del camión presente","role":"Trucker"},
-    {"id":"q12","question":"Carga asegurada y estable","role":"Trucker"},
-    {"id":"q13","question":"Temperatura registrada correctamente","role":"Trucker"},
-    {"id":"q14","question":"Pallet y embalaje adecuado","role":"Trucker"},
-    {"id":"q15","question":"AWB coincidente con documentos","role":"Forwarder"},
-    {"id":"q16","question":"House / Master AWB alineados","role":"Forwarder"},
-    {"id":"q17","question":"Packaging revisado y aprobado","role":"Forwarder"},
-    {"id":"q18","question":"Temperatura declarada compatible","role":"Forwarder"},
-    {"id":"q19","question":"Dry Ice declarado y etiquetado","role":"Forwarder"},
-    {"id":"q20","question":"Fragile declarado y embalaje","role":"Forwarder"},
-    {"id":"q21","question":"Docs Human Remains completos","role":"Forwarder"},
-    {"id":"q22","question":"Altura dentro de límite Avianca","role":"Counter"},
-    {"id":"q23","question":"Largo y ancho dentro de límite","role":"Counter"},
-    {"id":"q24","question":"Peso por pie cuadrado seguro","role":"Counter"},
-    {"id":"q25","question":"Carga estable y segura","role":"Counter"},
-    {"id":"q26","question":"No mezcla DG/Pharma/Perecedero","role":"Counter"},
-    {"id":"q27","question":"Etiquetas visibles y legibles","role":"Counter"},
-    {"id":"q28","question":"Verificación docs completa","role":"Counter"},
-    {"id":"q29","question":"DG declarado en AWB","role":"DG"},
-    {"id":"q30","question":"Clase DG correcta","role":"DG"},
-    {"id":"q31","question":"DGD y MSDS firmados","role":"DG"},
-    {"id":"q32","question":"Embalaje UN aprobado","role":"DG"},
-    {"id":"q33","question":"Labels DG visibles","role":"DG"},
-    {"id":"q34","question":"DG no mezclado","role":"DG"},
-    {"id":"q35","question":"Ataúd conforme y embalaje","role":"Human Remains"},
-    {"id":"q36","question":"Packing list separado","role":"Human Remains"},
-    {"id":"q37","question":"Docs Human Remains correctos","role":"Human Remains"},
-    {"id":"q38","question":"Tiempo tránsito compatible","role":"Human Remains"},
-    {"id":"q39","question":"Temperatura y ventilación","role":"Human Remains"},
-    {"id":"q40","question":"Peso total validado","role":"Human Remains"},
-    {"id":"q41","question":"Facturas y packing organizados","role":"Human Remains"},
-    {"id":"q42","question":"Peso coincidente documentos","role":"Human Remains"},
-    {"id":"q43","question":"Docs consolidados correctos","role":"Human Remains"},
-    {"id":"q44","question":"Apto belly cargo","role":"Human Remains"},
-    {"id":"q45","question":"No mezcla DG / Perecedero","role":"Human Remains"},
-    {"id":"q46","question":"Checklist completo revisado","role":"Human Remains"},
-    {"id":"q47","question":"Peso bulto y pallets verificado","role":"Human Remains"},
-    {"id":"q48","question":"Revisión final semáforo","role":"Human Remains"},
-    {"id":"q49","question":"Recomendaciones claras","role":"Human Remains"},
+# Aquí se define la autoridad del sistema.
+questions_db = [
+    # --- BLOQUE DOCUMENTAL (CBP / IATA) ---
+    {"id":"q1","q":"MAWB original legible + 3 copias (fuera del sobre)","tip":"Requerido para agilizar proceso de aceptación y archivo de estación."},
+    {"id":"q2","q":"HMAWB y Manifiesto coinciden 100% con MAWB (Consolidados)","tip":"Discrepancias generan multas de aduana y retención de carga (CBP)."},
+    {"id":"q3","q":"Factura Comercial y Packing List (Original + Copias)","tip":"Indispensable para valoración aduanera y desglose de bultos."},
+    {"id":"q4","q":"EIN / Tax ID de Shipper y Consignatario en sistema","tip":"Dato obligatorio para transmisión AMS (Automated Manifest System)."},
+    
+    # --- BLOQUE SEGURIDAD (TSA) ---
+    {"id":"q5","q":"Declaración de contenido coincide con Inspección Física/X-Ray","tip":"Requisito TSA. Contenido no declarado es motivo de rechazo inmediato."},
+    {"id":"q6","q":"Sello de seguridad de camión presente y sin alteración","tip":"Garantiza la integridad de la cadena de custodia desde el origen."},
+    
+    # --- BLOQUE DIMENSIONES Y PESO (AVIANCA ENGINEERING) ---
+    {"id":"q7","q":"Altura ≤ 80cm (Avión PAX) o ≤ 160cm (Carguero/Belly)","tip":"Límite físico de compuerta. Si excede, la carga no vuela en la ruta asignada."},
+    {"id":"q8","q":"Peso por pie cuadrado ≤ 732 kg/m² (Shoring si aplica)","tip":"Evita daños estructurales en el suelo de la bodega de la aeronave."},
+    {"id":"q9","q":"Carga sobre pallet, envuelta en stretch y con red de seguridad","tip":"Asegura estabilidad para evitar desplazamientos en vuelo."},
+    
+    # --- BLOQUE MERCANCÍAS PELIGROSAS (IATA DGR / DOT) ---
+    {"id":"q10","q":"DGD firmada en original y Embalaje con Marcado UN","tip":"Mercancía peligrosa sin marcado normativo genera multas federales graves."},
+    {"id":"q11","q":"Etiquetas de Riesgo y Manipulación visibles y legibles","tip":"Indispensable para la segregación correcta en bodega (No mezclar incompatibles)."},
+    {"id":"q12","q":"MSDS (Hoja de Seguridad) adjunta al set documental","tip":"Requerida para protocolos de emergencia en caso de derrame."},
+    
+    # --- BLOQUE CADENA DE FRÍO (PHARMA / PERISHABLE) ---
+    {"id":"q13","q":"Termógrafo activo y Rango térmico entre 2°C y 8°C","tip":"Garantiza la viabilidad del producto. Fuera de rango genera reclamos (Claims)."},
+    {"id":"q14","q":"Embalaje térmico intacto (Gel packs / Hielo seco declarado)","tip":"El hielo seco debe estar declarado como DG por riesgo de asfixia."},
+    
+    # --- BLOQUE ESPECIALES (HUMAN REMAINS) ---
+    {"id":"q15","q":"Permiso de Sanidad y Acta de Defunción Original","tip":"Documentación legal obligatoria para el transporte de restos humanos."},
+    {"id":"q16","q":"Ataúd con embalaje hermético y caja exterior de madera/cartón","tip":"Cumplimiento de bioseguridad para evitar fugas de fluidos."},
+
+    # ... Se pueden expandir hasta las 49 o más según necesidad de la estación ...
 ]
 
 # =========================
-# ENDPOINTS
+# MOTOR DE ASESORÍA (LOGIC)
 # =========================
 
 @app.get("/questions")
 def get_questions():
-    return questions
+    return questions_db
 
 @app.post("/validate", response_model=ValidationResult)
 def validate_cargo(data: CargoAnswer):
-    total = len(questions)
+    total = len(questions_db)
     green = yellow = red = 0
     recs = []
 
-    # Procesar cada respuesta enviada por el HTML
-    for q in questions:
+    # Análisis de cada respuesta enviada
+    for q in questions_db:
         ans = data.answers.get(q["id"])
         
-        # Como el HTML envía directamente "ok", "warn", o "fail"
         if ans == "ok":
             green += 1
         elif ans == "warn":
             yellow += 1
-        elif ans == "fail" or ans is None:
+            recs.append(f"OBSERVACIÓN en {q['id']}: {q['q']}. Verificar antes de paletizar.")
+        else:
             red += 1
+            recs.append(f"RECHAZO CRÍTICO en {q['id']}: {q['q']}. Acción: Detener recepción.")
 
-    # Lógica de Asesoría para el estatus
+    # Dictamen de Seguridad y Vuelo
     if red > 0:
-        status = "RED"
-        recs.append("Carga NO apta para despacho. Corregir puntos en rojo.")
+        status = "RED - CARGA NO APTA"
+        recs.insert(0, "DICTAMEN: Rechazo automático por incumplimiento de seguridad/normativa.")
     elif yellow > 0:
-        status = "YELLOW"
-        recs.append("Carga aceptada con observaciones. Notificar a la estación.")
+        status = "YELLOW - ACEPTACIÓN CONDICIONADA"
+        recs.insert(0, "DICTAMEN: Carga requiere acción correctiva inmediata en counter.")
     else:
-        status = "GREEN"
-        recs.append("Carga verificada. Proceder con el manifiesto.")
+        status = "GREEN - LISTA PARA VUELO"
+        recs.insert(0, "DICTAMEN: Cumplimiento total. Proceder con el pesado y etiquetado.")
 
-    # Alertas de peso específico
-    if red >= 3:
-        recs.append("Alerta: Múltiples discrepancias críticas detectadas.")
-    if yellow >= 5:
-        recs.append("Aviso: Requiere supervisión por acumulación de advertencias.")
+    # Notas de Autoridad
+    legal_info = "Reporte generado bajo normativas IATA, CBP, TSA y SOP de Avianca Cargo. SMARTCARGO BY MAY ROGA LLC."
 
     return ValidationResult(
         report_id=f"SCR-{uuid.uuid4().hex[:8].upper()}",
-        timestamp=datetime.utcnow().isoformat(),
-        operator=data.operator if data.operator else "Unknown",
+        timestamp=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+        operator=data.operator if data.operator else "Counter_Default",
         total_questions=total,
         green=green,
         yellow=yellow,
         red=red,
         status=status,
-        recommendations=recs
+        recommendations=recs,
+        legal_note=legal_info
     )
 
 @app.get("/health")
 def health():
-    return {"status":"OK","system":"SMARTCARGO-AIPA"}
+    return {"status":"ACTIVE","provider":"SMARTCARGO BY MAY ROGA LLC"}
+
+# =========================
+# NOTA DE EJECUCIÓN
+# =========================
+# Ejecutar con: uvicorn main:app --reload
