@@ -1,214 +1,193 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>SMARTCARGO-AIPA</title>
-<link rel="stylesheet" href="/static/styles.css">
-<script defer src="/static/scripts.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartCargo-AIPA</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  body { font-family: Arial, sans-serif; background: #121212; color: #f0f0f0; margin: 0; padding: 0; }
+  header { background: #1f1f1f; padding: 1rem; text-align: center; font-size: 1.5rem; font-weight: bold; }
+  .container { padding: 1rem; max-width: 1200px; margin: auto; }
+  .block { border: 1px solid #444; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+  .block h2 { margin-top: 0; }
+  label { display: block; margin: 0.5rem 0 0.2rem 0; }
+  select, input[type=text], textarea { width: 100%; padding: 0.5rem; border-radius: 5px; border: 1px solid #555; background: #222; color: #fff; }
+  button { padding: 0.7rem 1.5rem; border: none; border-radius: 5px; cursor: pointer; margin-right: 0.5rem; font-weight: bold; }
+  button.validate { background: #28a745; color: #fff; }
+  button.clear { background: #ffc107; color: #000; }
+  button.pdf { background: #007bff; color: #fff; }
+  .result { margin-top: 1rem; padding: 1rem; border-radius: 8px; }
+  .GREEN { background: #28a745; color: #fff; }
+  .YELLOW { background: #ffc107; color: #000; }
+  .RED { background: #dc3545; color: #fff; }
+  .hidden { display: none; }
+  footer { font-size: 0.8rem; color: #aaa; padding: 1rem; text-align: center; }
+</style>
 </head>
 <body>
 
-<div class="box">
-    <h2>SMARTCARGO-AIPA</h2>
-    <div class="banner">
-        Avoid rejections · Delays · Fines · Save time, effort and money
-    </div>
+<header>SmartCargo-AIPA by May Roga LLC</header>
 
-    <!-- 🔐 REPORTE -->
-    <p id="reportId" style="font-size:13px;color:#555;"></p>
+<div class="container">
+  <form id="cargoForm">
+    
+    <!-- BLOQUE GENERAL -->
+    <div class="block">
+      <h2>Información General</h2>
+      <label for="role">Rol de Usuario:</label>
+      <select id="role" name="role">
+        <option value="Operator">Operador</option>
+        <option value="Supervisor">Supervisor</option>
+        <option value="Admin">Administrador</option>
+      </select>
 
-    <select id="lang" onchange="switchLang()">
+      <label for="lang">Idioma:</label>
+      <select id="lang" name="lang">
         <option value="English">English</option>
-        <option value="Spanish">Spanish</option>
-    </select>
+        <option value="Spanish">Español</option>
+      </select>
 
-    <label id="roleLabel">Role</label>
-    <select id="role">
-        <option>Shipper</option>
-        <option>Driver</option>
-        <option>Warehouse</option>
-        <option>Counter</option>
-    </select>
-
-    <hr>
-
-    <!-- BLOQUE DE INFORMACIÓN DE CARGA -->
-    <div id="bloqueCarga">
-        <h3>Información de Carga</h3>
-
-        <label>Tipo de Carga</label>
-        <select id="tipoCarga" onchange="mostrarBloques()">
-            <option value="">--Seleccionar--</option>
-            <option value="perecederos">Perecederos</option>
-            <option value="dg">DG / Peligrosa</option>
-            <option value="normal">Normal / Mixta</option>
-        </select>
-
-        <label>Avión</label>
-        <select id="avion" onchange="mostrarBloques()">
-            <option value="belly/pax">Belly / PAX</option>
-            <option value="freighter">Freighter</option>
-        </select>
-
-        <label>Alto (cm)</label>
-        <input type="number" id="alto" min="0" onchange="mostrarBloques()">
-
-        <label>Peso según Guía (kg)</label>
-        <input type="number" id="pesoGuia" min="0" onchange="mostrarBloques()">
-
-        <label>Peso Real (kg)</label>
-        <input type="number" id="pesoReal" min="0" onchange="mostrarBloques()">
+      <label for="cargoType">Tipo de Carga:</label>
+      <select id="cargoType" name="cargoType">
+        <option value="">--Seleccione--</option>
+        <option value="Perishable">Perecederos</option>
+        <option value="DG">Carga Peligrosa (DG)</option>
+        <option value="Mixed">Mixta</option>
+      </select>
     </div>
 
-    <!-- BLOQUES DINÁMICOS SEGÚN CARGA -->
-    <div id="bloqueDG" class="hidden">
-        <h3>Carga DG / Peligrosa</h3>
-        <label>DGD firmado?</label>
-        <select id="dgFirmado">
-            <option value="no">No</option>
-            <option value="yes">Sí</option>
+    <!-- BLOQUE LEGAL -->
+    <div class="block" id="blockLegal">
+      <h2>Legal</h2>
+      <label for="sli">SLI / Factura Completa:</label>
+      <select id="sli" name="sli">
+        <option value="">--Seleccione--</option>
+        <option value="Yes">Sí</option>
+        <option value="No">No</option>
+      </select>
+
+      <label for="embargo">Embargo / Restricción:</label>
+      <select id="embargo" name="embargo">
+        <option value="">--Seleccione--</option>
+        <option value="None">Ninguno</option>
+        <option value="Restricted">Restringido</option>
+      </select>
+    </div>
+
+    <!-- BLOQUE SEGURIDAD -->
+    <div class="block" id="blockSecurity">
+      <h2>Seguridad</h2>
+      <label for="knownShipper">Known Shipper:</label>
+      <select id="knownShipper" name="knownShipper">
+        <option value="">--Seleccione--</option>
+        <option value="Yes">Sí</option>
+        <option value="No">No</option>
+      </select>
+    </div>
+
+    <!-- BLOQUE FÍSICO -->
+    <div class="block" id="blockPhysical">
+      <h2>Físico / Embalaje</h2>
+      <label for="material">Material del embalaje:</label>
+      <select id="material" name="material">
+        <option value="">--Seleccione--</option>
+        <option value="Wood">Madera</option>
+        <option value="Plastic">Plástico</option>
+      </select>
+
+      <label for="height">Altura de la carga (cm):</label>
+      <input type="text" id="height" name="height">
+
+      <label for="weightDiff">Diferencia Peso Báscula vs Guía (%):</label>
+      <input type="text" id="weightDiff" name="weightDiff">
+
+      <div id="perishableBlock" class="hidden">
+        <label for="tempRange">Rango de temperatura (°C):</label>
+        <input type="text" id="tempRange" name="tempRange">
+
+        <label for="iceType">Tipo de hielo:</label>
+        <select id="iceType" name="iceType">
+          <option value="">--Seleccione--</option>
+          <option value="DryIce">Hielo Seco</option>
+          <option value="Regular">Hielo Regular</option>
         </select>
-    </div>
+      </div>
 
-    <div id="bloquePerish" class="hidden">
-        <h3>Perecederos</h3>
-        <label>Temperatura en rango</label>
-        <select id="tempRango">
-            <option value="fuera">Fuera</option>
-            <option value="ok">Correcta</option>
+      <div id="dgBlock" class="hidden">
+        <label for="dgd">DGD firmada:</label>
+        <select id="dgd" name="dgd">
+          <option value="">--Seleccione--</option>
+          <option value="Yes">Sí</option>
+          <option value="No">No</option>
         </select>
+
+        <label for="unNumber">UN Number:</label>
+        <input type="text" id="unNumber" name="unNumber">
+      </div>
     </div>
 
-    <div id="bloqueMadera" class="hidden">
-        <h3>Embalaje</h3>
-        <label>Madera con NIMF-15</label>
-        <select id="maderaNIMF">
-            <option value="no">No</option>
-            <option value="yes">Sí</option>
-        </select>
+    <!-- BOTONES -->
+    <div class="block">
+      <button type="button" class="validate" onclick="validateCargo()">Validar</button>
+      <button type="button" class="clear" onclick="clearForm()">Limpiar</button>
+      <button type="button" class="pdf" onclick="generatePDF()">Generar PDF</button>
     </div>
+  </form>
 
-    <button id="validateBtn" onclick="validate()">Validar Carga</button>
-    <button onclick="clearAll()">🧹 Limpiar</button>
+  <!-- RESULTADO -->
+  <div id="result" class="result hidden"></div>
 
-    <!-- RESULTADO -->
-    <div id="result" class="hidden">
-        <h3 id="semaforo"></h3>
-        <div id="analysis" class="analysis-box"></div>
-        <button onclick="generarPDF()">📑 Generar PDF Certificado</button>
-    </div>
-
-    <hr>
-
-    <!-- ADMIN -->
-    <h3>Admin Login</h3>
-    <input id="adminUser" placeholder="Username">
-    <input id="adminPass" type="password" placeholder="Password">
-    <textarea id="adminQ" placeholder="Pregunta al sistema"></textarea>
-    <button onclick="adminAsk()">Preguntar</button>
-    <pre id="adminAnswer"></pre>
+  <!-- AVISO LEGAL -->
+  <footer>
+    🔴 Aviso Legal: SmartCargo-AIPA by May Roga LLC. La asesoría no sustituye decisiones de TSA, CBP, DOT o aerolíneas.
+  </footer>
 </div>
 
 <script>
-/* 🔢 Generador de Reporte ID */
-(function generateReportId() {
-    const now = new Date();
-    const id =
-        "SCR-AIPA-" +
-        now.getFullYear() +
-        (now.getMonth()+1).toString().padStart(2,"0") +
-        now.getDate().toString().padStart(2,"0") + "-" +
-        Math.random().toString(36).substring(2,8).toUpperCase();
-    document.getElementById("reportId").innerText =
-        "Report ID: " + id + " · Generated: " + now.toLocaleString();
-})();
+const cargoTypeSelect = document.getElementById("cargoType");
+const perishableBlock = document.getElementById("perishableBlock");
+const dgBlock = document.getElementById("dgBlock");
 
-/* 🌐 Cambiar idioma */
-function switchLang() {
-    roleLabel.innerText = lang.value === "Spanish" ? "Rol" : "Role";
+cargoTypeSelect.addEventListener("change", () => {
+    const type = cargoTypeSelect.value;
+    perishableBlock.classList.add("hidden");
+    dgBlock.classList.add("hidden");
+    if (type === "Perishable") perishableBlock.classList.remove("hidden");
+    if (type === "DG") dgBlock.classList.remove("hidden");
+    if (type === "Mixed") {
+        perishableBlock.classList.remove("hidden");
+        dgBlock.classList.remove("hidden");
+    }
+});
+
+function validateCargo() {
+    const form = document.getElementById("cargoForm");
+    const formData = new FormData(form);
+    const data = {};
+    formData.forEach((v,k) => data[k] = v);
+
+    fetch("/validate", {
+        method: "POST",
+        body: new URLSearchParams(data)
+    })
+    .then(res => res.json())
+    .then(resp => {
+        const resultDiv = document.getElementById("result");
+        resultDiv.className = "result " + resp.status;
+        resultDiv.innerHTML = `<h3>Semáforo: ${resp.status}</h3><pre>${resp.analysis}</pre><p>${resp.disclaimer}</p>`;
+        resultDiv.classList.remove("hidden");
+    })
+    .catch(err => alert("Error al validar: " + err));
 }
 
-/* 🔥 Mostrar bloques según cascada */
-function mostrarBloques() {
-    const tipo = document.getElementById("tipoCarga").value;
-    const bloqueDG = document.getElementById("bloqueDG");
-    const bloquePerish = document.getElementById("bloquePerish");
-    const bloqueMadera = document.getElementById("bloqueMadera");
-
-    bloqueDG.classList.add("hidden");
-    bloquePerish.classList.add("hidden");
-    bloqueMadera.classList.remove("hidden");
-
-    if(tipo === "dg") bloqueDG.classList.remove("hidden");
-    if(tipo === "perecederos") bloquePerish.classList.remove("hidden");
-}
-
-/* 🔵 VALIDAR CARGA */
-function validate() {
-    const data = new FormData();
-    data.append("tipo_carga", document.getElementById("tipoCarga").value);
-    data.append("avion", document.getElementById("avion").value);
-    data.append("alto_cm", document.getElementById("alto").value);
-    data.append("peso_guia", document.getElementById("pesoGuia").value);
-    data.append("peso_real", document.getElementById("pesoReal").value);
-    data.append("dg_firmado", document.getElementById("dgFirmado")?.value || "no");
-    data.append("madera_nimf", document.getElementById("maderaNIMF")?.value || "no");
-    data.append("temp_rango", document.getElementById("tempRango")?.value || "ok");
-
-    fetch("/evaluar_carga", { method: "POST", body: data })
-        .then(r => r.json())
-        .then(showResult);
-}
-
-/* 🔴 Mostrar resultado con semáforo */
-function showResult(res) {
-    document.getElementById("result").classList.remove("hidden");
-
-    const semaforo = document.getElementById("semaforo");
-    semaforo.innerText =
-        res.semaforo === "ROJO" ? "🔴 RECHAZADO" :
-        res.semaforo === "AMARILLO" ? "🟡 CORREGIR" :
-        "🟢 ACEPTADO";
-
-    semaforo.style.color =
-        res.semaforo === "ROJO" ? "red" :
-        res.semaforo === "AMARILLO" ? "orange" :
-        "green";
-
-    const analysis = document.getElementById("analysis");
-    analysis.innerHTML = "<strong>Observaciones:</strong><br>" + res.mensaje.join("<br>") +
-        "<br><strong>Acción sugerida:</strong><br>" + res.solucion.join("<br>");
-}
-
-/* 🧹 Limpiar */
-function clearAll() {
-    document.getElementById("tipoCarga").value = "";
-    document.getElementById("avion").value = "belly/pax";
-    document.getElementById("alto").value = "";
-    document.getElementById("pesoGuia").value = "";
-    document.getElementById("pesoReal").value = "";
-    document.getElementById("dgFirmado").value = "no";
-    document.getElementById("maderaNIMF").value = "no";
-    document.getElementById("tempRango").value = "ok";
+function clearForm() {
+    document.getElementById("cargoForm").reset();
     document.getElementById("result").classList.add("hidden");
-    document.getElementById("analysis").innerHTML = "";
 }
 
-/* 📝 GENERAR PDF */
-function generarPDF() {
-    alert("PDF generado con certificado legal (simulación). Implementar endpoint /generar_pdf para PDF real.");
-}
-
-/* 🔐 ADMIN */
-function adminAsk() {
-    const data = new FormData();
-    data.append("username", document.getElementById("adminUser").value);
-    data.append("password", document.getElementById("adminPass").value);
-    data.append("question", document.getElementById("adminQ").value);
-
-    fetch("/admin", { method: "POST", body: data })
-        .then(r => r.json())
-        .then(r => document.getElementById("adminAnswer").innerText = r.answer || "Unauthorized");
+function generatePDF() {
+    alert("Función PDF simulada. Los datos actuales se mostrarían en PDF en producción.");
 }
 </script>
 
