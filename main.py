@@ -1,156 +1,124 @@
-# main.py
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-import os
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+from datetime import datetime
+import uuid
 
-# ---------------- APP CONFIG ----------------
-app = FastAPI(title="SmartCargo-AIPA")
+app = FastAPI(title="SMARTCARGO-AIPA", version="1.0")
 
-# Crear carpeta 'static' si no existe
-if not os.path.exists("static"):
-    os.makedirs("static")
+# =========================
+# STATIC & TEMPLATES
+# =========================
 app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
-# ---------------- ENVIRONMENT VARIABLES ----------------
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")  # usuario admin en Render
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "SmartCargo2026")  # pass admin en Render
+# =========================
+# DATA MODELS
+# =========================
+class CargoValidation(BaseModel):
+    answers: dict  # {"q1":"ok","q2":"warn","q3":"fail",...}
+    operator: str | None = "Unknown"
 
-# ---------------- LEGAL & COMPLIANCE TEXT ----------------
-LEGAL_TEXT = {
-    "English": (
-        "🔴 LEGAL NOTICE – SMARTCARGO-AIPA by May Roga LLC\n\n"
-        "SmartCargo-AIPA operates strictly as a PREVENTIVE ADVISORY platform.\n"
-        "We do not replace decisions made by airlines, cargo agents, TSA, CBP, DOT or "
-        "government authorities.\n"
-        "Final responsibility for cargo and regulatory compliance remains with the user.\n\n"
-        "💙 BENEFITS: Avoid rejections, delays, fines and financial loss."
-    ),
-    "Spanish": (
-        "🔴 AVISO LEGAL – SMARTCARGO-AIPA by May Roga LLC\n\n"
-        "SmartCargo-AIPA opera únicamente como plataforma de ASESORÍA PREVENTIVA.\n"
-        "No sustituimos decisiones de aerolíneas, agentes de carga, TSA, CBP, DOT u "
-        "autoridades gubernamentales.\n"
-        "La responsabilidad final sobre la carga y cumplimiento normativo es del usuario.\n\n"
-        "💙 BENEFICIOS: Evita rechazos, demoras, multas y pérdidas económicas."
-    )
-}
+class ValidationResult(BaseModel):
+    report_id: str
+    timestamp: str
+    operator: str
+    total_questions: int
+    green: int
+    yellow: int
+    red: int
+    status: str
+    recommendations: list[str]
 
-# ---------------- GEMINI ENGINE (PRIMARY) ----------------
-try:
-    from google import genai
-except ImportError:
-    genai = None
-
-def run_gemini(prompt: str):
-    if not GEMINI_API_KEY or not genai:
-        return None
-    try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        models = client.models.list()
-        selected_model = next(
-            (m.name for m in models if "generateContent" in getattr(m, "supported_actions", [])),
-            None
-        )
-        if not selected_model:
-            return None
-
-        response = client.models.generate_content(model=selected_model, contents=prompt)
-        full_text = []
-        if hasattr(response, "candidates"):
-            for c in response.candidates:
-                if hasattr(c, "content") and hasattr(c.content, "parts"):
-                    for p in c.content.parts:
-                        if hasattr(p, "text"):
-                            full_text.append(p.text)
-        return "\n".join(full_text).strip() or None
-    except Exception as e:
-        print(f"Gemini error: {e}")
-        return None
-
-# ---------------- OPENAI ENGINE (BACKUP) ----------------
-def run_openai(prompt: str):
-    if not OPENAI_API_KEY:
-        return None
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=OPENAI_API_KEY)
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        print(f"OpenAI error: {e}")
-        return None
-
-# ---------------- CLASSIFICATION LOGIC ----------------
-def semaforo(text: str):
-    t = text.upper()
-    if any(w in t for w in ["RED", "ROJO", "RECHAZO", "REJECT", "FORBIDDEN", "DANGER"]):
-        return "RED"
-    if any(w in t for w in ["YELLOW", "AMARILLO", "REVISAR", "VERIFICAR", "CHECK", "REVIEW", "VALIDATE"]):
-        return "YELLOW"
-    return "GREEN"
-
-# ---------------- ENDPOINTS ----------------
+# =========================
+# ROUTES
+# =========================
 @app.get("/", response_class=HTMLResponse)
-def home():
-    try:
-        return open("frontend/index.html", encoding="utf-8").read()
-    except FileNotFoundError:
-        return "<h1>SmartCargo-AIPA Frontend Not Found</h1>"
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-# ---------------- VALIDATE CARGO ----------------
-@app.post("/validate")
-def validate(
-    role: str = Form(...),
-    lang: str = Form("English"),
-    dossier: str = Form(...)
-):
-    prompt = f"""
-    Act as the Senior Advisor of SmartCargo-AIPA by May Roga.
-    You are a high-level specialist in IATA, DOT, CBP, and airline compliance.
+@app.post("/validate", response_model=ValidationResult)
+async def validate_cargo(data: CargoValidation):
 
-    GOLDEN RULES:
-    - Do NOT mention you are an AI.
-    - Use "Advisory", "Review", "Rectification".
-    - Respond professional, technical, direct.
-    - ALWAYS use Markdown TABLES.
+    total_questions = 49
+    green = yellow = red = 0
 
-    ANALYSIS:
-    1. Review this cargo/documentation: {dossier}
-    2. Classify as: GREEN, YELLOW, RED.
-    3. Generate TABLE: [Reviewed Point | Finding | Suggested Action].
-    4. Up to 3 preventive recommendations.
-    5. End with 2 key closure questions.
+    for qid, value in data.answers.items():
+        if value == "ok":
+            green += 1
+        elif value == "warn":
+            yellow += 1
+        elif value == "fail":
+            red += 1
 
-    Response language: {lang}
-    """
+    # =========================
+    # SEMAPHORE LOGIC
+    # =========================
+    if red > 0:
+        status = "RED"
+    elif yellow > 0:
+        status = "YELLOW"
+    else:
+        status = "GREEN"
 
-    analysis = run_gemini(prompt) or run_openai(prompt)
-    if not analysis:
-        analysis = "Notice: Advisory system temporarily unavailable. Please perform a manual review."
+    # =========================
+    # SMARTCARGO-AIPA RECOMMENDATIONS
+    # =========================
+    recommendations = generate_recommendations(
+        status=status,
+        red=red,
+        yellow=yellow
+    )
 
-    return JSONResponse({
-        "status": semaforo(analysis),
-        "analysis": analysis,
-        "disclaimer": LEGAL_TEXT.get(lang, LEGAL_TEXT["English"])
-    })
+    return ValidationResult(
+        report_id=f"SCR-{uuid.uuid4().hex[:8].upper()}",
+        timestamp=datetime.utcnow().isoformat(),
+        operator=data.operator,
+        total_questions=total_questions,
+        green=green,
+        yellow=yellow,
+        red=red,
+        status=status,
+        recommendations=recommendations
+    )
 
-# ---------------- ADMIN LOGIN ----------------
-@app.post("/admin")
-def admin(
-    username: str = Form(...),
-    password: str = Form(...),
-    question: str = Form(...)
-):
-    # Validación usando las variables de entorno de Render
-    if username != ADMIN_USERNAME or password != ADMIN_PASSWORD:
-        return JSONResponse({"answer": "Access Denied"}, status_code=401)
+# =========================
+# BUSINESS LOGIC
+# =========================
+def generate_recommendations(status: str, red: int, yellow: int) -> list[str]:
+    recs = []
 
-    answer = run_openai(question) or run_gemini(question) or "Service unavailable"
-    return {"answer": answer}
+    if status == "GREEN":
+        recs.append("Cargo accepted for processing.")
+        recs.append("Proceed with build-up and flight planning.")
+        recs.append("Maintain current compliance standards.")
+
+    elif status == "YELLOW":
+        recs.append("Cargo conditionally accepted.")
+        recs.append("Review documentation and physical handling issues.")
+        recs.append("Supervisor verification recommended before release.")
+        recs.append("Re-check temperature, labeling, and segregation if applicable.")
+
+    elif status == "RED":
+        recs.append("Cargo NOT accepted.")
+        recs.append("Immediate corrective action required.")
+        recs.append("Isolate cargo and notify supervisor.")
+        recs.append("Do not proceed until all critical issues are resolved.")
+        recs.append("Document non-compliance per AIPA cargo standards.")
+
+    # Risk weighting guidance
+    if red >= 3:
+        recs.append("Multiple critical failures detected – escalate to management.")
+    if yellow >= 5:
+        recs.append("High number of warnings – conduct full secondary inspection.")
+
+    return recs
+
+# =========================
+# HEALTH CHECK
+# =========================
+@app.get("/health")
+def health():
+    return {"status": "OK", "system": "SMARTCARGO-AIPA"}
