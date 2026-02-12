@@ -5,175 +5,268 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SMARTCARGO BY MAY ROGA LLC - Compliance System</title>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <style>
-        :root { --primary: #d8232a; --secondary: #003366; --accent: #f4f4f4; }
-        body { font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; background: var(--accent); color: #333; }
-        header { background: var(--secondary); color: white; padding: 2rem; text-align: center; border-bottom: 5px solid var(--primary); }
-        .container { max-width: 1000px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        
-        .section-title { background: var(--secondary); color: white; padding: 12px; margin-top: 20px; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
-        .panel { display: none; padding: 15px; border: 1px solid #ddd; border-top: none; }
-        
-        .question-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; gap: 15px; }
-        .question-text { flex: 2; font-size: 14px; font-weight: 500; }
-        
-        .info-btn { background: #666; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; font-weight: bold; }
-        .info-btn:hover { background: var(--primary); }
-        
-        .tip-box { display: none; background: #fff3cd; padding: 10px; margin: 10px 0; border-left: 5px solid #ffeeba; font-size: 13px; color: #856404; }
-        
-        select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; outline: none; font-weight: bold; }
-        select.ok { color: green; }
-        select.warn { color: orange; }
-        select.fail { color: red; }
 
-        .actions { display: flex; gap: 15px; margin-top: 30px; }
-        .btn { flex: 1; padding: 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.3s; }
+    <style>
+        :root {
+            --primary: #d8232a;
+            --secondary: #003366;
+            --accent: #f4f4f4;
+        }
+
+        body {
+            font-family: "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            background: var(--accent);
+            color: #333;
+        }
+
+        header {
+            background: var(--secondary);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            border-bottom: 5px solid var(--primary);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            background: var(--secondary);
+            color: white;
+            padding: 12px;
+            margin-top: 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        .panel {
+            display: none;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-top: none;
+        }
+
+        .question-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .question-text {
+            flex: 2;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .info-btn {
+            background: #666;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .info-btn:hover {
+            background: var(--primary);
+        }
+
+        .tip-box {
+            display: none;
+            background: #fff3cd;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 5px solid #ffeeba;
+            font-size: 13px;
+            color: #856404;
+        }
+
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-weight: bold;
+        }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
         .btn-validate { background: var(--primary); color: white; }
         .btn-clear { background: #555; color: white; }
         .btn-print { background: var(--secondary); color: white; }
-        .btn:hover { opacity: 0.8; transform: translateY(-2px); }
 
-        #resultContainer { margin-top: 30px; padding: 20px; border-radius: 8px; display: none; animation: fadeIn 0.5s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        
-        .legal-footer { margin-top: 40px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #ddd; padding-top: 20px; }
+        #resultContainer {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .legal-footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
     </style>
 </head>
+
 <body>
 
 <header>
-    <h1 style="margin:0;">SMARTCARGO BY MAY ROGA LLC</h1>
-    <p style="margin:5px 0 0 0; opacity:0.9;">Professional Cargo Advisory & Compliance System</p>
+    <h1>SMARTCARGO BY MAY ROGA LLC</h1>
+    <p>Professional Cargo Advisory & Compliance System</p>
 </header>
 
 <div class="container">
-    <form id="cargoForm">
-        <div class="section-title" onclick="togglePanel('p1')">I. CONTROL DOCUMENTAL (CBP / IATA) <span>+</span></div>
-        <div id="p1" class="panel">
-            <div class="question-row">
-                <span class="question-text">1. MAWB original legible + 3 copias (fuera del sobre)</span>
-                <button type="button" class="info-btn" onclick="toggleTip('t1')">?</button>
-                <select name="q1"><option value="ok">Cumple</option><option value="warn">Observación</option><option value="fail">Falla</option></select>
-            </div>
-            <div id="t1" class="tip-box">Requerido por Avianca para agilizar el archivo de estación y procesos aduaneros.</div>
 
-            <div class="question-row">
-                <span class="question-text">2. HMAWB y Manifiesto coinciden 100% con MAWB</span>
-                <button type="button" class="info-btn" onclick="toggleTip('t2')">?</button>
-                <select name="q2"><option value="ok">Cumple</option><option value="warn">Observación</option><option value="fail">Falla</option></select>
-            </div>
-            <div id="t2" class="tip-box">Evita multas de CBP por discrepancias en la transmisión electrónica de datos.</div>
-        </div>
+<form id="cargoForm">
 
-        <div class="section-title" onclick="togglePanel('p2')">II. SEGURIDAD Y DIMENSIONES (TSA / AVIANCA) <span>+</span></div>
-        <div id="p2" class="panel">
-            <div class="question-row">
-                <span class="question-text">3. Altura ≤ 80cm (PAX) o ≤ 160cm (Carguero)</span>
-                <button type="button" class="info-btn" onclick="toggleTip('t3')">?</button>
-                <select name="q7"><option value="ok">Cumple</option><option value="warn">Observación</option><option value="fail">Falla</option></select>
-            </div>
-            <div id="t3" class="tip-box">Límite físico estructural de la aeronave asignada. Si excede, NO vuela.</div>
-
-            <div class="question-row">
-                <span class="question-text">4. Peso por pie cuadrado ≤ 732 kg/m²</span>
-                <button type="button" class="info-btn" onclick="toggleTip('t4')">?</button>
-                <select name="q8"><option value="ok">Cumple</option><option value="warn">Observación</option><option value="fail">Falla</option></select>
-            </div>
-            <div id="t4" class="tip-box">Evita daños estructurales en el suelo de la bodega. Requiere Shoring si se excede.</div>
-        </div>
-
-        <div class="section-title" onclick="togglePanel('p3')">III. DG & ESPECIALES (IATA DGR / DOT) <span>+</span></div>
-        <div id="p3" class="panel">
-            <div class="question-row">
-                <span class="question-text">5. DGD firmada en original y Marcado UN visible</span>
-                <button type="button" class="info-btn" onclick="toggleTip('t5')">?</button>
-                <select name="q10"><option value="ok">Cumple</option><option value="warn">Observación</option><option value="fail">Falla</option></select>
-            </div>
-            <div id="t5" class="tip-box">Incumplimiento genera multas federales del DOT de miles de dólares por bulto.</div>
-
-            <div class="question-row">
-                <span class="question-text">6. Termógrafo activo y Rango entre 2°C y 8°C</span>
-                <button type="button" class="info-btn" onclick="toggleTip('t6')">?</button>
-                <select name="q13"><option value="ok">Cumple</option><option value="warn">Observación</option><option value="fail">Falla</option></select>
-            </div>
-            <div id="t6" class="tip-box">Garantiza la viabilidad de Pharma y Perecederos. Crucial para evitar Claims.</div>
-        </div>
-
-        <div id="resultContainer"></div>
-
-        <div class="actions">
-            <button type="button" class="btn btn-validate" onclick="processValidation()">Validar Compliance</button>
-            <button type="button" class="btn btn-clear" onclick="resetSystem()">Borrar Sistema</button>
-            <button type="button" class="btn btn-print" onclick="window.print()">Generar Reporte PDF</button>
-        </div>
-    </form>
-
-    <div class="legal-footer">
-        © 2026 SMARTCARGO BY MAY ROGA LLC. Todos los derechos reservados.<br>
-        Asesoría basada en regulaciones IATA, CBP, TSA y DOT para Avianca Cargo.
+<!-- ================= DOCUMENTAL ================= -->
+<div class="section-title" onclick="togglePanel('p1')">I. CONTROL DOCUMENTAL <span>+</span></div>
+<div id="p1" class="panel">
+    <div class="question-row">
+        <span class="question-text">MAWB original legible + 3 copias</span>
+        <button type="button" class="info-btn" onclick="toggleTip('t1')">?</button>
+        <select name="q1">
+            <option value="ok">Cumple</option>
+            <option value="warn">Observación</option>
+            <option value="fail">Falla</option>
+        </select>
     </div>
+    <div id="t1" class="tip-box">Requerido para aceptación de carga y archivo.</div>
+</div>
+
+<!-- ================= SEGURIDAD ================= -->
+<div class="section-title" onclick="togglePanel('p2')">II. SEGURIDAD Y DIMENSIONES <span>+</span></div>
+<div id="p2" class="panel">
+    <div class="question-row">
+        <span class="question-text">Altura ≤ 80cm (PAX) o ≤ 160cm (Carguero)</span>
+        <button type="button" class="info-btn" onclick="toggleTip('t2')">?</button>
+        <select name="q7">
+            <option value="ok">Cumple</option>
+            <option value="warn">Observación</option>
+            <option value="fail">Falla</option>
+        </select>
+    </div>
+    <div id="t2" class="tip-box">Si excede, la carga no vuela.</div>
+</div>
+
+<!-- ================= DG / PHARMA ================= -->
+<div class="section-title" onclick="togglePanel('p3')">III. DG & CADENA DE FRÍO <span>+</span></div>
+<div id="p3" class="panel">
+    <div class="question-row">
+        <span class="question-text">Termógrafo activo entre 2°C y 8°C</span>
+        <button type="button" class="info-btn" onclick="toggleTip('t3')">?</button>
+        <select name="q13">
+            <option value="ok">Cumple</option>
+            <option value="warn">Observación</option>
+            <option value="fail">Falla</option>
+        </select>
+    </div>
+    <div id="t3" class="tip-box">Fuera de rango genera Claims.</div>
+</div>
+
+<div id="resultContainer"></div>
+
+<div class="actions">
+    <button type="button" class="btn btn-validate" onclick="processValidation()">Validar Compliance</button>
+    <button type="button" class="btn btn-clear" onclick="resetSystem()">Borrar</button>
+    <button type="button" class="btn btn-print" onclick="window.print()">PDF</button>
+</div>
+
+</form>
+
+<div class="legal-footer">
+    © 2026 SMARTCARGO BY MAY ROGA LLC · IATA · CBP · TSA · DOT
+</div>
+
 </div>
 
 <script>
-    function togglePanel(id) {
-        const p = document.getElementById(id);
-        p.style.display = (p.style.display === "block") ? "none" : "block";
+const API_BASE = "https://smartcargo-aipa.onrender.com";
+
+function togglePanel(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === "block" ? "none" : "block";
+}
+
+function toggleTip(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === "block" ? "none" : "block";
+}
+
+async function processValidation() {
+    const formData = new FormData(document.getElementById("cargoForm"));
+    const answers = {};
+    formData.forEach((v, k) => answers[k] = v);
+
+    const operator = prompt("IDENTIFICACIÓN DEL OPERADOR:", "MAY_ROGA_TECH");
+
+    try {
+        const res = await axios.post(`${API_BASE}/validate`, {
+            answers: answers,
+            operator: operator
+        });
+
+        const d = res.data;
+        const box = document.getElementById("resultContainer");
+
+        box.style.display = "block";
+        box.style.background = d.red > 0 ? "#f8d7da" : d.yellow > 0 ? "#fff3cd" : "#d4edda";
+
+        box.innerHTML = `
+            <h2>${d.status}</h2>
+            <p><strong>Report ID:</strong> ${d.report_id}</p>
+            <ul>${d.recommendations.map(r => `<li>${r}</li>`).join("")}</ul>
+            <small>${d.legal_note}</small>
+        `;
+
+        box.scrollIntoView({behavior:"smooth"});
+
+    } catch (e) {
+        alert("Error de conexión con SMARTCARGO API");
     }
+}
 
-    function toggleTip(id) {
-        const t = document.getElementById(id);
-        t.style.display = (t.style.display === "block") ? "none" : "block";
+function resetSystem() {
+    if(confirm("¿Desea limpiar el formulario?")) {
+        document.getElementById("cargoForm").reset();
+        document.getElementById("resultContainer").style.display = "none";
     }
-
-    async function processValidation() {
-        const form = document.getElementById("cargoForm");
-        const formData = new FormData(form);
-        const answers = {};
-        formData.forEach((value, key) => { answers[key] = value; });
-
-        const operator = prompt("IDENTIFICACIÓN DEL OPERADOR (Counter ID):", "MAY_ROGA_TECH");
-        
-        try {
-            const res = await axios.post("http://localhost:8000/validate", {
-                answers: answers,
-                operator: operator
-            });
-
-            const data = res.data;
-            const resDiv = document.getElementById("resultContainer");
-            
-            let color = "#d4edda"; 
-            if (data.status.includes("YELLOW")) color = "#fff3cd";
-            if (data.status.includes("RED")) color = "#f8d7da";
-
-            resDiv.style.display = "block";
-            resDiv.style.background = color;
-            resDiv.style.border = `2px solid ${data.red > 0 ? 'red' : 'green'}`;
-            
-            resDiv.innerHTML = `
-                <h2 style="margin-top:0;">${data.status}</h2>
-                <p><strong>REPORT ID:</strong> ${data.report_id} | <strong>OPERADOR:</strong> ${data.operator}</p>
-                <hr>
-                <strong>VEREDICTO TÉCNICO:</strong>
-                <ul>${data.recommendations.map(r => `<li>${r}</li>`).join("")}</ul>
-                <p style="font-size:11px; margin-top:20px;">${data.legal_note}</p>
-            `;
-            resDiv.scrollIntoView({ behavior: "smooth" });
-
-        } catch (err) {
-            alert("ERROR: No se pudo conectar con el servidor central de SMARTCARGO.");
-        }
-    }
-
-    function resetSystem() {
-        if(confirm("¿Desea limpiar todos los controles técnicos?")) {
-            document.getElementById("cargoForm").reset();
-            document.getElementById("resultContainer").style.display = "none";
-            const panels = document.getElementsByClassName("panel");
-            for(let p of panels) p.style.display = "none";
-        }
-    }
+}
 </script>
 
 </body>
