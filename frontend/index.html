@@ -1,280 +1,248 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>SMARTCARGO-AIPA</title>
+<title>SMARTCARGO-AIPA | Avianca Cargo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-  body {
-    font-family: "Segoe UI", Arial, sans-serif;
-    background: #f2f4f7;
-    margin: 0;
-    padding: 0;
-  }
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: #0b1e33;
+  color: #ffffff;
+  margin: 0;
+}
+header {
+  background: #102a44;
+  padding: 15px;
+  text-align: center;
+}
+h1 { margin: 0; font-size: 22px; }
+h2 { font-size: 18px; margin-top: 30px; }
 
-  .container {
-    max-width: 1200px;
-    margin: 30px auto;
-    background: #ffffff;
-    padding: 30px 40px;
-    border-radius: 14px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-  }
+.container {
+  max-width: 1200px;
+  margin: auto;
+  padding: 20px;
+}
 
-  h1 {
-    margin-top: 0;
-    color: #002b5c;
-  }
+.section {
+  background: #132f4c;
+  margin-bottom: 15px;
+  border-radius: 6px;
+}
 
-  .subtitle {
-    color: #555;
-    margin-bottom: 30px;
-  }
+.section summary {
+  padding: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  background: #1b4f72;
+}
 
-  .level {
-    margin-bottom: 25px;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    overflow: hidden;
-  }
+.section details div {
+  padding: 15px;
+  border-top: 1px solid #1e5f8a;
+}
 
-  .level-header {
-    background: #004080;
-    color: white;
-    padding: 14px 18px;
-    font-size: 17px;
-    cursor: pointer;
-  }
+.question {
+  margin-bottom: 12px;
+}
 
-  .level-content {
-    display: none;
-    padding: 20px;
-    background: #fafafa;
-  }
+label {
+  display: block;
+  margin-bottom: 5px;
+}
 
-  .question {
-    margin-bottom: 22px;
-  }
+select, input {
+  width: 100%;
+  padding: 6px;
+  border-radius: 4px;
+  border: none;
+}
 
-  .question-title {
-    font-weight: 600;
-    margin-bottom: 10px;
-    color: #222;
-  }
+.green { color: #2ecc71; }
+.yellow { color: #f1c40f; }
+.red { color: #e74c3c; }
 
-  .options label {
-    display: block;
-    margin-bottom: 6px;
-    cursor: pointer;
-  }
+button {
+  padding: 12px;
+  width: 100%;
+  background: #27ae60;
+  color: #fff;
+  border: none;
+  font-size: 16px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+button:hover { background: #2ecc71; }
 
-  .options input {
-    margin-right: 8px;
-  }
-
-  .actions {
-    text-align: center;
-    margin-top: 35px;
-  }
-
-  button {
-    background: #004080;
-    color: white;
-    border: none;
-    padding: 14px 26px;
-    font-size: 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    margin: 8px;
-  }
-
-  button:hover {
-    background: #0066cc;
-  }
-
-  #result {
-    margin-top: 35px;
-    padding: 25px;
-    border-radius: 12px;
-    display: none;
-  }
-
-  #semaphore {
-    font-size: 22px;
-    font-weight: bold;
-    margin-bottom: 15px;
-  }
-
-  .green { color: #0a8f08; }
-  .yellow { color: #d4a000; }
-  .red { color: #c00000; }
-
-  .recommendations {
-    margin-top: 15px;
-    font-size: 15px;
-  }
+.result {
+  margin-top: 20px;
+  padding: 15px;
+  background: #0e3a5d;
+  border-radius: 6px;
+}
 </style>
 </head>
 
 <body>
 
+<header>
+  <h1>SMARTCARGO-AIPA</h1>
+  <div>Pre-Validación Operativa | Avianca Cargo</div>
+</header>
+
 <div class="container">
 
-<h1>SMARTCARGO-AIPA</h1>
-<p class="subtitle">
-Preventive Cargo Acceptance Advisory System<br>
-Operational · Legal · Non-binding
-</p>
+<!-- ================= OPERATOR ================= -->
+<div class="section">
+<details open>
+<summary>🧑‍✈️ Identificación del Operador</summary>
+<div>
+<label>Nombre del operador</label>
+<input id="operator" placeholder="Nombre y apellido">
 
-<!-- ================= LEVEL 1 ================= -->
-<div class="level">
-  <div class="level-header" onclick="toggleLevel(this)">
-    Level 1 – Identification & Transport
-  </div>
-  <div class="level-content">
-
-    <div class="question">
-      <div class="question-title">1. Type of cargo</div>
-      <div class="options">
-        <label><input type="radio" name="q1" value="Pharmaceutical"> Pharmaceutical</label>
-        <label><input type="radio" name="q1" value="DG"> Dangerous Goods</label>
-        <label><input type="radio" name="q1" value="Perishable"> Perishable</label>
-        <label><input type="radio" name="q1" value="Human Remains"> Human Remains</label>
-        <label><input type="radio" name="q1" value="General Cargo"> General Cargo</label>
-        <label><input type="radio" name="q1" value="Other"> Other</label>
-      </div>
-    </div>
-
-    <div class="question">
-      <div class="question-title">2. Delivered by</div>
-      <div class="options">
-        <label><input type="radio" name="q2" value="Authorized Driver"> Authorized Driver</label>
-        <label><input type="radio" name="q2" value="Freight Forwarder"> Freight Forwarder</label>
-        <label><input type="radio" name="q2" value="Company"> Company</label>
-        <label><input type="radio" name="q2" value="Owner"> Owner personally</label>
-      </div>
-    </div>
-
-    <div class="question">
-      <div class="question-title">3. Land transport method</div>
-      <div class="options">
-        <label><input type="radio" name="q3" value="Refrigerated Truck"> Refrigerated Truck</label>
-        <label><input type="radio" name="q3" value="Regular Truck"> Regular Truck</label>
-        <label><input type="radio" name="q3" value="Other"> Other</label>
-      </div>
-    </div>
-
-    <div class="question">
-      <div class="question-title">4. Cargo condition upon receipt</div>
-      <div class="options">
-        <label><input type="radio" name="q4" value="Mixed"> Mixed with other cargo</label>
-        <label><input type="radio" name="q4" value="Separated"> Separated by type</label>
-        <label><input type="radio" name="q4" value="Organized"> Pallets / bundles organized</label>
-      </div>
-    </div>
-
-    <div class="question">
-      <div class="question-title">5. Max pallet / bundle height</div>
-      <div class="options">
-        <label><input type="radio" name="q5" value="Within limits"> Within limits</label>
-        <label><input type="radio" name="q5" value="Exceeds"> Exceeds limits</label>
-      </div>
-    </div>
-
-  </div>
+<label>Rol</label>
+<select id="role">
+  <option value="Owner">Owner / Cliente</option>
+  <option value="Trucker">Chofer</option>
+  <option value="Forwarder">Freight Forwarder</option>
+  <option value="Counter">Counter Avianca</option>
+  <option value="DG">Agente DG</option>
+</select>
+</div>
+</details>
 </div>
 
-<!-- ================= LEVEL 2 ================= -->
-<div class="level">
-  <div class="level-header" onclick="toggleLevel(this)">
-    Level 2 – Documentation
-  </div>
-  <div class="level-content">
+<!-- ================= DIMENSIONS ================= -->
+<div class="section">
+<details>
+<summary>📦 Dimensiones y Peso (Avianca)</summary>
+<div>
+<label>Altura (cm)</label>
+<input type="number" id="height">
 
-    <div class="question">
-      <div class="question-title">9. Original AWB present</div>
-      <div class="options">
-        <label><input type="radio" name="q9" value="Inside envelope"> Inside envelope</label>
-        <label><input type="radio" name="q9" value="Loose"> Loose</label>
-        <label><input type="radio" name="q9" value="Not available"> Not available</label>
-      </div>
-    </div>
+<label>Ancho (cm)</label>
+<input type="number" id="width">
 
-    <div class="question">
-      <div class="question-title">12. Shipper name matches documents</div>
-      <div class="options">
-        <label><input type="radio" name="q12" value="Yes"> Yes</label>
-        <label><input type="radio" name="q12" value="Unclear"> Unclear</label>
-        <label><input type="radio" name="q12" value="No"> No</label>
-      </div>
-    </div>
+<label>Largo (cm)</label>
+<input type="number" id="length">
 
-    <div class="question">
-      <div class="question-title">13. AWB matches physical cargo</div>
-      <div class="options">
-        <label><input type="radio" name="q13" value="Yes"> Yes</label>
-        <label><input type="radio" name="q13" value="No"> No</label>
-      </div>
-    </div>
-
-  </div>
+<label>Peso (kg)</label>
+<input type="number" id="weight">
+</div>
+</details>
 </div>
 
-<!-- ================= ACTIONS ================= -->
-<div class="actions">
-  <button onclick="submitForm()">Validate Cargo</button>
-  <button onclick="location.reload()">Clear</button>
+<!-- ================= CHECKLIST ================= -->
+<div class="section">
+<details open>
+<summary>✅ Checklist Operativo (49 preguntas)</summary>
+<div id="questions"></div>
+</details>
 </div>
 
-<!-- ================= RESULT ================= -->
-<div id="result">
-  <div id="semaphore"></div>
-  <div class="recommendations" id="recommendations"></div>
-</div>
+<button onclick="validate()">VALIDAR CARGA</button>
+
+<div class="result" id="result"></div>
 
 </div>
 
 <script>
-function toggleLevel(el) {
-  const content = el.nextElementSibling;
-  content.style.display = content.style.display === "block" ? "none" : "block";
-}
+const questions = [
+  {id:1, text:"Tipo de carga correctamente declarada", role:"Owner"},
+  {id:2, text:"Quien entrega identificado", role:"Owner"},
+  {id:3, text:"Camión adecuado para la carga", role:"Trucker"},
+  {id:4, text:"Carga organizada y segregada", role:"Trucker"},
+  {id:5, text:"Altura dentro de límites", role:"Counter"},
+  {id:6, text:"Largo dentro de límites", role:"Counter"},
+  {id:7, text:"Sello del camión presente", role:"Trucker"},
+  {id:8, text:"Camión limpio", role:"Trucker"},
+  {id:9, text:"AWB original presente", role:"Forwarder"},
+  {id:10, text:"AWB legible y sin tachaduras", role:"Forwarder"},
+  {id:11, text:"Shipper coincide con factura", role:"Forwarder"},
+  {id:12, text:"AWB coincide con carga física", role:"Counter"},
+  {id:13, text:"Facturas y packing list completos", role:"Forwarder"},
+  {id:14, text:"House / Master AWB alineados", role:"Forwarder"},
+  {id:15, text:"Sellos sanitarios correctos", role:"Counter"},
+  {id:16, text:"Tipo de pallet adecuado", role:"Trucker"},
+  {id:17, text:"Pallet envuelto correctamente", role:"Trucker"},
+  {id:18, text:"Etiquetas visibles", role:"Counter"},
+  {id:19, text:"No mezcla de mercancías", role:"Counter"},
+  {id:20, text:"Carga estable", role:"Counter"},
+  {id:21, text:"Clasificación Pharma correcta", role:"Forwarder"},
+  {id:22, text:"Rango de temperatura declarado", role:"Forwarder"},
+  {id:23, text:"Dry ice declarado y etiquetado", role:"DG"},
+  {id:24, text:"SLI firmado", role:"Forwarder"},
+  {id:25, text:"Packaging validado", role:"Counter"},
+  {id:26, text:"MSDS presente (si aplica)", role:"DG"},
+  {id:27, text:"Temperatura registrada", role:"Trucker"},
+  {id:28, text:"Fechas de caducidad legibles", role:"Counter"},
+  {id:29, text:"DG declarado en AWB", role:"DG"},
+  {id:30, text:"Clase DG correcta", role:"DG"},
+  {id:31, text:"DGD firmada", role:"DG"},
+  {id:32, text:"Embalaje UN aprobado", role:"DG"},
+  {id:33, text:"Labels DG visibles", role:"DG"},
+  {id:34, text:"DG no mezclado", role:"DG"},
+  {id:35, text:"Fragile visible", role:"Counter"},
+  {id:36, text:"Tipo perecedero identificado", role:"Forwarder"},
+  {id:37, text:"Temperatura cumplida", role:"Counter"},
+  {id:38, text:"Ventilación adecuada", role:"Counter"},
+  {id:39, text:"Tiempo de tránsito compatible", role:"Forwarder"},
+  {id:40, text:"Docs Human Remains completos", role:"Forwarder"},
+  {id:41, text:"Ataúd conforme", role:"Counter"},
+  {id:42, text:"AWB Human Remains correcta", role:"Counter"},
+  {id:43, text:"Packing list separado", role:"Forwarder"},
+  {id:44, text:"Facturas organizadas", role:"Forwarder"},
+  {id:45, text:"Peso coincide con docs", role:"Counter"},
+  {id:46, text:"Docs consolidados correctos", role:"Forwarder"},
+  {id:47, text:"Apto belly cargo", role:"Counter"},
+  {id:48, text:"No mezcla con DG/PER", role:"Counter"},
+  {id:49, text:"Checklist completo", role:"Counter"}
+];
 
-function submitForm() {
-  const answers = {};
-  document.querySelectorAll("input[type=radio]:checked").forEach(r => {
-    answers[r.name] = r.value;
-  });
+const qDiv = document.getElementById("questions");
+
+questions.forEach(q => {
+  qDiv.innerHTML += `
+    <div class="question">
+      <label>${q.id}. ${q.text} <small>(${q.role})</small></label>
+      <select id="q${q.id}">
+        <option value="green">🟢 Cumple</option>
+        <option value="yellow">🟡 Revisar</option>
+        <option value="red">🔴 No cumple</option>
+      </select>
+    </div>`;
+});
+
+function validate() {
+  const answers = questions.map(q => ({
+    question_id: q.id,
+    value: document.getElementById("q"+q.id).value,
+    role: q.role
+  }));
 
   fetch("/validate", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ answers })
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      operator: document.getElementById("operator").value,
+      role: document.getElementById("role").value,
+      answers: answers,
+      dimensions: {
+        height: Number(height.value),
+        width: Number(width.value),
+        length: Number(length.value),
+        weight: Number(weight.value)
+      }
+    })
   })
-  .then(r => r.json())
-  .then(res => showResult(res))
-  .catch(() => alert("Validation service unavailable"));
-}
-
-function showResult(res) {
-  const box = document.getElementById("result");
-  const sem = document.getElementById("semaphore");
-  const rec = document.getElementById("recommendations");
-
-  box.style.display = "block";
-
-  if (res.semaforo === "GREEN") {
-    sem.innerHTML = "🟢 ACCEPTABLE FOR CARGO";
-    sem.className = "green";
-  } else if (res.semaforo === "YELLOW") {
-    sem.innerHTML = "🟡 CONDITIONAL – REVIEW REQUIRED";
-    sem.className = "yellow";
-  } else {
-    sem.innerHTML = "🔴 NOT ACCEPTABLE – ACTION REQUIRED";
-    sem.className = "red";
-  }
-
-  rec.innerHTML = res.recs.join("<br>");
+  .then(r=>r.json())
+  .then(data=>{
+    document.getElementById("result").innerHTML =
+      `<h3>Resultado: ${data.final_status}</h3>
+       <pre>${JSON.stringify(data, null, 2)}</pre>`;
+  });
 }
 </script>
 
