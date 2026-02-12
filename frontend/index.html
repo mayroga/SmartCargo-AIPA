@@ -82,6 +82,14 @@
         border-radius: 8px;
         white-space: pre-wrap;
     }
+    #ai-observation {
+        margin-top: 1em;
+        background: #162447;
+        padding: 0.8em;
+        border-radius: 6px;
+        font-style: italic;
+        color: #ffd166;
+    }
 </style>
 </head>
 <body>
@@ -89,14 +97,28 @@
 <header>SMARTCARGO - Validación de Carga Avianca</header>
 
 <main>
+    <!-- Selección de Role -->
+    <label for="roleSelect">Seleccione su rol:</label>
+    <select id="roleSelect">
+        <option value="shipper">SHIPPER</option>
+        <option value="forwarder">FORWARDER</option>
+        <option value="trucker">TRUCKER</option>
+        <option value="owner">OWNER</option>
+        <option value="counter">COUNTER</option>
+        <option value="supervisor">SUPERVISOR</option>
+    </select>
+
+    <!-- Selección de Tipo de Carga -->
     <label for="cargoType">Seleccione tipo de carga:</label>
     <select id="cargoType">
-        <option value="GENERAL">General</option>
-        <option value="DG">Peligrosa (DG)</option>
-        <option value="PERISHABLE">Perecedera</option>
-        <option value="LIVE_ANIMALS">Animales vivos</option>
-        <option value="EXPRESS">Express</option>
-        <option value="COMAT">COMAT</option>
+        <option value="general">GENERAL</option>
+        <option value="pharma">PHARMA</option>
+        <option value="dg">DG</option>
+        <option value="valuable">VALUABLE</option>
+        <option value="perishable">PERISHABLE</option>
+        <option value="live_animals">LIVE_ANIMALS</option>
+        <option value="express">EXPRESS</option>
+        <option value="comat">COMAT</option>
     </select>
 
     <div id="questionsContainer"></div>
@@ -108,6 +130,7 @@
     </div>
 
     <div id="report"></div>
+    <div id="ai-observation"></div>
 </main>
 
 <script>
@@ -151,9 +174,17 @@ async function submitAnswers() {
     document.querySelectorAll('#questionsContainer select').forEach(sel => {
         answers[sel.dataset.id] = sel.value;
     });
+
+    const role = document.getElementById('roleSelect').value;
+    const cargoType = document.getElementById('cargoType').value;
+
     try {
-        const cargoType = document.getElementById('cargoType').value;
-        const res = await axios.post('/validate_cargo', { cargo_type: cargoType, answers: answers });
+        const res = await axios.post('/validate_cargo', {
+            cargo_type: cargoType,
+            answers: answers,
+            operator: role
+        });
+
         displayReport(res.data);
     } catch (err) {
         console.error("Error generando reporte:", err);
@@ -163,27 +194,36 @@ async function submitAnswers() {
 function displayReport(data) {
     const reportDiv = document.getElementById('report');
     reportDiv.innerHTML = `
-        Reporte ID: ${data.report_id}
-        Fecha: ${data.timestamp}
-        Operador: ${data.operator}
-        Tipo de carga: ${data.cargo_type}
-        Total preguntas: ${data.total_questions}
-        ✅ Apto: ${data.green}
-        ⚠️ Observación: ${data.yellow}
-        ❌ Rechazo: ${data.red}
-        Estado general: ${data.status}
-        
+Reporte ID: ${data.report_id}
+Fecha: ${data.timestamp}
+Operador: ${data.operator}
+Tipo de carga: ${data.cargo_type}
+Total preguntas: ${data.total_questions}
+✅ Apto: ${data.green}
+⚠️ Observación: ${data.yellow}
+❌ Rechazo: ${data.red}
+Estado general: ${data.status}
+
 Recomendaciones:
 ${data.recommendations.join('\n')}
 
 Nota Legal:
 ${data.legal_note}
     `;
+
+    // Mostrar observaciones IA si existen
+    const aiDiv = document.getElementById('ai-observation');
+    if (data.ai_observation) {
+        aiDiv.innerHTML = `Observación IA: ${data.ai_observation.observation} (Nivel: ${data.ai_observation.risk_level})`;
+    } else {
+        aiDiv.innerHTML = '';
+    }
 }
 
 function resetForm() {
     loadQuestions();
     document.getElementById('report').innerHTML = '';
+    document.getElementById('ai-observation').innerHTML = '';
 }
 
 function changeLanguage() {
