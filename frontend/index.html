@@ -3,177 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMARTCARGO BY MAY ROGA LLC - Validación Avianca</title>
+    <title>SMARTCARGO BY MAY ROGA LLC - Compliance System</title>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #f4f4f4; color: #333; }
-        header { background: #d8232a; color: white; padding: 1.5rem; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        .container { padding: 1rem; max-width: 900px; margin: auto; }
-        .accordion { background-color: #003366; color: white; cursor: pointer; padding: 1rem; width: 100%; border: none; text-align: left; outline: none; font-size: 16px; transition: 0.4s; margin-top: 5px; border-radius: 4px; font-weight: bold; }
-        .active, .accordion:hover { background-color: #004a94; }
-        .panel { padding: 0 18px; display: none; background-color: white; border: 1px solid #ddd; border-top: none; margin-bottom: 10px; border-radius: 0 0 4px 4px; }
-        .question { padding: 12px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .question:last-child { border-bottom: none; }
-        .question label { flex: 1; padding-right: 10px; font-size: 14px; }
-        select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
-        .actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
-        button.btn-main { background: #d8232a; color: white; border: none; padding: 12px 24px; cursor: pointer; font-weight: bold; border-radius: 4px; flex: 1; min-width: 150px; }
-        button.btn-sec { background: #003366; color: white; border: none; padding: 12px 24px; cursor: pointer; font-weight: bold; border-radius: 4px; flex: 1; min-width: 150px; }
-        button:hover { opacity: 0.9; }
-        .status { margin-top: 20px; padding: 1.5rem; border-radius: 8px; border: 1px solid #ddd; display: none; }
-        .status h2 { margin-top: 0; }
-        ul { padding-left: 20px; }
+        :root { --primary: #d8232a; --secondary: #003366; --accent: #f4f4f4; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; background: var(--accent); color: #333; }
+        header { background: var(--secondary); color: white; padding: 2rem; text-align: center; border-bottom: 5px solid var(--primary); }
+        .container { max-width: 1000px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        
+        .section-title { background: var(--secondary); color: white; padding: 12px; margin-top: 20px; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+        .panel { display: none; padding: 15px; border: 1px solid #ddd; border-top: none; }
+        
+        .question-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; gap: 15px; }
+        .question-text { flex: 2; font-size: 14px; font-weight: 500; }
+        
+        .info-btn { background: #666; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .info-btn:hover { background: var(--primary); }
+        
+        .tip-box { display: none; background: #fff3cd; padding: 10px; margin: 10px 0; border-left: 5px solid #ffeeba; font-size: 13px; color: #856404; }
+        
+        select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; outline: none; font-weight: bold; }
+        select.ok { color: green; }
+        select.warn { color: orange; }
+        select.fail { color: red; }
+
+        .actions { display: flex; gap: 15px; margin-top: 30px; }
+        .btn { flex: 1; padding: 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.3s; }
+        .btn-validate { background: var(--primary); color: white; }
+        .btn-clear { background: #555; color: white; }
+        .btn-print { background: var(--secondary); color: white; }
+        .btn:hover { opacity: 0.8; transform: translateY(-2px); }
+
+        #resultContainer { margin-top: 30px; padding: 20px; border-radius: 8px; display: none; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .legal-footer { margin-top: 40px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #ddd; padding-top: 20px; }
     </style>
 </head>
 <body>
 
 <header>
-    <h1>SMARTCARGO BY MAY ROGA LLC</h1>
-    <p>Asesoría de Carga - Avianca Cargo</p>
+    <h1 style="margin:0;">SMARTCARGO BY MAY ROGA LLC</h1>
+    <p style="margin:5px 0 0 0; opacity:0.9;">Professional Cargo Advisory & Compliance System</p>
 </header>
 
 <div class="container">
     <form id="cargoForm">
-        <button type="button" class="accordion">1. Owner / Cliente</button>
-        <div class="panel">
-            <div class="question"><label>1. AWB original legible</label><select name="q1"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>2. Factura y packing list completos</label><select name="q2"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>3. Declaración coincide con documentos</label><select name="q3"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>4. Permisos y certificados presentes</label><select name="q4"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>5. Peso declarado coincide con carga</label><select name="q5"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>6. Tipo de carga declarada en papel</label><select name="q6"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>7. Shipper coincide con AWB</label><select name="q7"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>8. Documentos Human Remains completos</label><select name="q8"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
+        <div class="section-title" onclick="togglePanel('p1')">I. CONTROL DOCUMENTAL (CBP / IATA) <span>+</span></div>
+        <div id="p1" class="panel">
+            <div class="question-row">
+                <span class="question-text">1. MAWB original legible + 3 copias (fuera del sobre)</span>
+                <button type="button" class="info-btn" onclick="toggleTip('t1')">?</button>
+                <select name="q1"><option value="ok">Cumple</option><option value="warn">Observación</option><option value="fail">Falla</option></select>
+            </div>
+            <div id="t1" class="tip-box">Requerido por Avianca para agilizar el archivo de estación y procesos aduaneros.</div>
+
+            <div class="question-row">
+                <span class="question-text">2. HMAWB y Manifiesto coinciden 100% con MAWB</span>
+                <button type="button" class="info-btn" onclick="toggleTip('t2')">?</button>
+                <select name="q2"><option value="ok">Cumple</option><option value="warn">Observación</option><option value="fail">Falla</option></select>
+            </div>
+            <div id="t2" class="tip-box">Evita multas de CBP por discrepancias en la transmisión electrónica de datos.</div>
         </div>
 
-        <button type="button" class="accordion">2. Trucker / Chofer</button>
-        <div class="panel">
-            <div class="question"><label>9. Camión refrigerado adecuado</label><select name="q9"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>10. Camión limpio y seguro</label><select name="q10"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>11. Sello del camión presente</label><select name="q11"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>12. Carga asegurada y estable</label><select name="q12"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>13. Temperatura registrada correctamente</label><select name="q13"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>14. Pallet y embalaje adecuado</label><select name="q14"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
+        <div class="section-title" onclick="togglePanel('p2')">II. SEGURIDAD Y DIMENSIONES (TSA / AVIANCA) <span>+</span></div>
+        <div id="p2" class="panel">
+            <div class="question-row">
+                <span class="question-text">3. Altura ≤ 80cm (PAX) o ≤ 160cm (Carguero)</span>
+                <button type="button" class="info-btn" onclick="toggleTip('t3')">?</button>
+                <select name="q7"><option value="ok">Cumple</option><option value="warn">Observación</option><option value="fail">Falla</option></select>
+            </div>
+            <div id="t3" class="tip-box">Límite físico estructural de la aeronave asignada. Si excede, NO vuela.</div>
+
+            <div class="question-row">
+                <span class="question-text">4. Peso por pie cuadrado ≤ 732 kg/m²</span>
+                <button type="button" class="info-btn" onclick="toggleTip('t4')">?</button>
+                <select name="q8"><option value="ok">Cumple</option><option value="warn">Observación</option><option value="fail">Falla</option></select>
+            </div>
+            <div id="t4" class="tip-box">Evita daños estructurales en el suelo de la bodega. Requiere Shoring si se excede.</div>
         </div>
 
-        <button type="button" class="accordion">3. Freight Forwarder</button>
-        <div class="panel">
-            <div class="question"><label>15. AWB coincidente con documentos</label><select name="q15"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>16. House / Master AWB alineados</label><select name="q16"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>17. Packaging revisado y aprobado</label><select name="q17"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>18. Temperatura declarada compatible</label><select name="q18"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>19. Dry Ice declarado y etiquetado</label><select name="q19"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>20. Fragile declarado y embalaje</label><select name="q20"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>21. Docs Human Remains completos</label><select name="q21"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
+        <div class="section-title" onclick="togglePanel('p3')">III. DG & ESPECIALES (IATA DGR / DOT) <span>+</span></div>
+        <div id="p3" class="panel">
+            <div class="question-row">
+                <span class="question-text">5. DGD firmada en original y Marcado UN visible</span>
+                <button type="button" class="info-btn" onclick="toggleTip('t5')">?</button>
+                <select name="q10"><option value="ok">Cumple</option><option value="warn">Observación</option><option value="fail">Falla</option></select>
+            </div>
+            <div id="t5" class="tip-box">Incumplimiento genera multas federales del DOT de miles de dólares por bulto.</div>
+
+            <div class="question-row">
+                <span class="question-text">6. Termógrafo activo y Rango entre 2°C y 8°C</span>
+                <button type="button" class="info-btn" onclick="toggleTip('t6')">?</button>
+                <select name="q13"><option value="ok">Cumple</option><option value="warn">Observación</option><option value="fail">Falla</option></select>
+            </div>
+            <div id="t6" class="tip-box">Garantiza la viabilidad de Pharma y Perecederos. Crucial para evitar Claims.</div>
         </div>
 
-        <button type="button" class="accordion">4. Counter / Operativo</button>
-        <div class="panel">
-            <div class="question"><label>22. Altura dentro de límite Avianca</label><select name="q22"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>23. Largo y ancho dentro de límite</label><select name="q23"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>24. Peso por pie cuadrado seguro</label><select name="q24"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>25. Carga estable y segura</label><select name="q25"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>26. No mezcla DG/Pharma/Perecedero</label><select name="q26"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>27. Etiquetas visibles y legibles</label><select name="q27"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>28. Verificación docs completa</label><select name="q28"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-        </div>
-
-        <button type="button" class="accordion">5. DG / Peligrosas</button>
-        <div class="panel">
-            <div class="question"><label>29. DG declarado en AWB</label><select name="q29"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>30. Clase DG correcta</label><select name="q30"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>31. DGD y MSDS firmados</label><select name="q31"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>32. Embalaje UN aprobado</label><select name="q32"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>33. Labels DG visibles</label><select name="q33"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>34. DG no mezclado</label><select name="q34"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-        </div>
-
-        <button type="button" class="accordion">6. Human Remains / Especial</button>
-        <div class="panel">
-            <div class="question"><label>35. Ataúd conforme y embalaje</label><select name="q35"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>36. Packing list separado</label><select name="q36"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>37. Docs Human Remains correctos</label><select name="q37"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>38. Tiempo tránsito compatible</label><select name="q38"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>39. Temperatura y ventilación</label><select name="q39"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>40. Peso total validado</label><select name="q40"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>41. Facturas y packing organizados</label><select name="q41"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>42. Peso coincidente documentos</label><select name="q42"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>43. Docs consolidados correctos</label><select name="q43"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>44. Apto belly cargo</label><select name="q44"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>45. No mezcla DG / Perecedero</label><select name="q45"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>46. Checklist completo revisado</label><select name="q46"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>47. Peso bulto y pallets verificado</label><select name="q47"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>48. Revisión final semáforo</label><select name="q48"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-            <div class="question"><label>49. Recomendaciones claras</label><select name="q49"><option value="ok">✅ Cumple</option><option value="warn">⚠️ Revisar</option><option value="fail">❌ Falla</option></select></div>
-        </div>
-
-        <div id="resultContainer" class="status"></div>
+        <div id="resultContainer"></div>
 
         <div class="actions">
-            <button type="button" class="btn-main" onclick="submitForm()">Validar Carga</button>
-            <button type="button" class="btn-sec" onclick="clearForm()">Borrar Datos</button>
-            <button type="button" class="btn-sec" onclick="window.print()">Descargar PDF</button>
+            <button type="button" class="btn btn-validate" onclick="processValidation()">Validar Compliance</button>
+            <button type="button" class="btn btn-clear" onclick="resetSystem()">Borrar Sistema</button>
+            <button type="button" class="btn btn-print" onclick="window.print()">Generar Reporte PDF</button>
         </div>
     </form>
+
+    <div class="legal-footer">
+        © 2026 SMARTCARGO BY MAY ROGA LLC. Todos los derechos reservados.<br>
+        Asesoría basada en regulaciones IATA, CBP, TSA y DOT para Avianca Cargo.
+    </div>
 </div>
 
 <script>
-    // Accordion Logic
-    const acc = document.getElementsByClassName("accordion");
-    for (let i = 0; i < acc.length; i++) {
-        acc[i].addEventListener("click", function() {
-            this.classList.toggle("active");
-            const panel = this.nextElementSibling;
-            panel.style.display = panel.style.display === "block" ? "none" : "block";
-        });
+    function togglePanel(id) {
+        const p = document.getElementById(id);
+        p.style.display = (p.style.display === "block") ? "none" : "block";
     }
 
-    async function submitForm() {
+    function toggleTip(id) {
+        const t = document.getElementById(id);
+        t.style.display = (t.style.display === "block") ? "none" : "block";
+    }
+
+    async function processValidation() {
         const form = document.getElementById("cargoForm");
         const formData = new FormData(form);
         const answers = {};
+        formData.forEach((value, key) => { answers[key] = value; });
+
+        const operator = prompt("IDENTIFICACIÓN DEL OPERADOR (Counter ID):", "MAY_ROGA_TECH");
         
-        formData.forEach((value, key) => {
-            answers[key] = value;
-        });
-
-        const operator = prompt("Nombre del Operador:", "User_MayRoga") || "Unknown";
-
         try {
-            const response = await axios.post("http://localhost:8000/validate", {
+            const res = await axios.post("http://localhost:8000/validate", {
                 answers: answers,
                 operator: operator
             });
 
-            const data = response.data;
-            const resultDiv = document.getElementById("resultContainer");
+            const data = res.data;
+            const resDiv = document.getElementById("resultContainer");
             
-            let bgColor = "#d4edda"; // Green
-            if (data.status === "YELLOW") bgColor = "#fff3cd";
-            if (data.status === "RED") bgColor = "#f8d7da";
+            let color = "#d4edda"; 
+            if (data.status.includes("YELLOW")) color = "#fff3cd";
+            if (data.status.includes("RED")) color = "#f8d7da";
 
-            resultDiv.style.display = "block";
-            resultDiv.style.backgroundColor = bgColor;
-            resultDiv.innerHTML = `
-                <h2>Estatus: ${data.status}</h2>
-                <p><strong>ID Reporte:</strong> ${data.report_id}</p>
-                <p><strong>Operador:</strong> ${data.operator}</p>
-                <p><strong>Resultados:</strong> ✅ ${data.green} | ⚠️ ${data.yellow} | ❌ ${data.red}</p>
-                <h3>Recomendaciones del Asesor:</h3>
+            resDiv.style.display = "block";
+            resDiv.style.background = color;
+            resDiv.style.border = `2px solid ${data.red > 0 ? 'red' : 'green'}`;
+            
+            resDiv.innerHTML = `
+                <h2 style="margin-top:0;">${data.status}</h2>
+                <p><strong>REPORT ID:</strong> ${data.report_id} | <strong>OPERADOR:</strong> ${data.operator}</p>
+                <hr>
+                <strong>VEREDICTO TÉCNICO:</strong>
                 <ul>${data.recommendations.map(r => `<li>${r}</li>`).join("")}</ul>
+                <p style="font-size:11px; margin-top:20px;">${data.legal_note}</p>
             `;
-            resultDiv.scrollIntoView({ behavior: "smooth" });
+            resDiv.scrollIntoView({ behavior: "smooth" });
 
         } catch (err) {
-            console.error(err);
-            alert("No se pudo conectar con el servidor de SMARTCARGO. Asegúrese de que el backend esté corriendo.");
+            alert("ERROR: No se pudo conectar con el servidor central de SMARTCARGO.");
         }
     }
 
-    function clearForm() {
-        if(confirm("¿Seguro que desea borrar todos los datos del formulario?")) {
+    function resetSystem() {
+        if(confirm("¿Desea limpiar todos los controles técnicos?")) {
             document.getElementById("cargoForm").reset();
             document.getElementById("resultContainer").style.display = "none";
+            const panels = document.getElementsByClassName("panel");
+            for(let p of panels) p.style.display = "none";
         }
     }
 </script>
