@@ -12,7 +12,7 @@ app = FastAPI(title="SMARTCARGO-AIPA", version="1.0")
 # STATIC & TEMPLATES
 # =========================
 app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+frontend = Jinja2Templates(directory="frontend")
 
 # =========================
 # DATA MODELS
@@ -37,7 +37,10 @@ class ValidationResult(BaseModel):
 # =========================
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return frontend.TemplateResponse(
+        "index.html",
+        {"request": request}
+    )
 
 @app.post("/validate", response_model=ValidationResult)
 async def validate_cargo(data: CargoValidation):
@@ -45,7 +48,7 @@ async def validate_cargo(data: CargoValidation):
     total_questions = 49
     green = yellow = red = 0
 
-    for qid, value in data.answers.items():
+    for value in data.answers.values():
         if value == "ok":
             green += 1
         elif value == "warn":
@@ -91,28 +94,33 @@ def generate_recommendations(status: str, red: int, yellow: int) -> list[str]:
     recs = []
 
     if status == "GREEN":
-        recs.append("Cargo accepted for processing.")
-        recs.append("Proceed with build-up and flight planning.")
-        recs.append("Maintain current compliance standards.")
+        recs.extend([
+            "Cargo accepted for processing.",
+            "Proceed with build-up and flight planning.",
+            "Maintain current compliance standards."
+        ])
 
     elif status == "YELLOW":
-        recs.append("Cargo conditionally accepted.")
-        recs.append("Review documentation and physical handling issues.")
-        recs.append("Supervisor verification recommended before release.")
-        recs.append("Re-check temperature, labeling, and segregation if applicable.")
+        recs.extend([
+            "Cargo conditionally accepted.",
+            "Supervisor review required before release.",
+            "Re-check documentation, labeling, temperature, and segregation."
+        ])
 
     elif status == "RED":
-        recs.append("Cargo NOT accepted.")
-        recs.append("Immediate corrective action required.")
-        recs.append("Isolate cargo and notify supervisor.")
-        recs.append("Do not proceed until all critical issues are resolved.")
-        recs.append("Document non-compliance per AIPA cargo standards.")
+        recs.extend([
+            "Cargo NOT accepted.",
+            "Immediate corrective action required.",
+            "Isolate cargo and notify supervisor.",
+            "Do not proceed until all critical issues are resolved.",
+            "Document non-compliance per SMARTCARGO-AIPA protocol."
+        ])
 
-    # Risk weighting guidance
     if red >= 3:
         recs.append("Multiple critical failures detected – escalate to management.")
+
     if yellow >= 5:
-        recs.append("High number of warnings – conduct full secondary inspection.")
+        recs.append("High warning volume – perform full secondary inspection.")
 
     return recs
 
