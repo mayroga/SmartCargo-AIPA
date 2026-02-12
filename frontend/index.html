@@ -34,32 +34,33 @@ h1 {
 
 .level {
   margin-bottom: 25px;
-  border: 1px solid #ddd;
   border-radius: 10px;
   overflow: hidden;
+  border: 1px solid #0073e6;
 }
 
 .level-header {
-  background: #004080;
+  background: #0073e6;
   color: white;
   padding: 14px 18px;
   font-size: 17px;
   cursor: pointer;
+  font-weight: 600;
 }
 
 .level-content {
   display: none;
   padding: 20px;
-  background: #fafafa;
+  background: #f0f8ff;
 }
 
 .question {
-  margin-bottom: 22px;
+  margin-bottom: 18px;
 }
 
 .question-title {
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: #222;
 }
 
@@ -79,7 +80,7 @@ h1 {
 }
 
 button {
-  background: #004080;
+  background: #0073e6;
   color: white;
   border: none;
   padding: 14px 26px;
@@ -90,7 +91,7 @@ button {
 }
 
 button:hover {
-  background: #0066cc;
+  background: #005bb5;
 }
 
 #result {
@@ -98,14 +99,15 @@ button:hover {
   padding: 25px;
   border-radius: 12px;
   display: none;
+  background: #e6f2ff;
 }
 
-.green { color: #0a8f08; }
-.yellow { color: #d4a000; }
-.red { color: #c00000; }
+.green { color: #0a8f08; font-weight: 700; }
+.yellow { color: #d4a000; font-weight: 700; }
+.red { color: #c00000; font-weight: 700; }
+
 </style>
 </head>
-
 <body>
 
 <div class="container">
@@ -119,7 +121,7 @@ Operational · Legal · Non-binding
 
 <div class="actions">
   <button onclick="submitForm()">Validate Cargo</button>
-  <button onclick="location.reload()">Clear</button>
+  <button onclick="location.reload()">Clear / New Service</button>
 </div>
 
 <div id="result">
@@ -127,53 +129,64 @@ Operational · Legal · Non-binding
   <div id="recommendations"></div>
 </div>
 
-</div>
-
 <script>
-const levels = [
-  { title:"Level 1 – Identification & Transport", q:[
-    "Type of cargo","Delivered by","Ground transport type","Cargo condition at receipt",
-    "Pallet height compliant","Pallet length compliant","Truck seal present","Truck cleanliness"
+// =========================
+// DEFINICION DE NIVELES Y PREGUNTAS
+// =========================
+const levelsData = [
+  { title:"Level 1 – Identification & Transport", questions:[
+    "Type of cargo","Who delivers","Land transport method","Cargo condition upon receipt",
+    "Max pallet/bundle height","Max pallet/bundle length","Truck seal type","Truck cleanliness"
   ]},
-  { title:"Level 2 – Documentation", q:[
-    "Original AWB present","AWB copies available","Document readability",
-    "Shipper name consistent","AWB matches physical cargo",
-    "Invoices & packing list organized","Master / House AWB aligned","Origin / sanitary seals"
+  { title:"Level 2 – Documentation", questions:[
+    "Original AWB present","AWB and documents copies","Document writing",
+    "Shipper name matches invoice/documents","AWB matches physical cargo",
+    "Invoices, packing list, permits organized","Consolidated/master vs house AWB in order","Origin/Phytosanitary seal correct"
   ]},
-  { title:"Level 3 – Pallets & Packaging", q:[
-    "Pallet type compliant","Pallet wrapping adequate","Height compliance",
-    "Labels visible","Cargo segregated","Pallet stability","No visible damage","No overhang"
+  { title:"Level 3 – Pallets & Packaging", questions:[
+    "Pallet type","Pallet wrapping","Pallets meet max height",
+    "Labels visible","Cargo mix"
   ]},
-  { title:"Level 4 – Special Cargo Handling", q:[
-    "Temperature control required","Temperature devices present","Dry ice declared",
-    "DG declaration required","DG labels present","Human remains documentation",
-    "Security screening completed","Escort required"
-  ]},
-  { title:"Level 5 – Final Compliance", q:[
-    "Weight correctly declared","Dimensions correctly declared","No prohibited items",
-    "No leaks detected","Stacking allowed","ULD compatible",
-    "Acceptance checklist complete","Supervisor approval","Final compliance confirmed"
+  { title:"Level 4 – Cargo Specific",
+   questions:[
+    "Pharmaceutical: Classification","Pharmaceutical: Temperature range","Pharmaceutical: Dry ice",
+    "Pharmaceutical: SLI signed","Pharmaceutical: Packaging validated","Pharmaceutical: Additional documents",
+    "Pharmaceutical: Temperature recorded","Pharmaceutical: Expiry dates legible",
+    "DG: Declared in AWB","DG: Class","DG: DGD signed by certified person",
+    "DG: UN packaging approved","DG: Labels visible","DG: DG mixed with other cargo",
+    "DG: Fragile / Handle With Care labels","Perishables: Type","Perishables: Temperature compliant",
+    "Perishables: Packaging ventilated","Perishables: Transit time compatible",
+    "Human Remains: Required documents","Human Remains: Coffin compliant","Human Remains: AWB declared",
+    "General Cargo: Packing list separate","General Cargo: Invoices and permits organized","General Cargo: Weight & dimensions match",
+    "General Cargo: Special consolidated/unified documents","General Cargo: Belly cargo approval","General Cargo: Not mixed with DG or perishables"
+   ]
+  },
+  { title:"Level 5 – Final Compliance", questions:[
+    "Record semaphore and finalize report"
   ]}
 ];
 
+// =========================
+// GENERAR HTML DINAMICO
+// =========================
 let qId = 1;
 const container = document.getElementById("levels");
 
-levels.forEach(lvl=>{
+levelsData.forEach(lvl=>{
   const levelDiv = document.createElement("div");
-  levelDiv.className = "level";
+  levelDiv.className="level";
 
   const header = document.createElement("div");
-  header.className = "level-header";
+  header.className="level-header";
   header.textContent = lvl.title;
   header.onclick = ()=> {
     content.style.display = content.style.display==="block"?"none":"block";
   };
 
   const content = document.createElement("div");
-  content.className = "level-content";
+  content.className="level-content";
 
-  lvl.q.forEach(q=>{
+  lvl.questions.forEach(q=>{
     const d = document.createElement("div");
     d.className="question";
     d.innerHTML = `
@@ -192,6 +205,9 @@ levels.forEach(lvl=>{
   container.appendChild(levelDiv);
 });
 
+// =========================
+// ENVIO DEL FORMULARIO
+// =========================
 function submitForm(){
   const answers = {};
   document.querySelectorAll("input[type=radio]:checked").forEach(r=>{
@@ -211,6 +227,7 @@ function submitForm(){
     if(res.status==="GREEN"){sem.textContent="🟢 GREEN – ACCEPTED"; sem.classList.add("green");}
     else if(res.status==="YELLOW"){sem.textContent="🟡 YELLOW – CONDITIONAL"; sem.classList.add("yellow");}
     else{sem.textContent="🔴 RED – NOT ACCEPTED"; sem.classList.add("red");}
+
     document.getElementById("recommendations").innerHTML = res.recommendations.join("<br>");
   });
 }
