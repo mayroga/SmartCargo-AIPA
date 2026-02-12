@@ -5,6 +5,7 @@
 <title>SMARTCARGO-AIPA</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<!-- Estilos básicos -->
 <style>
 body {
   font-family: "Segoe UI", Arial, sans-serif;
@@ -12,190 +13,156 @@ body {
   margin: 0;
   padding: 0;
 }
-
 .container {
-  max-width: 1200px;
+  max-width: 1300px;
   margin: 30px auto;
-  background: #ffffff;
+  background: #fff;
   padding: 30px 40px;
   border-radius: 14px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.08);
 }
-
-h1 {
-  margin-top: 0;
-  color: #002b5c;
-}
-
-.subtitle {
-  color: #555;
-  margin-bottom: 30px;
-}
+h1 { margin-top:0; color:#002b5c;}
+.subtitle { color:#555; margin-bottom:20px; }
 
 .level {
   margin-bottom: 25px;
+  border: 1px solid #ddd;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #0073e6;
 }
-
 .level-header {
-  background: #0073e6;
-  color: white;
-  padding: 14px 18px;
-  font-size: 17px;
-  cursor: pointer;
-  font-weight: 600;
+  background:#004080;
+  color:white;
+  padding:14px 18px;
+  font-size:17px;
+  cursor:pointer;
 }
+.level-content { display:none; padding:20px; background:#fafafa; }
 
-.level-content {
-  display: none;
-  padding: 20px;
-  background: #f0f8ff;
-}
+.question { margin-bottom:18px; }
+.question-title { font-weight:600; margin-bottom:8px; color:#222; }
+.options label { display:block; margin-bottom:6px; cursor:pointer; }
+.options input { margin-right:8px; }
 
-.question {
-  margin-bottom: 18px;
-}
-
-.question-title {
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: #222;
-}
-
-.options label {
-  display: block;
-  margin-bottom: 6px;
-  cursor: pointer;
-}
-
-.options input {
-  margin-right: 8px;
-}
-
-.actions {
-  text-align: center;
-  margin-top: 35px;
-}
-
+.actions { text-align:center; margin-top:25px; }
 button {
-  background: #0073e6;
-  color: white;
-  border: none;
-  padding: 14px 26px;
-  font-size: 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  margin: 8px;
+  background:#004080;
+  color:white;
+  border:none;
+  padding:12px 26px;
+  font-size:16px;
+  border-radius:8px;
+  cursor:pointer;
+  margin:6px;
 }
-
-button:hover {
-  background: #005bb5;
-}
+button:hover { background:#0066cc; }
 
 #result {
-  margin-top: 35px;
-  padding: 25px;
-  border-radius: 12px;
-  display: none;
-  background: #e6f2ff;
+  margin-top:25px;
+  padding:20px;
+  border-radius:12px;
+  display:none;
+  background:#e8f0fe;
 }
+.green { color:#0a8f08; }
+.yellow { color:#d4a000; }
+.red { color:#c00000; }
 
-.green { color: #0a8f08; font-weight: 700; }
-.yellow { color: #d4a000; font-weight: 700; }
-.red { color: #c00000; font-weight: 700; }
-
+input[type=number] { width:80px; padding:4px; margin-right:8px; }
 </style>
 </head>
-<body>
 
+<body>
 <div class="container">
 <h1>SMARTCARGO-AIPA</h1>
 <p class="subtitle">
-Preventive Cargo Acceptance Advisory System<br>
-Operational · Legal · Non-binding
+Preventive Cargo Acceptance Advisory System – Operational · Legal · Non-binding
 </p>
+
+<!-- Usuario IA experta -->
+<div class="question">
+  <div class="question-title">IA Experta Login</div>
+  <div class="options">
+    <label>Username: <input type="text" id="iaUser" placeholder="Username"></label>
+    <label>Password: <input type="password" id="iaPass" placeholder="Password"></label>
+  </div>
+</div>
 
 <div id="levels"></div>
 
 <div class="actions">
   <button onclick="submitForm()">Validate Cargo</button>
-  <button onclick="location.reload()">Clear / New Service</button>
+  <button onclick="location.reload()">Clear</button>
+  <button onclick="downloadPDF()">Download PDF</button>
+  <button onclick="sendWhatsApp()">Send via WhatsApp</button>
 </div>
 
 <div id="result">
   <h2 id="semaphore"></h2>
   <div id="recommendations"></div>
+  <div id="volume-weight"></div>
+</div>
 </div>
 
 <script>
-// =========================
-// DEFINICION DE NIVELES Y PREGUNTAS
-// =========================
-const levelsData = [
-  { title:"Level 1 – Identification & Transport", questions:[
-    "Type of cargo","Who delivers","Land transport method","Cargo condition upon receipt",
-    "Max pallet/bundle height","Max pallet/bundle length","Truck seal type","Truck cleanliness"
+// ================== DATOS DE LOS NIVELES Y PREGUNTAS ==================
+const levels = [
+  { title:"Level 1 – Identification & Transport", q:[
+    {id:1,text:"Type of cargo"}, {id:2,text:"Delivered by"}, {id:3,text:"Ground transport type"}, {id:4,text:"Cargo condition at receipt"},
+    {id:5,text:"Max pallet/bundle height (cm/in)", type:"dimension"}, {id:6,text:"Max pallet/bundle length (cm/in)", type:"dimension"}, 
+    {id:7,text:"Truck seal present"}, {id:8,text:"Truck cleanliness"}
   ]},
-  { title:"Level 2 – Documentation", questions:[
-    "Original AWB present","AWB and documents copies","Document writing",
-    "Shipper name matches invoice/documents","AWB matches physical cargo",
-    "Invoices, packing list, permits organized","Consolidated/master vs house AWB in order","Origin/Phytosanitary seal correct"
+  { title:"Level 2 – Documentation", q:[
+    {id:9,text:"Original AWB present"}, {id:10,text:"AWB & document copies"}, {id:11,text:"Document readability"},
+    {id:12,text:"Shipper name consistent"}, {id:13,text:"AWB matches physical cargo"},
+    {id:14,text:"Invoices & packing list organized"}, {id:15,text:"Master / House AWB aligned"}, {id:16,text:"Origin / sanitary seals"}
   ]},
-  { title:"Level 3 – Pallets & Packaging", questions:[
-    "Pallet type","Pallet wrapping","Pallets meet max height",
-    "Labels visible","Cargo mix"
+  { title:"Level 3 – Pallets & Packaging", q:[
+    {id:17,text:"Pallet type compliant"}, {id:18,text:"Pallet wrapping adequate"}, {id:19,text:"Height compliance"},
+    {id:20,text:"Labels visible"}, {id:21,text:"Cargo segregated"}
   ]},
-  { title:"Level 4 – Cargo Specific",
-   questions:[
-    "Pharmaceutical: Classification","Pharmaceutical: Temperature range","Pharmaceutical: Dry ice",
-    "Pharmaceutical: SLI signed","Pharmaceutical: Packaging validated","Pharmaceutical: Additional documents",
-    "Pharmaceutical: Temperature recorded","Pharmaceutical: Expiry dates legible",
-    "DG: Declared in AWB","DG: Class","DG: DGD signed by certified person",
-    "DG: UN packaging approved","DG: Labels visible","DG: DG mixed with other cargo",
-    "DG: Fragile / Handle With Care labels","Perishables: Type","Perishables: Temperature compliant",
-    "Perishables: Packaging ventilated","Perishables: Transit time compatible",
-    "Human Remains: Required documents","Human Remains: Coffin compliant","Human Remains: AWB declared",
-    "General Cargo: Packing list separate","General Cargo: Invoices and permits organized","General Cargo: Weight & dimensions match",
-    "General Cargo: Special consolidated/unified documents","General Cargo: Belly cargo approval","General Cargo: Not mixed with DG or perishables"
-   ]
-  },
-  { title:"Level 5 – Final Compliance", questions:[
-    "Record semaphore and finalize report"
+  { title:"Level 4 – Special Cargo Handling", q:[
+    {id:22,text:"Pharma: Temp controlled, SLI, packaging"}, {id:23,text:"DG declaration & labels"}, {id:24,text:"Perishables: Temp & ventilation"},
+    {id:25,text:"Human Remains: Documents & coffin check"}, {id:26,text:"Security & escort if required"}
+  ]},
+  { title:"Level 5 – Final Compliance", q:[
+    {id:27,text:"Weight correctly declared"}, {id:28,text:"Dimensions correctly declared"}, {id:29,text:"No prohibited items"},
+    {id:30,text:"No leaks detected"}, {id:31,text:"Stacking allowed"}, {id:32,text:"ULD compatible"},
+    {id:33,text:"Acceptance checklist complete"}, {id:34,text:"Supervisor approval"}, {id:35,text:"Final compliance confirmed"}
   ]}
 ];
 
-// =========================
-// GENERAR HTML DINAMICO
-// =========================
 let qId = 1;
 const container = document.getElementById("levels");
 
-levelsData.forEach(lvl=>{
+// ================== CREACIÓN DE CHECKLIST PLEGABLE ==================
+levels.forEach(lvl=>{
   const levelDiv = document.createElement("div");
-  levelDiv.className="level";
+  levelDiv.className = "level";
 
   const header = document.createElement("div");
-  header.className="level-header";
+  header.className = "level-header";
   header.textContent = lvl.title;
-  header.onclick = ()=> {
-    content.style.display = content.style.display==="block"?"none":"block";
-  };
+  header.onclick = ()=> { content.style.display = content.style.display==="block"?"none":"block"; };
 
   const content = document.createElement("div");
-  content.className="level-content";
+  content.className = "level-content";
 
-  lvl.questions.forEach(q=>{
+  lvl.q.forEach(q=>{
     const d = document.createElement("div");
     d.className="question";
-    d.innerHTML = `
-      <div class="question-title">${qId}. ${q}</div>
-      <div class="options">
-        <label><input type="radio" name="q${qId}" value="ok"> Compliant</label>
-        <label><input type="radio" name="q${qId}" value="warn"> Requires Review</label>
-        <label><input type="radio" name="q${qId}" value="fail"> Not Compliant</label>
-      </div>`;
+
+    let html = `<div class="question-title">${qId}. ${q.text}</div><div class="options">`;
+    html += `<label><input type="radio" name="q${qId}" value="ok"> Compliant</label>`;
+    html += `<label><input type="radio" name="q${qId}" value="warn"> Requires Review</label>`;
+    html += `<label><input type="radio" name="q${qId}" value="fail"> Not Compliant</label>`;
+    if(q.type==="dimension"){
+      html += `<br><label>Height (cm): <input type="number" id="height${qId}" min="0"></label>`;
+      html += `<label>Width (cm): <input type="number" id="width${qId}" min="0"></label>`;
+      html += `<label>Length (cm): <input type="number" id="length${qId}" min="0"></label>`;
+    }
+    html += `</div>`;
+    d.innerHTML = html;
     content.appendChild(d);
     qId++;
   });
@@ -205,14 +172,21 @@ levelsData.forEach(lvl=>{
   container.appendChild(levelDiv);
 });
 
-// =========================
-// ENVIO DEL FORMULARIO
-// =========================
+// ================== FUNCIONES ==================
 function submitForm(){
   const answers = {};
   document.querySelectorAll("input[type=radio]:checked").forEach(r=>{
     answers[r.name] = r.value;
   });
+
+  // Calcular volumen total si hay dimensiones
+  let totalVolume=0, totalWeight=0;
+  for(let i=1;i<qId;i++){
+    const h = parseFloat(document.getElementById(`height${i}`)?.value || 0);
+    const w = parseFloat(document.getElementById(`width${i}`)?.value || 0);
+    const l = parseFloat(document.getElementById(`length${i}`)?.value || 0);
+    if(h && w && l){ totalVolume += h*w*l; } // cm3
+  }
 
   fetch("/validate",{
     method:"POST",
@@ -229,7 +203,16 @@ function submitForm(){
     else{sem.textContent="🔴 RED – NOT ACCEPTED"; sem.classList.add("red");}
 
     document.getElementById("recommendations").innerHTML = res.recommendations.join("<br>");
+    document.getElementById("volume-weight").innerHTML = `Total Volume: ${totalVolume.toLocaleString()} cm³`;
   });
+}
+
+function downloadPDF(){
+  alert("Function to generate PDF will be implemented in next version.");
+}
+
+function sendWhatsApp(){
+  alert("Function to send report via WhatsApp will be implemented in next version.");
 }
 </script>
 
