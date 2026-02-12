@@ -15,4 +15,4 @@ fastapi
 uvicorn
 jinja2
 pytesseract
-
+StaticFiles
