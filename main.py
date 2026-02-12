@@ -15,6 +15,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # ---------------- ENVIRONMENT VARIABLES ----------------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")  # usuario admin en Render
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "SmartCargo2026")  # pass admin en Render
 
 # ---------------- LEGAL & COMPLIANCE TEXT ----------------
 LEGAL_TEXT = {
@@ -48,7 +50,10 @@ def run_gemini(prompt: str):
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
         models = client.models.list()
-        selected_model = next((m.name for m in models if "generateContent" in getattr(m, "supported_actions", [])), None)
+        selected_model = next(
+            (m.name for m in models if "generateContent" in getattr(m, "supported_actions", [])),
+            None
+        )
         if not selected_model:
             return None
 
@@ -136,9 +141,16 @@ def validate(
         "disclaimer": LEGAL_TEXT.get(lang, LEGAL_TEXT["English"])
     })
 
-# ---------------- ADMIN ASK SIN LOGIN ----------------
+# ---------------- ADMIN LOGIN ----------------
 @app.post("/admin")
-def admin(question: str = Form(...)):
-    # Ya no pide username/password
+def admin(
+    username: str = Form(...),
+    password: str = Form(...),
+    question: str = Form(...)
+):
+    # Validación usando las variables de entorno de Render
+    if username != ADMIN_USERNAME or password != ADMIN_PASSWORD:
+        return JSONResponse({"answer": "Access Denied"}, status_code=401)
+
     answer = run_openai(question) or run_gemini(question) or "Service unavailable"
     return {"answer": answer}
