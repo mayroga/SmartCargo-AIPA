@@ -5,7 +5,7 @@ from datetime import datetime
 import uuid
 
 # =========================
-# ESTÁNDARES DE AUTORIDAD (ENUMS)
+# ESTÁNDARES DE AUTORIDAD
 # =========================
 
 class AlertLevel(str, Enum):
@@ -22,17 +22,19 @@ class CargoType(str, Enum):
     LIVE_ANIMALS = "Live Animals"
 
 # =========================
-# MODELOS DE VALIDACIÓN TÉCNICA
+# MODELOS DE ENTRADA / SALIDA
 # =========================
 
 class CargoAnswer(BaseModel):
-    """Estructura de entrada desde el Frontend"""
-    answers: Dict[str, str]  # Ejemplo: {"q1": "ok", "q7": "fail"}
+    """Datos recibidos desde el Frontend"""
+    answers: Dict[str, str] = Field(
+        ..., example={"q1": "ok", "q7": "fail"}
+    )
     operator: Optional[str] = "Counter_Default"
-    cargo_type: Optional[CargoType] = CargoType.GENERAL
+    cargo_type: CargoType = CargoType.GENERAL
 
 class ValidationResult(BaseModel):
-    """Estructura de salida del reporte profesional"""
+    """Reporte técnico profesional"""
     report_id: str
     timestamp: str
     operator: str
@@ -46,7 +48,7 @@ class ValidationResult(BaseModel):
     legal_note: str
 
 # =========================
-# LÓGICA ESTRUCTURAL DE CARGA (FÍSICA)
+# MODELOS FÍSICOS (OPCIONAL)
 # =========================
 
 class Dimensions(BaseModel):
@@ -57,59 +59,147 @@ class Dimensions(BaseModel):
 
     @property
     def volume_cbm(self) -> float:
-        return round((self.height_cm * self.width_cm * self.length_cm) / 1_000_000, 3)
+        return round(
+            (self.height_cm * self.width_cm * self.length_cm) / 1_000_000,
+            3
+        )
 
     @property
-    def is_pax_ok(self) -> bool:
-        """Valida si cabe en aviones de pasajeros de Avianca (A320 familias)"""
+    def pax_height_ok(self) -> bool:
         return self.height_cm <= 80
 
 # =========================
-# BASE DE DATOS TÉCNICA (SMARTCARGO KNOWLEDGE)
+# LÍMITES AERONÁUTICOS
 # =========================
 
 AVIATION_LIMITS = {
     "NARROW_BODY": {
-        "max_height": 80,
-        "models": ["A319", "A320", "A321"],
-        "authority": "Avianca Cargo Ground Ops Manual"
+        "max_height_cm": 80,
+        "aircraft": ["A319", "A320", "A321"],
+        "authority": "Avianca Cargo GOM"
     },
     "WIDE_BODY_LOWER": {
-        "max_height": 160,
-        "models": ["A330", "A330F"],
+        "max_height_cm": 160,
+        "aircraft": ["A330", "A330F"],
         "authority": "IATA ULD Regulations"
     }
 }
 
-# Referencia de preguntas técnicas para auditoría interna
+# =========================
+# BASE DE CONOCIMIENTO SMARTCARGO
+# =========================
+
 QUESTIONS_DB = [
-    {"id": "q1", "cat": "DOCS", "desc": "MAWB original + 3 copias", "reg": "CBP/Avianca"},
-    {"id": "q2", "cat": "DOCS", "desc": "HMAWB y Manifiesto coinciden", "reg": "CBP AMS"},
-    {"id": "q3", "cat": "DOCS", "desc": "Factura y Packing List", "reg": "IATA"},
-    {"id": "q4", "cat": "CBP", "desc": "EIN/Tax ID presente", "reg": "CBP"},
-    {"id": "q5", "cat": "TSA", "desc": "Contenido coincidente físico/X-Ray", "reg": "TSA Security"},
-    {"id": "q6", "cat": "SAFE", "desc": "Sello de camión intacto", "reg": "Chain of Custody"},
-    {"id": "q7", "cat": "DIM", "desc": "Altura ≤ 80cm o ≤ 160cm", "reg": "Engineering"},
-    {"id": "q8", "cat": "DIM", "desc": "Peso pie cuadrado ≤ 732 kg/m²", "reg": "Aircraft Floor Limit"},
-    {"id": "q9", "cat": "SAFE", "desc": "Pallet stretch y red", "reg": "Flight Safety"},
-    {"id": "q10", "cat": "DG", "desc": "DGD y Marcado UN", "reg": "IATA DGR / DOT"},
-    {"id": "q11", "cat": "DG", "desc": "Etiquetas de Riesgo legibles", "reg": "IATA DGR"},
-    {"id": "q13", "cat": "TEMP", "desc": "Termógrafo y Rango 2°C-8°C", "reg": "Pharma/Perishable"},
-    {"id": "q15", "cat": "HUM", "desc": "Permiso Sanidad y Acta Defunción", "reg": "Biosecurity"},
-    {"id": "q16", "cat": "HUM", "desc": "Ataúd hermético y caja exterior", "reg": "IATA TACT"}
+    {
+        "id": "q1",
+        "category": "DOCS",
+        "description": "MAWB original legible + 3 copias",
+        "tip": "Documento base para aceptación y archivo de estación.",
+        "authority": "CBP / Avianca"
+    },
+    {
+        "id": "q2",
+        "category": "DOCS",
+        "description": "HMAWB y Manifiesto coinciden 100%",
+        "tip": "Discrepancias generan multas AMS.",
+        "authority": "CBP AMS"
+    },
+    {
+        "id": "q3",
+        "category": "DOCS",
+        "description": "Factura Comercial y Packing List",
+        "tip": "Indispensable para valoración aduanera.",
+        "authority": "IATA"
+    },
+    {
+        "id": "q4",
+        "category": "CBP",
+        "description": "EIN / Tax ID de Shipper y Consignee",
+        "tip": "Dato obligatorio para transmisión AMS.",
+        "authority": "CBP"
+    },
+    {
+        "id": "q5",
+        "category": "TSA",
+        "description": "Contenido coincide con inspección física/X-Ray",
+        "tip": "Contenido no declarado = rechazo inmediato.",
+        "authority": "TSA"
+    },
+    {
+        "id": "q6",
+        "category": "SECURITY",
+        "description": "Sello de camión intacto",
+        "tip": "Garantiza cadena de custodia.",
+        "authority": "Chain of Custody"
+    },
+    {
+        "id": "q7",
+        "category": "DIMENSIONS",
+        "description": "Altura ≤ 80cm (PAX) o ≤ 160cm (Carguero)",
+        "tip": "Exceder altura impide el embarque.",
+        "authority": "Engineering"
+    },
+    {
+        "id": "q8",
+        "category": "WEIGHT",
+        "description": "Peso ≤ 732 kg/m²",
+        "tip": "Evita daños estructurales en bodega.",
+        "authority": "Aircraft Floor Limit"
+    },
+    {
+        "id": "q9",
+        "category": "SAFETY",
+        "description": "Pallet stretch + red de seguridad",
+        "tip": "Evita desplazamientos en vuelo.",
+        "authority": "Flight Safety"
+    },
+    {
+        "id": "q10",
+        "category": "DG",
+        "description": "DGD firmada y Marcado UN",
+        "tip": "DG mal declarada genera multas federales.",
+        "authority": "IATA DGR / DOT"
+    },
+    {
+        "id": "q11",
+        "category": "DG",
+        "description": "Etiquetas de riesgo visibles",
+        "tip": "Clave para segregación segura.",
+        "authority": "IATA DGR"
+    },
+    {
+        "id": "q13",
+        "category": "TEMP",
+        "description": "Termógrafo activo (2°C – 8°C)",
+        "tip": "Fuera de rango genera Claims.",
+        "authority": "Pharma / Perishable"
+    },
+    {
+        "id": "q15",
+        "category": "HUMAN_REMAINS",
+        "description": "Permiso Sanidad + Acta Defunción",
+        "tip": "Documento legal obligatorio.",
+        "authority": "Biosecurity"
+    },
+    {
+        "id": "q16",
+        "category": "HUMAN_REMAINS",
+        "description": "Ataúd hermético + caja exterior",
+        "tip": "Prevención de fugas biológicas.",
+        "authority": "IATA TACT"
+    }
 ]
 
 # =========================
-# UTILIDADES DE REPORTE
+# UTILIDADES
 # =========================
 
 def generate_report_id() -> str:
-    """Genera un identificador único para trazabilidad legal"""
     return f"SCR-{uuid.uuid4().hex[:8].upper()}"
 
 def get_legal_disclaimer() -> str:
     return (
-        "Este informe de asesoría se emite bajo estándares de IATA, CBP, TSA y DOT. "
-        "SMARTCARGO BY MAY ROGA LLC no reemplaza la autoridad final del Capitán de la aeronave, "
-        "pero garantiza el cumplimiento previo en Counter para evitar multas y rechazos."
+        "Este informe se emite bajo estándares IATA, CBP, TSA y DOT. "
+        "SMARTCARGO BY MAY ROGA LLC garantiza validación previa en Counter "
+        "para reducir riesgos operacionales, multas y rechazos."
     )
