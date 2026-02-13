@@ -1,64 +1,33 @@
-# models.py
-from typing import List, Optional
-from enum import Enum
 from pydantic import BaseModel
-
-# =========================
-# ENUMS
-# =========================
-class Role(str, Enum):
-    SHIPPER = "SHIPPER"
-    FORWARDER = "FORWARDER"
-    TRUCKER = "TRUCKER"
-    OWNER = "OWNER"
-    COUNTER = "COUNTER"
-    DG_OFFICER = "DG_OFFICER"
+from typing import List, Optional, Dict
+from enum import Enum
 
 class CargoType(str, Enum):
     GENERAL = "GENERAL"
-    PHARMA = "PHARMA"
-    DG = "DG"
-    VALUABLE = "VALUABLE"
-    PERISHABLE = "PERISHABLE"
-    HUMAN_REMAINS = "HUMAN_REMAINS"
-    FULL_PALLET = "FULL_PALLET"
+    DG = "DG"  # Dangerous Goods
+    PER = "PERISHABLE"
+    HUM = "HUMAN_REMAINS"
+    ICE = "DRY_ICE"
 
 class AlertLevel(str, Enum):
-    GREEN = "GREEN"
-    YELLOW = "YELLOW"
-    RED = "RED"
+    GREEN = "🟢 VERDE"
+    YELLOW = "🟡 AMARILLO"
+    RED = "🔴 ROJO"
 
-# =========================
-# PIECE / ITEM
-# =========================
 class CargoPiece(BaseModel):
     id: str
-    cargo_type: CargoType
-    weight_kg: float
-    length_m: Optional[float] = None
-    width_m: Optional[float] = None
-    height_m: Optional[float] = None
-    temperature_c: Optional[float] = None
-    description: Optional[str] = None
+    type: CargoType
+    dg_class: Optional[str] = None  # Ej: "8", "4.1", "3"
+    weight_lb: float
+    length_in: float
+    width_in: float
+    height_in: float
+    pallet_type: str # WOOD, PLASTIC, METAL
+    has_ispm15: bool = False
+    soc_percent: Optional[float] = None # Solo para Litio
 
-# =========================
-# AWB / CARGO REQUEST
-# =========================
 class CargoRequest(BaseModel):
-    role: Role
-    shipment_number: str
-    origin: str
-    destination: str
-    total_weight_kg: float
-    total_pieces: int
-    pieces: List[CargoPiece] = []
-    documents: List[str] = []  # filenames of uploaded docs
-    comments: Optional[str] = None
-
-# =========================
-# RULES / EVALUATION
-# =========================
-class CargoEvaluation(BaseModel):
-    piece_id: Optional[str] = None
-    alert: AlertLevel
-    observation: str
+    awb: str
+    aircraft: str # "PAX" o "CGO"
+    pieces: List[CargoPiece]
+    is_usa_customer: bool = True
