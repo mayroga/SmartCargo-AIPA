@@ -1,10 +1,13 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartCargo-AIPA | MIA Counter</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
-        .card { background: #2d2d2d; padding: 20px; border-radius: 12px; border-top: 5px solid #d32f2f; }
+        .card { background: #2d2d2d; padding: 20px; border-radius: 12px; border-top: 5px solid #d32f2f; max-width: 800px; margin: auto; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         input, select { background: #3d3d3d; border: 1px solid #555; color: #fff; padding: 10px; border-radius: 5px; width: 100%; }
         .sem { height: 70px; display: flex; justify-content: center; gap: 30px; margin: 20px 0; background: #000; border-radius: 35px; align-items: center; }
@@ -15,19 +18,27 @@
         .btn { padding: 15px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
         .btn-val { background: #d32f2f; color: #fff; }
         .btn-del { background: #444; color: #bbb; }
-        #log { margin-top: 20px; padding: 15px; border-left: 4px solid #d32f2f; background: #222; }
+        #log { margin-top: 20px; padding: 15px; border-left: 4px solid #d32f2f; background: #222; min-height: 100px; }
+        #warn { color:red; text-align:center; display:none; margin-top:10px; font-weight:bold; }
+        h2 { text-align:center; color:#d32f2f; margin-bottom: 20px; }
     </style>
 </head>
 <body onclick="resetTimer()">
     <div class="card">
-        <h2 style="text-align:center; color:#d32f2f;">SMARTCARGO-AIPA | ASESORÍA MIA</h2>
+        <h2>SMARTCARGO-AIPA | ASESORÍA MIA</h2>
+
         <div class="grid">
-            <div><label>AWB</label><input type="text" id="awb"></div>
-            <div><label>Avión</label><select id="air"><option value="PAX">Pasajeros</option><option value="CGO">Carguero</option></select></div>
-            <div><label>Peso (lb)</label><input type="number" id="w"></div>
-            <div><label>Alto (in)</label><input type="number" id="h"></div>
+            <div><label>AWB</label><input type="text" id="awb" placeholder="Ej: 123-45678901"></div>
+            <div><label>Avión</label>
+                <select id="air">
+                    <option value="PAX">Pasajeros</option>
+                    <option value="CGO">Carguero</option>
+                </select>
+            </div>
+            <div><label>Peso (lb)</label><input type="number" id="w" placeholder="Ej: 100"></div>
+            <div><label>Alto (in)</label><input type="number" id="h" placeholder="Ej: 50"></div>
             <div><label>Clase DG (si aplica)</label><input type="text" id="dg" placeholder="Ej: 8, 3, 5.1"></div>
-            <div><label>SoC Litio %</label><input type="number" id="soc"></div>
+            <div><label>SoC Litio %</label><input type="number" id="soc" placeholder="Ej: 20"></div>
         </div>
 
         <div class="sem">
@@ -38,8 +49,9 @@
 
         <button class="btn btn-val" onclick="validar()">SENTENCIA TÉCNICA</button>
         <button class="btn btn-del" onclick="borrar()">BORRAR DATOS</button>
-        <p id="warn" style="color:red; text-align:center; display:none;">Inactividad: Borrando en 4s...</p>
+        <p id="warn">Inactividad: Borrando en 4s...</p>
     </div>
+
     <div id="log">Resultado: Esperando entrada...</div>
 
     <script>
@@ -49,30 +61,60 @@
             document.getElementById('warn').style.display='none';
             t = setTimeout(() => {
                 document.getElementById('warn').style.display='block';
-                setTimeout(() => { if(document.getElementById('warn').style.display=='block') borrar(); }, 4000);
+                setTimeout(() => { 
+                    if(document.getElementById('warn').style.display=='block') borrar(); 
+                }, 4000);
             }, 55000);
         }
 
-        function validar() {
-            const h = document.getElementById('h').value;
+        function borrar() { location.reload(); }
+
+        async function validar() {
+            const awb = document.getElementById('awb').value;
+            const h = parseFloat(document.getElementById('h').value) || 0;
             const dg = document.getElementById('dg').value;
-            const soc = document.getElementById('soc').value;
+            const soc = parseFloat(document.getElementById('soc').value) || 0;
             const air = document.getElementById('air').value;
-            const log = document.getElementById('log');
-            
-            document.querySelectorAll('.light').forEach(l => l.className='light');
-            let res = "green";
-            let msg = "🟢 CARGA LISTA. Cumple normativa Avianca MIA.";
+            const w = parseFloat(document.getElementById('w').value) || 0;
 
-            if (air === "PAX" && h > 63) { res="red"; msg="🔴 RECHAZO: Altura excedida para Belly."; }
-            else if (dg === "8" && (soc > 30)) { res="red"; msg="🔴 RECHAZO: Litio incompatible o carga excesiva."; }
-            else if (soc > 30) { res="red"; msg="🔴 RECHAZO: SoC Litio > 30% (Prohibido)."; }
+            const payload = {
+                awb: awb,
+                aircraft: air,
+                pieces: [{
+                    id: "P1",
+                    type: dg ? "DG" : "GENERAL",
+                    dg_class: dg || null,
+                    weight_lb: w,
+                    length_in: 20,   // Puedes añadir input si quieres
+                    width_in: 20,    // Puedes añadir input si quieres
+                    height_in: h,
+                    pallet_type: "WOOD",
+                    has_ispm15: false,
+                    soc_percent: soc || null
+                }],
+                is_usa_customer: true
+            };
 
-            document.getElementById('L-'+res.toUpperCase().substring(0,3)).className = 'light on-'+res;
-            log.innerHTML = `<strong>Sentencia:</strong> ${msg}`;
+            try {
+                const res = await axios.post("/evaluate", payload);
+                const data = res.data;
+
+                // Mostrar resultado
+                let errors = data.errors.length > 0 ? data.errors.join("<br>") : "Ninguna.";
+                document.getElementById('log').innerHTML = `<strong>Sentencia:</strong> ${data.action} <br> <strong>Status:</strong> ${data.status} <br> <strong>Errores:</strong><br>${errors}`;
+
+                // Cambiar luces
+                document.querySelectorAll('.light').forEach(l => l.className='light');
+                if(data.status.includes("ROJO")) document.getElementById('L-RED').className='light on-red';
+                else if(data.status.includes("AMARILLO")) document.getElementById('L-YEL').className='light on-yellow';
+                else document.getElementById('L-GRN').className='light on-green';
+
+            } catch(err) {
+                console.error(err);
+                document.getElementById('log').innerHTML = `<strong>Error:</strong> ${err.response?.data?.detail || err}`;
+            }
         }
 
-        function borrar() { location.reload(); }
         resetTimer();
     </script>
 </body>
