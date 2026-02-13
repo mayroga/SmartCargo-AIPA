@@ -1,114 +1,57 @@
-# main.py
-import os
-import time
-from fastapi import FastAPI, Form, UploadFile, File
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from typing import List
-from models import CargoRequest, CargoEvaluation, AlertLevel, CargoPiece, Role
-from backend.ai_helper import query_ai
-from pathlib import Path
+from fastapi import FastAPI, HTTPException
+from models import CargoRequest, AlertLevel, CargoType
 
-app = FastAPI(title="SMARTCARGO-AIPA by May Roga LLC")
+app = FastAPI(title="SmartCargo-AIPA Industrial")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# MATRIZ DE INCOMPATIBILIDAD IATA (Segregación)
+# Determina qué clases NO pueden viajar juntas en el mismo ULD/Pallet
+INCOMPATIBILITY_MATRIX = {
+    "8": ["4.3", "5.1", "5.2"], # Corrosivos no con reactivos al agua o comburentes
+    "4.1": ["5.1", "5.2"],      # Sólidos inflamables no con comburentes
+    "3": ["5.1", "5.2"],        # Líquidos inflamables no con comburentes
+    "5.1": ["3", "4.1", "4.2", "4.3", "8"] # Comburentes son altamente incompatibles
+}
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
-UPLOAD_DIR = Path("storage/uploads")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+def evaluate_shipment(req: CargoRequest):
+    issues = []
+    final_status = AlertLevel.GREEN
+    solution = "Carga verificada. Cumple con estándares Avianca Cargo MIA."
+    
+    # 1. Validación de Segregación DG
+    present_classes = [p.dg_class for p in req.pieces if p.dg_class]
+    for p_class in present_classes:
+        if p_class in INCOMPATIBILITY_MATRIX:
+            for other in present_classes:
+                if other in INCOMPATIBILITY_MATRIX[p_class]:
+                    final_status = AlertLevel.RED
+                    issues.append(f"INCOMPATIBILIDAD CRÍTICA: Clase {p_class} y Clase {other} juntas.")
+                    solution = "INSTRUCCIÓN: Segregar carga. No pueden compartir pallet o posición."
 
-# =========================
-# UTILS
-# =========================
-def evaluate_piece(piece: CargoPiece) -> CargoEvaluation:
-    alert = AlertLevel.GREEN
-    notes = ""
+    for p in req.pieces:
+        # 2. Validación de PSI (Pounds per Square Inch)
+        area = p.length_in * p.width_in
+        psi = p.weight_lb / area if area > 0 else 0
+        if psi > 200: # Límite estructural estándar
+            if final_status != AlertLevel.RED: final_status = AlertLevel.YELLOW
+            issues.append(f"ALERTA PSI: {round(psi,1)} lb/in². Excede límite de piso.")
+            solution = "INSTRUCCIÓN: Colocar 'shoring' (madera de distribución) bajo la carga."
 
-    # DG rules
-    if piece.cargo_type == "DG":
-        if piece.weight_kg > 400:  # kg limit per DG piece
-            alert = AlertLevel.RED
-            notes += "⚠️ DG weight exceeds limit.\n"
-        if piece.height_m and piece.height_m > 2.5:
-            alert = AlertLevel.YELLOW
-            notes += "⚠️ DG height exceeds standard ULD limit.\n"
+        # 3. Validación de Contorno y Altura
+        if req.aircraft == "PAX" and p.height_in > 63:
+            final_status = AlertLevel.RED
+            issues.append(f"ALTURA: {p.height_in}in no cabe en avión de Pasajeros.")
+            solution = "INSTRUCCIÓN: Reducir altura a 63in o transferir a avión Carguero puro."
 
-    # PHARMA / PERISHABLE rules
-    if piece.cargo_type in ["PHARMA", "PERISHABLE"]:
-        if piece.temperature_c is None:
-            alert = AlertLevel.RED
-            notes += "⚠️ Temperature info missing.\n"
-        elif piece.temperature_c > 8:
-            alert = AlertLevel.YELLOW
-            notes += "⚠️ Temperature exceeds recommended limit.\n"
+        # 4. Litio SoC 30%
+        if p.dg_class == "9" and p.soc_percent and p.soc_percent > 30:
+            final_status = AlertLevel.RED
+            issues.append("LITIO: Baterías UN3480 con carga > 30%.")
+            solution = "INSTRUCCIÓN: Descargar baterías al 30% SoC por seguridad aérea."
 
-    # HUMAN REMAINS
-    if piece.cargo_type == "HUMAN_REMAINS":
-        if piece.weight_kg > 200:
-            alert = AlertLevel.YELLOW
-            notes += "⚠️ Weight exceeds standard container recommendation.\n"
+    return {"status": final_status, "errors": issues, "action": solution}
 
-    # FULL PALLET / OVERLIMIT
-    if piece.cargo_type == "FULL_PALLET":
-        if piece.height_m and piece.height_m > 2.5:
-            alert = AlertLevel.YELLOW
-            notes += "⚠️ Pallet height exceeds limit.\n"
-
-    # GENERAL cargo: check oversized
-    if piece.cargo_type == "GENERAL":
-        if piece.height_m and piece.height_m > 3:
-            alert = AlertLevel.YELLOW
-            notes += "⚠️ Piece is oversized.\n"
-
-    if notes == "":
-        notes = "✅ Piece within normal limits."
-
-    return CargoEvaluation(piece_id=piece.id, alert=alert, observation=notes)
-
-# =========================
-# EVALUATE ENTIRE SHIPMENT
-# =========================
 @app.post("/evaluate")
-async def evaluate_shipment(cargo: CargoRequest):
-    results = []
-
-    for piece in cargo.pieces:
-        eval_piece = evaluate_piece(piece)
-        results.append(eval_piece.dict())
-
-    # AI observations: send entire shipment summary
-    ai_prompt = f"Analyze the following cargo shipment and give concrete observations and recommendations:\n{cargo.dict()}"
-    try:
-        ai_observation = query_ai(ai_prompt)
-    except Exception as e:
-        ai_observation = f"AI could not process: {str(e)}"
-
-    return JSONResponse({
-        "results": results,
-        "ai_observation": ai_observation
-    })
-
-# =========================
-# UPLOAD DOCUMENTS
-# =========================
-@app.post("/upload")
-async def upload_document(file: UploadFile = File(...)):
-    save_path = UPLOAD_DIR / file.filename
-    with open(save_path, "wb") as f:
-        f.write(await file.read())
-    return {"filename": file.filename, "path": str(save_path)}
-
-# =========================
-# FRONTEND ENTRY
-# =========================
-@app.get("/", response_class=HTMLResponse)
-async def home():
-    with open("frontend/index.html", "r", encoding="utf-8") as f:
-        return f.read()
+async def run_check(req: CargoRequest):
+    if not req.is_usa_customer:
+        raise HTTPException(status_code=403, detail="Solo disponible para USA")
+    return evaluate_shipment(req)
