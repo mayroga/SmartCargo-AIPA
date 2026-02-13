@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCargo-AIPA | MIA Counter</title>
+    <title>SMARTCARGO-AIPA | MIA Counter</title>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
-        .card { background: #2d2d2d; padding: 20px; border-radius: 12px; border-top: 5px solid #d32f2f; max-width: 800px; margin: auto; }
+        .card { background: #2d2d2d; padding: 20px; border-radius: 12px; border-top: 5px solid #d32f2f; max-width: 900px; margin: auto; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         input, select { background: #3d3d3d; border: 1px solid #555; color: #fff; padding: 10px; border-radius: 5px; width: 100%; }
         .sem { height: 70px; display: flex; justify-content: center; gap: 30px; margin: 20px 0; background: #000; border-radius: 35px; align-items: center; }
@@ -18,7 +18,7 @@
         .btn { padding: 15px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
         .btn-val { background: #d32f2f; color: #fff; }
         .btn-del { background: #444; color: #bbb; }
-        #log { margin-top: 20px; padding: 15px; border-left: 4px solid #d32f2f; background: #222; min-height: 100px; }
+        #log { margin-top: 20px; padding: 15px; border-left: 4px solid #d32f2f; background: #222; min-height: 120px; white-space: pre-line; }
         #warn { color:red; text-align:center; display:none; margin-top:10px; font-weight:bold; }
         h2 { text-align:center; color:#d32f2f; margin-bottom: 20px; }
     </style>
@@ -28,17 +28,41 @@
         <h2>SMARTCARGO-AIPA | ASESORÍA MIA</h2>
 
         <div class="grid">
-            <div><label>AWB</label><input type="text" id="awb" placeholder="Ej: 123-45678901"></div>
-            <div><label>Avión</label>
+            <div>
+                <label>AWB</label>
+                <input type="text" id="awb" placeholder="Ej: 123-45678901">
+            </div>
+            <div>
+                <label>Avión</label>
                 <select id="air">
                     <option value="PAX">Pasajeros</option>
                     <option value="CGO">Carguero</option>
                 </select>
             </div>
-            <div><label>Peso (lb)</label><input type="number" id="w" placeholder="Ej: 100"></div>
-            <div><label>Alto (in)</label><input type="number" id="h" placeholder="Ej: 50"></div>
-            <div><label>Clase DG (si aplica)</label><input type="text" id="dg" placeholder="Ej: 8, 3, 5.1"></div>
-            <div><label>SoC Litio %</label><input type="number" id="soc" placeholder="Ej: 20"></div>
+            <div>
+                <label>Peso (lb)</label>
+                <input type="number" id="w" placeholder="Ej: 100">
+            </div>
+            <div>
+                <label>Alto (in)</label>
+                <input type="number" id="h" placeholder="Ej: 50">
+            </div>
+            <div>
+                <label>Largo (in)</label>
+                <input type="number" id="l" placeholder="Ej: 20">
+            </div>
+            <div>
+                <label>Ancho (in)</label>
+                <input type="number" id="wi" placeholder="Ej: 20">
+            </div>
+            <div>
+                <label>Clase DG (si aplica)</label>
+                <input type="text" id="dg" placeholder="Ej: 8, 3, 5.1">
+            </div>
+            <div>
+                <label>SoC Litio %</label>
+                <input type="number" id="soc" placeholder="Ej: 20">
+            </div>
         </div>
 
         <div class="sem">
@@ -67,11 +91,15 @@
             }, 55000);
         }
 
-        function borrar() { location.reload(); }
+        function borrar() { 
+            location.reload(); 
+        }
 
         async function validar() {
             const awb = document.getElementById('awb').value;
             const h = parseFloat(document.getElementById('h').value) || 0;
+            const l = parseFloat(document.getElementById('l').value) || 0;
+            const wi = parseFloat(document.getElementById('wi').value) || 0;
             const dg = document.getElementById('dg').value;
             const soc = parseFloat(document.getElementById('soc').value) || 0;
             const air = document.getElementById('air').value;
@@ -85,8 +113,8 @@
                     type: dg ? "DG" : "GENERAL",
                     dg_class: dg || null,
                     weight_lb: w,
-                    length_in: 20,   // Puedes añadir input si quieres
-                    width_in: 20,    // Puedes añadir input si quieres
+                    length_in: l,
+                    width_in: wi,
                     height_in: h,
                     pallet_type: "WOOD",
                     has_ispm15: false,
@@ -99,11 +127,15 @@
                 const res = await axios.post("/evaluate", payload);
                 const data = res.data;
 
-                // Mostrar resultado
-                let errors = data.errors.length > 0 ? data.errors.join("<br>") : "Ninguna.";
-                document.getElementById('log').innerHTML = `<strong>Sentencia:</strong> ${data.action} <br> <strong>Status:</strong> ${data.status} <br> <strong>Errores:</strong><br>${errors}`;
+                // Mostrar resultado completo
+                let errors = data.errors.length > 0 ? data.errors.join("\n") : "Ninguna.";
+                document.getElementById('log').innerHTML =
+                    `AWB: ${data.awb}\n` +
+                    `Sentencia: ${data.action}\n` +
+                    `Status: ${data.status}\n` +
+                    `Errores:\n${errors}`;
 
-                // Cambiar luces
+                // Cambiar luces según Status
                 document.querySelectorAll('.light').forEach(l => l.className='light');
                 if(data.status.includes("ROJO")) document.getElementById('L-RED').className='light on-red';
                 else if(data.status.includes("AMARILLO")) document.getElementById('L-YEL').className='light on-yellow';
