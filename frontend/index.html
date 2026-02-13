@@ -1,245 +1,120 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SMARTCARGO - Validación de Carga</title>
-<link rel="stylesheet" href="/static/style.css">
+<title>SMARTCARGO-AIPA by May Roga LLC</title>
+<link rel="stylesheet" href="/static/styles.css">
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<style>
-    body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        background: #0d1b2a;
-        color: #e0e1dd;
-    }
-    header {
-        background: #1b263b;
-        padding: 1em;
-        text-align: center;
-        font-size: 1.8em;
-        font-weight: bold;
-        color: #f0f0f0;
-    }
-    main {
-        padding: 1em;
-        max-width: 1200px;
-        margin: auto;
-    }
-    select, input[type=text], button {
-        padding: 0.5em;
-        margin: 0.5em 0;
-        font-size: 1em;
-    }
-    .question {
-        background: #162447;
-        margin: 0.5em 0;
-        padding: 0.7em;
-        border-radius: 6px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .question:hover {
-        background: #1f4068;
-    }
-    .tooltip {
-        font-size: 0.8em;
-        color: #a0a0a0;
-        margin-left: 1em;
-    }
-    .alert {
-        padding: 0.3em 0.6em;
-        border-radius: 4px;
-        color: white;
-        font-weight: bold;
-    }
-    .green { background: #3fc1c9; }
-    .yellow { background: #f5cb5c; color: #000; }
-    .red { background: #ee6c4d; }
-    .btn-container {
-        margin-top: 1em;
-        display: flex;
-        justify-content: space-between;
-        flex-wrap: wrap;
-    }
-    button {
-        cursor: pointer;
-        border: none;
-        border-radius: 6px;
-        background: #3fc1c9;
-        color: #000;
-        font-weight: bold;
-        transition: 0.3s;
-    }
-    button:hover {
-        background: #2aa198;
-    }
-    #report {
-        margin-top: 2em;
-        background: #1b263b;
-        padding: 1em;
-        border-radius: 8px;
-        white-space: pre-wrap;
-    }
-    #ai-observation {
-        margin-top: 1em;
-        background: #162447;
-        padding: 0.8em;
-        border-radius: 6px;
-        font-style: italic;
-        color: #ffd166;
-    }
-</style>
 </head>
 <body>
+<div class="box">
+    <h1 id="title">SMARTCARGO-AIPA</h1>
+    <button onclick="switchLang()">
+        <span id="lang-btn">Español</span>
+    </button>
 
-<header>SMARTCARGO - Validación de Carga Avianca</header>
-
-<main>
-    <!-- Selección de Role -->
-    <label for="roleSelect">Seleccione su rol:</label>
-    <select id="roleSelect">
-        <option value="shipper">SHIPPER</option>
-        <option value="forwarder">FORWARDER</option>
-        <option value="trucker">TRUCKER</option>
-        <option value="owner">OWNER</option>
-        <option value="counter">COUNTER</option>
-        <option value="supervisor">SUPERVISOR</option>
+    <h3>Shipment AWB / Cargo Input</h3>
+    <label>Role</label>
+    <select id="role">
+        <option value="SHIPPER">Shipper</option>
+        <option value="FORWARDER">Forwarder</option>
+        <option value="TRUCKER">Trucker</option>
+        <option value="OWNER">Owner</option>
+        <option value="COUNTER">Counter</option>
+        <option value="DG_OFFICER">DG Officer</option>
     </select>
 
-    <!-- Selección de Tipo de Carga -->
-    <label for="cargoType">Seleccione tipo de carga:</label>
-    <select id="cargoType">
-        <option value="general">GENERAL</option>
-        <option value="pharma">PHARMA</option>
-        <option value="dg">DG</option>
-        <option value="valuable">VALUABLE</option>
-        <option value="perishable">PERISHABLE</option>
-        <option value="live_animals">LIVE_ANIMALS</option>
-        <option value="express">EXPRESS</option>
-        <option value="comat">COMAT</option>
-    </select>
+    <textarea id="awb" placeholder="Paste AWB / shipment info here"></textarea>
+    <input type="file" id="files" multiple />
 
-    <div id="questionsContainer"></div>
+    <button id="validateBtn" onclick="validate()">Evaluate Shipment</button>
+    <button onclick="exportPDF()">Export PDF</button>
+    <button onclick="sendWhatsApp()">Send WhatsApp</button>
 
-    <div class="btn-container">
-        <button onclick="submitAnswers()">Generar Reporte</button>
-        <button onclick="resetForm()">Limpiar Formulario</button>
-        <button onclick="changeLanguage()">Cambiar Idioma / Language</button>
+    <div id="result" class="hidden">
+        <h3>Checklist Results</h3>
+        <div id="analysis" class="analysis-box"></div>
+        <div id="docs" class="analysis-box"></div>
     </div>
-
-    <div id="report"></div>
-    <div id="ai-observation"></div>
-</main>
+</div>
 
 <script>
-let currentLanguage = 'es';
-let allQuestions = [];
+let currentLang = "EN";
 
-async function loadQuestions() {
-    const cargoType = document.getElementById('cargoType').value;
-    try {
-        const res = await axios.get(`/get_questions/${cargoType}`);
-        allQuestions = res.data;
-        renderQuestions();
-    } catch (err) {
-        console.error("Error cargando preguntas:", err);
-    }
-}
-
-function renderQuestions() {
-    const container = document.getElementById('questionsContainer');
-    container.innerHTML = '';
-    allQuestions.forEach(q => {
-        const div = document.createElement('div');
-        div.classList.add('question');
-        div.innerHTML = `
-            <span>${q.description}</span>
-            <div>
-                <select data-id="${q.id}">
-                    <option value="GREEN">Apto</option>
-                    <option value="YELLOW">Observación</option>
-                    <option value="RED">Rechazo</option>
-                </select>
-                <span class="tooltip">${q.tip} (${q.authority})</span>
-            </div>
-        `;
-        container.appendChild(div);
-    });
-}
-
-async function submitAnswers() {
-    const answers = {};
-    document.querySelectorAll('#questionsContainer select').forEach(sel => {
-        answers[sel.dataset.id] = sel.value;
-    });
-
-    const role = document.getElementById('roleSelect').value;
-    const cargoType = document.getElementById('cargoType').value;
-
-    try {
-        const res = await axios.post('/validate_cargo', {
-            cargo_type: cargoType,
-            answers: answers,
-            operator: role
-        });
-
-        displayReport(res.data);
-    } catch (err) {
-        console.error("Error generando reporte:", err);
-    }
-}
-
-function displayReport(data) {
-    const reportDiv = document.getElementById('report');
-    reportDiv.innerHTML = `
-Reporte ID: ${data.report_id}
-Fecha: ${data.timestamp}
-Operador: ${data.operator}
-Tipo de carga: ${data.cargo_type}
-Total preguntas: ${data.total_questions}
-✅ Apto: ${data.green}
-⚠️ Observación: ${data.yellow}
-❌ Rechazo: ${data.red}
-Estado general: ${data.status}
-
-Recomendaciones:
-${data.recommendations.join('\n')}
-
-Nota Legal:
-${data.legal_note}
-    `;
-
-    // Mostrar observaciones IA si existen
-    const aiDiv = document.getElementById('ai-observation');
-    if (data.ai_observation) {
-        aiDiv.innerHTML = `Observación IA: ${data.ai_observation.observation} (Nivel: ${data.ai_observation.risk_level})`;
+function switchLang() {
+    if(currentLang === "EN") {
+        currentLang = "ES";
+        document.getElementById("title").innerText = "SMARTCARGO-AIPA";
+        document.getElementById("awb").placeholder = "Pegue información del AWB aquí";
+        document.getElementById("validateBtn").innerText = "Evaluar Carga";
+        document.getElementById("lang-btn").innerText = "English";
     } else {
-        aiDiv.innerHTML = '';
+        currentLang = "EN";
+        document.getElementById("title").innerText = "SMARTCARGO-AIPA";
+        document.getElementById("awb").placeholder = "Paste AWB / shipment info here";
+        document.getElementById("validateBtn").innerText = "Evaluate Shipment";
+        document.getElementById("lang-btn").innerText = "Español";
     }
 }
 
-function resetForm() {
-    loadQuestions();
-    document.getElementById('report').innerHTML = '';
-    document.getElementById('ai-observation').innerHTML = '';
-}
+async function validate() {
+    const role = document.getElementById("role").value;
+    const awbText = document.getElementById("awb").value;
+    const filesInput = document.getElementById("files");
 
-function changeLanguage() {
-    if (currentLanguage === 'es') {
-        currentLanguage = 'en';
-        alert("Language switched to English");
-    } else {
-        currentLanguage = 'es';
-        alert("Idioma cambiado a Español");
+    const payload = {
+        role: role,
+        shipment_number: "AWB12345",
+        origin: "MIA",
+        destination: "BOG",
+        total_weight_kg: 0,
+        total_pieces: 0,
+        pieces: [],
+        documents: [],
+        comments: awbText
+    };
+
+    // Files
+    const files = filesInput.files;
+    for(let i=0;i<files.length;i++){
+        const formData = new FormData();
+        formData.append("file", files[i]);
+        const res = await axios.post("/upload", formData, { headers: { "Content-Type": "multipart/form-data" } });
+        payload.documents.push(res.data.filename);
     }
+
+    const res = await axios.post("/evaluate", payload);
+    document.getElementById("result").classList.remove("hidden");
+
+    let html = "";
+    res.data.results.forEach(r => {
+        html += `<b>Piece ${r.piece_id || "General"}:</b> ${r.alert} <br>${r.observation}<hr>`;
+    });
+    html += `<h4>AI Recommendations:</h4><pre>${res.data.ai_observation}</pre>`;
+    document.getElementById("analysis").innerHTML = html;
+
+    // Show uploaded documents visually
+    let docsHTML = "";
+    payload.documents.forEach(d => {
+        docsHTML += `<a href="/storage/uploads/${d}" target="_blank">${d}</a><br>`;
+    });
+    document.getElementById("docs").innerHTML = docsHTML;
 }
 
-// Inicializar preguntas al cargar la página
-document.getElementById('cargoType').addEventListener('change', loadQuestions);
-loadQuestions();
+function sendWhatsApp() {
+    const text = encodeURIComponent(document.getElementById("analysis").innerText);
+    window.open(`https://wa.me/?text=${text}`, "_blank");
+}
+
+function exportPDF() {
+    const content = document.getElementById("analysis").innerText + "\n" + document.getElementById("docs").innerText;
+    const blob = new Blob([content], {type:"text/plain"});
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "SMARTCARGO_report.txt";
+    link.click();
+}
 </script>
-
 </body>
 </html>
