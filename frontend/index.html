@@ -1,120 +1,79 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SMARTCARGO-AIPA by May Roga LLC</title>
-<link rel="stylesheet" href="/static/styles.css">
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <title>SmartCargo-AIPA | MIA Counter</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
+        .card { background: #2d2d2d; padding: 20px; border-radius: 12px; border-top: 5px solid #d32f2f; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        input, select { background: #3d3d3d; border: 1px solid #555; color: #fff; padding: 10px; border-radius: 5px; width: 100%; }
+        .sem { height: 70px; display: flex; justify-content: center; gap: 30px; margin: 20px 0; background: #000; border-radius: 35px; align-items: center; }
+        .light { width: 45px; height: 45px; border-radius: 50%; opacity: 0.1; }
+        .on-red { background: #ff4d4d; opacity: 1; box-shadow: 0 0 20px #ff4d4d; }
+        .on-yellow { background: #ffcc00; opacity: 1; box-shadow: 0 0 20px #ffcc00; }
+        .on-green { background: #00ff66; opacity: 1; box-shadow: 0 0 20px #00ff66; }
+        .btn { padding: 15px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
+        .btn-val { background: #d32f2f; color: #fff; }
+        .btn-del { background: #444; color: #bbb; }
+        #log { margin-top: 20px; padding: 15px; border-left: 4px solid #d32f2f; background: #222; }
+    </style>
 </head>
-<body>
-<div class="box">
-    <h1 id="title">SMARTCARGO-AIPA</h1>
-    <button onclick="switchLang()">
-        <span id="lang-btn">Español</span>
-    </button>
+<body onclick="resetTimer()">
+    <div class="card">
+        <h2 style="text-align:center; color:#d32f2f;">SMARTCARGO-AIPA | ASESORÍA MIA</h2>
+        <div class="grid">
+            <div><label>AWB</label><input type="text" id="awb"></div>
+            <div><label>Avión</label><select id="air"><option value="PAX">Pasajeros</option><option value="CGO">Carguero</option></select></div>
+            <div><label>Peso (lb)</label><input type="number" id="w"></div>
+            <div><label>Alto (in)</label><input type="number" id="h"></div>
+            <div><label>Clase DG (si aplica)</label><input type="text" id="dg" placeholder="Ej: 8, 3, 5.1"></div>
+            <div><label>SoC Litio %</label><input type="number" id="soc"></div>
+        </div>
 
-    <h3>Shipment AWB / Cargo Input</h3>
-    <label>Role</label>
-    <select id="role">
-        <option value="SHIPPER">Shipper</option>
-        <option value="FORWARDER">Forwarder</option>
-        <option value="TRUCKER">Trucker</option>
-        <option value="OWNER">Owner</option>
-        <option value="COUNTER">Counter</option>
-        <option value="DG_OFFICER">DG Officer</option>
-    </select>
+        <div class="sem">
+            <div id="L-RED" class="light"></div>
+            <div id="L-YEL" class="light"></div>
+            <div id="L-GRN" class="light"></div>
+        </div>
 
-    <textarea id="awb" placeholder="Paste AWB / shipment info here"></textarea>
-    <input type="file" id="files" multiple />
-
-    <button id="validateBtn" onclick="validate()">Evaluate Shipment</button>
-    <button onclick="exportPDF()">Export PDF</button>
-    <button onclick="sendWhatsApp()">Send WhatsApp</button>
-
-    <div id="result" class="hidden">
-        <h3>Checklist Results</h3>
-        <div id="analysis" class="analysis-box"></div>
-        <div id="docs" class="analysis-box"></div>
+        <button class="btn btn-val" onclick="validar()">SENTENCIA TÉCNICA</button>
+        <button class="btn btn-del" onclick="borrar()">BORRAR DATOS</button>
+        <p id="warn" style="color:red; text-align:center; display:none;">Inactividad: Borrando en 4s...</p>
     </div>
-</div>
+    <div id="log">Resultado: Esperando entrada...</div>
 
-<script>
-let currentLang = "EN";
+    <script>
+        let t;
+        function resetTimer() {
+            clearTimeout(t);
+            document.getElementById('warn').style.display='none';
+            t = setTimeout(() => {
+                document.getElementById('warn').style.display='block';
+                setTimeout(() => { if(document.getElementById('warn').style.display=='block') borrar(); }, 4000);
+            }, 55000);
+        }
 
-function switchLang() {
-    if(currentLang === "EN") {
-        currentLang = "ES";
-        document.getElementById("title").innerText = "SMARTCARGO-AIPA";
-        document.getElementById("awb").placeholder = "Pegue información del AWB aquí";
-        document.getElementById("validateBtn").innerText = "Evaluar Carga";
-        document.getElementById("lang-btn").innerText = "English";
-    } else {
-        currentLang = "EN";
-        document.getElementById("title").innerText = "SMARTCARGO-AIPA";
-        document.getElementById("awb").placeholder = "Paste AWB / shipment info here";
-        document.getElementById("validateBtn").innerText = "Evaluate Shipment";
-        document.getElementById("lang-btn").innerText = "Español";
-    }
-}
+        function validar() {
+            const h = document.getElementById('h').value;
+            const dg = document.getElementById('dg').value;
+            const soc = document.getElementById('soc').value;
+            const air = document.getElementById('air').value;
+            const log = document.getElementById('log');
+            
+            document.querySelectorAll('.light').forEach(l => l.className='light');
+            let res = "green";
+            let msg = "🟢 CARGA LISTA. Cumple normativa Avianca MIA.";
 
-async function validate() {
-    const role = document.getElementById("role").value;
-    const awbText = document.getElementById("awb").value;
-    const filesInput = document.getElementById("files");
+            if (air === "PAX" && h > 63) { res="red"; msg="🔴 RECHAZO: Altura excedida para Belly."; }
+            else if (dg === "8" && (soc > 30)) { res="red"; msg="🔴 RECHAZO: Litio incompatible o carga excesiva."; }
+            else if (soc > 30) { res="red"; msg="🔴 RECHAZO: SoC Litio > 30% (Prohibido)."; }
 
-    const payload = {
-        role: role,
-        shipment_number: "AWB12345",
-        origin: "MIA",
-        destination: "BOG",
-        total_weight_kg: 0,
-        total_pieces: 0,
-        pieces: [],
-        documents: [],
-        comments: awbText
-    };
+            document.getElementById('L-'+res.toUpperCase().substring(0,3)).className = 'light on-'+res;
+            log.innerHTML = `<strong>Sentencia:</strong> ${msg}`;
+        }
 
-    // Files
-    const files = filesInput.files;
-    for(let i=0;i<files.length;i++){
-        const formData = new FormData();
-        formData.append("file", files[i]);
-        const res = await axios.post("/upload", formData, { headers: { "Content-Type": "multipart/form-data" } });
-        payload.documents.push(res.data.filename);
-    }
-
-    const res = await axios.post("/evaluate", payload);
-    document.getElementById("result").classList.remove("hidden");
-
-    let html = "";
-    res.data.results.forEach(r => {
-        html += `<b>Piece ${r.piece_id || "General"}:</b> ${r.alert} <br>${r.observation}<hr>`;
-    });
-    html += `<h4>AI Recommendations:</h4><pre>${res.data.ai_observation}</pre>`;
-    document.getElementById("analysis").innerHTML = html;
-
-    // Show uploaded documents visually
-    let docsHTML = "";
-    payload.documents.forEach(d => {
-        docsHTML += `<a href="/storage/uploads/${d}" target="_blank">${d}</a><br>`;
-    });
-    document.getElementById("docs").innerHTML = docsHTML;
-}
-
-function sendWhatsApp() {
-    const text = encodeURIComponent(document.getElementById("analysis").innerText);
-    window.open(`https://wa.me/?text=${text}`, "_blank");
-}
-
-function exportPDF() {
-    const content = document.getElementById("analysis").innerText + "\n" + document.getElementById("docs").innerText;
-    const blob = new Blob([content], {type:"text/plain"});
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "SMARTCARGO_report.txt";
-    link.click();
-}
-</script>
+        function borrar() { location.reload(); }
+        resetTimer();
+    </script>
 </body>
 </html>
