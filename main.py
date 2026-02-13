@@ -4,10 +4,15 @@ from fastapi.staticfiles import StaticFiles
 from models import CargoRequest, AlertLevel, CargoType
 import os
 
+# =========================
+# APP
+# =========================
 app = FastAPI(title="SMARTCARGO-AIPA BY MAY ROGA LLC")
 
-# Montar carpeta static (donde pondrás index.html)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# =========================
+# Montar carpeta frontend como static (opcional para CSS, JS, imágenes)
+# =========================
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 # =========================
 # MATRIZ DE INCOMPATIBILIDAD IATA
@@ -24,13 +29,14 @@ INCOMPATIBILITY_MATRIX = {
 # =========================
 @app.get("/", response_class=HTMLResponse)
 async def get_frontend():
-    index_path = os.path.join("static", "index.html")
+    # Ruta correcta a tu HTML
+    index_path = os.path.join("frontend", "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
     return HTMLResponse("<h1>Index.html no encontrado</h1>", status_code=404)
 
 # =========================
-# Endpoint de evaluación
+# Función de evaluación de carga
 # =========================
 def evaluate_shipment(req: CargoRequest):
     issues = []
@@ -47,18 +53,22 @@ def evaluate_shipment(req: CargoRequest):
                     solution = "INSTRUCCIÓN: Segregar carga. No pueden compartir pallet o posición."
 
     for p in req.pieces:
+        # Validación PSI
         area = p.length_in * p.width_in
         psi = p.weight_lb / area if area > 0 else 0
         if psi > 200:
-            if final_status != AlertLevel.RED: final_status = AlertLevel.YELLOW
+            if final_status != AlertLevel.RED:
+                final_status = AlertLevel.YELLOW
             issues.append(f"ALERTA PSI: {round(psi,1)} lb/in². Excede límite de piso.")
             solution = "INSTRUCCIÓN: Colocar 'shoring' bajo la carga."
 
+        # Altura para aviones PAX
         if req.aircraft == "PAX" and p.height_in > 63:
             final_status = AlertLevel.RED
             issues.append(f"ALTURA: {p.height_in}in no cabe en avión de Pasajeros.")
             solution = "INSTRUCCIÓN: Reducir altura a 63in o transferir a avión Carguero."
 
+        # Litio SoC >30%
         if p.dg_class == "9" and p.soc_percent and p.soc_percent > 30:
             final_status = AlertLevel.RED
             issues.append("LITIO: Baterías UN3480 con carga > 30%.")
@@ -66,6 +76,9 @@ def evaluate_shipment(req: CargoRequest):
 
     return {"status": final_status, "errors": issues, "action": solution}
 
+# =========================
+# Endpoint POST /evaluate
+# =========================
 @app.post("/evaluate")
 async def run_check(req: CargoRequest):
     if not req.is_usa_customer:
@@ -73,7 +86,7 @@ async def run_check(req: CargoRequest):
     return evaluate_shipment(req)
 
 # =========================
-# GET /evaluate opcional (para que navegador no muestre Not Found)
+# Endpoint GET /evaluate (dummy para navegador)
 # =========================
 @app.get("/evaluate")
 async def evaluate_get_dummy():
